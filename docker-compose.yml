@@ -1,0 +1,155 @@
+# Lootly eBay MCP Server - Docker Compose Configuration
+# Supports development and production deployments
+
+services:
+  # Production Lootly Server
+  lootly-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: lootly-server
+    restart: unless-stopped
+    environment:
+      # Server configuration
+      - LOOTLY_TRANSPORT=stdio
+      - LOOTLY_LOG_LEVEL=INFO
+      - LOOTLY_DEBUG_MODE=false
+      
+      # eBay API Configuration (override with real credentials)
+      - EBAY_APP_ID=${EBAY_APP_ID:-}
+      - EBAY_DEV_ID=${EBAY_DEV_ID:-}
+      - EBAY_CERT_ID=${EBAY_CERT_ID:-}
+      - EBAY_SANDBOX_MODE=${EBAY_SANDBOX_MODE:-true}
+      - EBAY_SITE_ID=${EBAY_SITE_ID:-EBAY-US}
+      
+    volumes:
+      # Mount logs directory for persistent logging
+      - ./logs:/app/logs
+      # Mount .env file for local development
+      - ./.env:/app/.env:ro
+      
+    # Health check
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys; sys.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+
+  # SSE Transport Lootly Server (for web integrations)
+  lootly-server-sse:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: lootly-server-sse
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      # Server configuration for SSE transport
+      - LOOTLY_TRANSPORT=sse
+      - LOOTLY_HOST=0.0.0.0
+      - LOOTLY_PORT=8000
+      - LOOTLY_LOG_LEVEL=INFO
+      - LOOTLY_DEBUG_MODE=false
+      
+      # eBay API Configuration
+      - EBAY_APP_ID=${EBAY_APP_ID:-}
+      - EBAY_DEV_ID=${EBAY_DEV_ID:-}
+      - EBAY_CERT_ID=${EBAY_CERT_ID:-}
+      - EBAY_SANDBOX_MODE=${EBAY_SANDBOX_MODE:-true}
+      - EBAY_SITE_ID=${EBAY_SITE_ID:-EBAY-US}
+      
+    volumes:
+      - ./logs:/app/logs
+      - ./.env:/app/.env:ro
+      
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+
+  # Development Lootly Server with hot reloading
+  lootly-server-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: lootly-server-dev
+    volumes:
+      # Mount source code for development
+      - ./src:/app/src
+      - ./pyproject.toml:/app/pyproject.toml
+      - ./logs:/app/logs
+      - ./.env:/app/.env:ro
+    environment:
+      # Development configuration
+      - LOOTLY_TRANSPORT=stdio
+      - LOOTLY_LOG_LEVEL=DEBUG
+      - LOOTLY_DEBUG_MODE=true
+      
+      # eBay API Configuration for development
+      - EBAY_APP_ID=${EBAY_APP_ID:-}
+      - EBAY_DEV_ID=${EBAY_DEV_ID:-}
+      - EBAY_CERT_ID=${EBAY_CERT_ID:-}
+      - EBAY_SANDBOX_MODE=true
+      - EBAY_SITE_ID=EBAY-US
+      
+      # Enable integration tests if credentials available
+      - EBAY_RUN_INTEGRATION_TESTS=${EBAY_RUN_INTEGRATION_TESTS:-false}
+    
+    # Override command for development
+    command: python src/main.py
+    
+    profiles:
+      - development
+
+  # Testing service for running tests in containerized environment
+  lootly-server-test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: lootly-server-test
+    volumes:
+      - ./src:/app/src
+      - ./pyproject.toml:/app/pyproject.toml
+      - ./.env:/app/.env:ro
+    environment:
+      - LOOTLY_LOG_LEVEL=ERROR  # Reduce noise during testing
+      - EBAY_SANDBOX_MODE=true
+      - EBAY_RUN_INTEGRATION_TESTS=${EBAY_RUN_INTEGRATION_TESTS:-false}
+    command: python -m pytest src/ -v
+    profiles:
+      - testing
+
+volumes:
+  logs:
+    driver: local
+
+networks:
+  default:
+    name: lootly-network

@@ -1,0 +1,56 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lootly"
+version = "0.1.0"
+description = "eBay MCP Server - AI-powered eBay integration for searching, analyzing, and optimizing listings"
+readme = "README.md"
+requires-python = ">=3.12"
+authors = [
+    {name = "Lootly Team", email = "support@lootly.ai"}
+]
+keywords = ["ebay", "mcp", "ai", "marketplace", "ecommerce", "api"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
+]
+dependencies = [
+    "fastmcp>=2.10.0",
+    "pydantic-settings>=2.10.0",
+    "pytest>=8.4.0",
+    "pytest-asyncio>=1.0.0",
+    "python-dotenv>=1.1.1",
+    "ruff>=0.12.0",
+    "ebaysdk>=2.2.0",
+    # Note: structlog removed as FastMCP provides native logging
+]
+
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["*"]
+namespaces = false
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[project.scripts]
+lootly = "main:main"
+lootly-server = "lootly_server:main"
+
+[tool.pytest.ini_options]
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["src"]
+python_files = ["test_*.py", "*_test.py"]
+python_functions = ["test_*"]
+python_classes = ["Test*"]
+pythonpath = ["src"]
+markers = [
+    "integration: marks tests as integration tests (deselect with '-m \"not integration\"')",
+]

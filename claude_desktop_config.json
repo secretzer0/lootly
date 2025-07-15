@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "lootly": {
+      "command": "uv",
+      "args": ["run", "python", "src/main.py"],
+      "cwd": "/home/tmelhiser/source/ebaymcp/lootly",
+      "env": {
+        "EBAY_APP_ID": "your-ebay-app-id-here",
+        "EBAY_CERT_ID": "your-ebay-cert-id-here",
+        "EBAY_DEV_ID": "your-ebay-dev-id-here",
+        "EBAY_SANDBOX_MODE": "true",
+        "EBAY_SITE_ID": "EBAY-US"
+      }
+    }
+  }
+}
