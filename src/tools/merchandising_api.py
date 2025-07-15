@@ -241,6 +241,19 @@ async def get_related_category_items(
     """
     await ctx.info(f"Getting items from categories related to: {category_id}")
     
+    # Check if credentials are available
+    if not mcp.config.app_id:
+        return success_response(
+            data={
+                "items": [],
+                "total_count": 0,
+                "source_category_id": category_id,
+                "related_categories": [],
+                "note": "eBay API credentials not configured. To get related category items, please set EBAY_APP_ID environment variable."
+            },
+            message="eBay API credentials not available - see note for setup instructions"
+        ).to_json_string()
+    
     try:
         # Validate input
         input_data = validate_tool_input(
@@ -333,6 +346,18 @@ async def get_similar_items(
         JSON string with similar items or error
     """
     await ctx.info(f"Finding items similar to: {item_id}")
+    
+    # Check if credentials are available
+    if not mcp.config.app_id:
+        return success_response(
+            data={
+                "items": [],
+                "total_count": 0,
+                "source_item_id": item_id,
+                "note": "eBay API credentials not configured. To find similar items, please set EBAY_APP_ID environment variable."
+            },
+            message="eBay API credentials not available - see note for setup instructions"
+        ).to_json_string()
     
     try:
         # Validate input

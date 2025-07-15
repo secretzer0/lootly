@@ -91,6 +91,19 @@ async def create_listing(
     await ctx.info(f"Creating new eBay listing: {title}")
     await ctx.report_progress(0.1, "Validating listing parameters...")
     
+    # Check if credentials are available
+    if not mcp.config.app_id or not mcp.config.cert_id or not mcp.config.dev_id:
+        return success_response(
+            data={
+                "item_id": None,
+                "listing_url": None,
+                "fees": {"total": 0, "currency": "USD"},
+                "status": "Not Created",
+                "note": "eBay API credentials not configured. To create listings, please set EBAY_APP_ID, EBAY_CERT_ID, and EBAY_DEV_ID environment variables."
+            },
+            message="eBay API credentials not available - see note for setup instructions"
+        ).to_json_string()
+    
     try:
         # Validate input
         input_data = validate_tool_input(CreateListingInput, {
@@ -269,6 +282,18 @@ async def revise_listing(
     await ctx.info(f"Revising eBay listing: {item_id}")
     await ctx.report_progress(0.1, "Validating revision parameters...")
     
+    # Check if credentials are available
+    if not mcp.config.app_id or not mcp.config.cert_id or not mcp.config.dev_id:
+        return success_response(
+            data={
+                "item_id": item_id,
+                "revised_fields": [],
+                "status": "Not Revised",
+                "note": "eBay API credentials not configured. To revise listings, please set EBAY_APP_ID, EBAY_CERT_ID, and EBAY_DEV_ID environment variables."
+            },
+            message="eBay API credentials not available - see note for setup instructions"
+        ).to_json_string()
+    
     try:
         # Validate input
         input_data = validate_tool_input(ReviseListingInput, {
@@ -395,6 +420,18 @@ async def end_listing(
     
     await ctx.info(f"Ending eBay listing: {item_id}")
     
+    # Check if credentials are available
+    if not mcp.config.app_id or not mcp.config.cert_id or not mcp.config.dev_id:
+        return success_response(
+            data={
+                "item_id": item_id,
+                "end_time": None,
+                "reason": reason,
+                "note": "eBay API credentials not configured. To end listings, please set EBAY_APP_ID, EBAY_CERT_ID, and EBAY_DEV_ID environment variables."
+            },
+            message="eBay API credentials not available - see note for setup instructions"
+        ).to_json_string()
+    
     try:
         # Validate reason
         valid_reasons = ["NotAvailable", "LostOrBroken", "Incorrect", "OtherListingError"]
@@ -468,6 +505,28 @@ async def get_my_ebay_selling(
     
     await ctx.info(f"Getting seller's {listing_type} listings")
     await ctx.report_progress(0.1, "Validating parameters...")
+    
+    # Check if credentials are available
+    if not mcp.config.app_id or not mcp.config.cert_id or not mcp.config.dev_id:
+        return success_response(
+            data={
+                "listings": [],
+                "summary": {
+                    "total_listings": 0,
+                    "total_value": 0,
+                    "listing_type": listing_type
+                },
+                "pagination": {
+                    "page": page_number,
+                    "page_size": 0,
+                    "total_pages": 0,
+                    "total_items": 0,
+                    "has_next": False
+                },
+                "note": "eBay API credentials not configured. To get your eBay listings, please set EBAY_APP_ID, EBAY_CERT_ID, and EBAY_DEV_ID environment variables."
+            },
+            message="eBay API credentials not available - see note for setup instructions"
+        ).to_json_string()
     
     try:
         # Validate listing type
@@ -610,6 +669,22 @@ async def get_user_info(
     
     user_desc = f"user {user_id}" if user_id else "authenticated user"
     await ctx.info(f"Getting information for {user_desc}")
+    
+    # Check if credentials are available
+    if not mcp.config.app_id or not mcp.config.cert_id or not mcp.config.dev_id:
+        return success_response(
+            data={
+                "user_id": user_id,
+                "email": None,
+                "registration_date": None,
+                "status": "Unknown",
+                "feedback": {},
+                "seller_info": {},
+                "business_info": {},
+                "note": "eBay API credentials not configured. To get user information, please set EBAY_APP_ID, EBAY_CERT_ID, and EBAY_DEV_ID environment variables."
+            },
+            message="eBay API credentials not available - see note for setup instructions"
+        ).to_json_string()
     
     try:
         # Build request

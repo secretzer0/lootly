@@ -100,6 +100,27 @@ async def get_single_item(
     await ctx.info(f"Getting details for item ID: {item_id}")
     await ctx.report_progress(0.1, "Validating input...")
     
+    # Check if credentials are available
+    if not mcp.config.app_id:
+        return success_response(
+            data={
+                "item_id": item_id,
+                "title": None,
+                "price": {"value": 0, "currency": "USD"},
+                "condition": {"id": None, "name": None},
+                "quantity": {"available": 0, "sold": 0},
+                "seller": {},
+                "location": {},
+                "listing_info": {},
+                "images": {},
+                "shipping": {},
+                "payment_methods": [],
+                "return_policy": {},
+                "note": "eBay API credentials not configured. To get item details, please set EBAY_APP_ID environment variable."
+            },
+            message="eBay API credentials not available - see note for setup instructions"
+        ).to_json_string()
+    
     try:
         # Validate input
         input_data = validate_tool_input(GetSingleItemInput, {
@@ -232,6 +253,25 @@ async def get_item_status(
     
     await ctx.info(f"Checking status for item ID: {item_id}")
     
+    # Check if credentials are available
+    if not mcp.config.app_id:
+        return success_response(
+            data={
+                "item_id": item_id,
+                "title": None,
+                "listing_status": "Unknown",
+                "quantity_available": 0,
+                "quantity_sold": 0,
+                "current_price": {"value": 0, "currency": "USD"},
+                "end_time": None,
+                "bid_count": 0,
+                "watch_count": 0,
+                "is_available": False,
+                "note": "eBay API credentials not configured. To check item status, please set EBAY_APP_ID environment variable."
+            },
+            message="eBay API credentials not available - see note for setup instructions"
+        ).to_json_string()
+    
     try:
         # Validate input
         input_data = validate_tool_input(GetItemStatusInput, {
@@ -316,6 +356,22 @@ async def get_shipping_costs(
     
     await ctx.info(f"Calculating shipping for item {item_id} to {destination_country_code}")
     await ctx.report_progress(0.1, "Validating shipping parameters...")
+    
+    # Check if credentials are available
+    if not mcp.config.app_id:
+        return success_response(
+            data={
+                "item_id": item_id,
+                "destination": {
+                    "country_code": destination_country_code,
+                    "postal_code": destination_postal_code
+                },
+                "shipping_options": [],
+                "cheapest_option": None,
+                "note": "eBay API credentials not configured. To calculate shipping costs, please set EBAY_APP_ID environment variable."
+            },
+            message="eBay API credentials not available - see note for setup instructions"
+        ).to_json_string()
     
     try:
         # Validate input
@@ -444,6 +500,19 @@ async def get_multiple_items(
     await ctx.info(f"Getting details for {len(item_ids)} items")
     await ctx.report_progress(0.1, "Validating item IDs...")
     
+    # Check if credentials are available
+    if not mcp.config.app_id:
+        return success_response(
+            data={
+                "items": [],
+                "errors": [],
+                "total_requested": len(item_ids),
+                "total_returned": 0,
+                "note": "eBay API credentials not configured. To get multiple item details, please set EBAY_APP_ID environment variable."
+            },
+            message="eBay API credentials not available - see note for setup instructions"
+        ).to_json_string()
+    
     try:
         # Validate input
         input_data = validate_tool_input(GetMultipleItemsInput, {
@@ -563,6 +632,22 @@ async def find_products(
     search_criteria = query_keywords or product_id or "general search"
     await ctx.info(f"Searching product catalog: {search_criteria}")
     await ctx.report_progress(0.1, "Preparing product search...")
+    
+    # Check if credentials are available
+    if not mcp.config.app_id:
+        return success_response(
+            data={
+                "products": [],
+                "total_products": 0,
+                "search_criteria": {
+                    "keywords": query_keywords,
+                    "product_id": product_id,
+                    "category_id": category_id
+                },
+                "note": "eBay API credentials not configured. To search products, please set EBAY_APP_ID environment variable."
+            },
+            message="eBay API credentials not available - see note for setup instructions"
+        ).to_json_string()
     
     try:
         # Validate input

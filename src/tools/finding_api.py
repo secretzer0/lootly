@@ -64,6 +64,27 @@ async def search_items(
     await ctx.report_progress(0.1, "Validating search parameters...")
     
     try:
+        # Check if credentials are available
+        if not mcp.config.app_id:
+            return success_response(
+                data={
+                    "items": [],
+                    "pagination": {
+                        "page": page_number,
+                        "page_size": 0,
+                        "total_items": 0,
+                        "total_pages": 0,
+                        "has_next": False
+                    },
+                    "search_params": {
+                        "keywords": keywords,
+                        "filters_applied": {}
+                    },
+                    "note": "eBay API credentials not configured. To search eBay items, please set EBAY_APP_ID environment variable."
+                },
+                message="eBay API credentials not available - see note for setup instructions"
+            ).to_json_string()
+        
         # Validate input
         input_data = validate_tool_input(SearchItemsInput, {
             "keywords": keywords,
@@ -221,6 +242,17 @@ async def get_search_keywords(
     
     await ctx.info(f"Getting keyword suggestions for: {partial_keyword}")
     
+    # Check if credentials are available
+    if not mcp.config.app_id:
+        return success_response(
+            data={
+                "input": partial_keyword,
+                "suggestions": [],
+                "note": "eBay API credentials not configured. To get keyword suggestions, please set EBAY_APP_ID environment variable."
+            },
+            message="eBay API credentials not available - see note for setup instructions"
+        ).to_json_string()
+    
     try:
         # Validate input
         if not partial_keyword or len(partial_keyword) < 2:
@@ -288,6 +320,18 @@ async def find_items_by_category(
     client = EbayApiClient(mcp.config, mcp.logger)
     
     await ctx.info(f"Browsing category: {category_id}")
+    
+    # Check if credentials are available
+    if not mcp.config.app_id:
+        return success_response(
+            data={
+                "items": [],
+                "category_id": category_id,
+                "total_items": 0,
+                "note": "eBay API credentials not configured. To browse categories, please set EBAY_APP_ID environment variable."
+            },
+            message="eBay API credentials not available - see note for setup instructions"
+        ).to_json_string()
     
     try:
         # Validate pagination
@@ -408,6 +452,18 @@ async def find_items_advanced(
     client = EbayApiClient(mcp.config, mcp.logger)
     
     await ctx.info("Performing advanced search with filters")
+    
+    # Check if credentials are available
+    if not mcp.config.app_id:
+        return success_response(
+            data={
+                "items": [],
+                "filters_applied": 0,
+                "total_results": 0,
+                "note": "eBay API credentials not configured. To perform advanced searches, please set EBAY_APP_ID environment variable."
+            },
+            message="eBay API credentials not available - see note for setup instructions"
+        ).to_json_string()
     
     try:
         # Validate input
