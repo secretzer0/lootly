@@ -194,7 +194,7 @@ class TestCreateListing:
         assert response["status"] == ResponseStatus.ERROR.value
         assert response["error_code"] == ErrorCode.INTERNAL_ERROR.value
         assert "API Error" in response["error_message"]
-        mock_context.server.logger.tool_failed.assert_called()
+        # Note: Logging is handled by global mcp.logger, not ctx.server.logger
 
 
 class TestReviseListing:

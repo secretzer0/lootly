@@ -135,7 +135,8 @@ async def test_search_items_validation_error(mock_context):
 @pytest.mark.asyncio
 async def test_search_items_api_error(mock_context):
     """Test search with API error."""
-    with patch("tools.finding_api.EbayApiClient") as MockClient:
+    with patch("tools.finding_api.EbayApiClient") as MockClient, \
+         patch("lootly_server.mcp") as mock_mcp:
         # Setup mock client to raise error
         mock_client = MockClient.return_value
         mock_client.validate_pagination = MagicMock()
@@ -153,7 +154,7 @@ async def test_search_items_api_error(mock_context):
         
         # Verify error logging
         mock_context.error.assert_called()
-        mock_context.server.logger.tool_failed.assert_called()
+        mock_mcp.logger.tool_failed.assert_called()
 
 
 @pytest.mark.asyncio

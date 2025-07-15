@@ -178,7 +178,8 @@ class TestGetMostWatchedItems:
     @pytest.mark.asyncio
     async def test_get_most_watched_items_api_error(self, mock_context):
         """Test API error handling."""
-        with patch("tools.merchandising_api.EbayApiClient") as MockClient:
+        with patch("tools.merchandising_api.EbayApiClient") as MockClient, \
+             patch("tools.merchandising_api.mcp") as mock_mcp:
             mock_client = MockClient.return_value
             mock_client.execute_with_retry = AsyncMock(side_effect=Exception("API Error"))
             
@@ -188,7 +189,7 @@ class TestGetMostWatchedItems:
             assert result["status"] == ResponseStatus.ERROR.value
             assert result["error_code"] == ErrorCode.INTERNAL_ERROR.value
             mock_context.error.assert_called()
-            mock_context.server.logger.tool_failed.assert_called()
+            mock_mcp.logger.tool_failed.assert_called()
 
 
 class TestGetRelatedCategoryItems:

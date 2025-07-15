@@ -56,9 +56,9 @@ async def search_items(
     Returns:
         JSON response with search results including items, pagination info, and search metadata
     """
-    # Get server instance from context
-    server = ctx.server
-    client = EbayApiClient(server.config, server.logger)
+    # Get server instance from global mcp
+    from lootly_server import mcp
+    client = EbayApiClient(mcp.config, mcp.logger)
     
     await ctx.info(f"Searching eBay for: {keywords}")
     await ctx.report_progress(0.1, "Validating search parameters...")
@@ -190,7 +190,7 @@ async def search_items(
         ).to_json_string()
     except Exception as e:
         await ctx.error(f"Search failed: {str(e)}")
-        server.logger.tool_failed("search_items", str(e), 0)
+        mcp.logger.tool_failed("search_items", str(e), 0)
         return error_response(
             ErrorCode.INTERNAL_ERROR,
             f"Failed to search items: {str(e)}"
@@ -216,8 +216,8 @@ async def get_search_keywords(
     Returns:
         JSON response with keyword suggestions
     """
-    server = ctx.server
-    client = EbayApiClient(server.config, server.logger)
+    from lootly_server import mcp
+    client = EbayApiClient(mcp.config, mcp.logger)
     
     await ctx.info(f"Getting keyword suggestions for: {partial_keyword}")
     
@@ -284,8 +284,8 @@ async def find_items_by_category(
     Returns:
         JSON response with items from the category
     """
-    server = ctx.server
-    client = EbayApiClient(server.config, server.logger)
+    from lootly_server import mcp
+    client = EbayApiClient(mcp.config, mcp.logger)
     
     await ctx.info(f"Browsing category: {category_id}")
     
@@ -404,8 +404,8 @@ async def find_items_advanced(
     Returns:
         JSON response with filtered search results
     """
-    server = ctx.server
-    client = EbayApiClient(server.config, server.logger)
+    from lootly_server import mcp
+    client = EbayApiClient(mcp.config, mcp.logger)
     
     await ctx.info("Performing advanced search with filters")
     

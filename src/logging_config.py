@@ -203,6 +203,59 @@ class MCPLogger:
             status_code=status_code,
             **kwargs,
         )
+    
+    def external_api_called(
+        self,
+        api_name: str,
+        endpoint: str,
+        status_code: int,
+        duration: float,
+        **kwargs,
+    ) -> None:
+        """Log external API calls (alias for external_api_call)."""
+        self.external_api_call(
+            api_name=api_name,
+            endpoint=endpoint,
+            duration_ms=duration * 1000,  # Convert to ms
+            status_code=status_code,
+            **kwargs,
+        )
+    
+    def external_api_failed(
+        self,
+        api_name: str,
+        endpoint: str,
+        error: str,
+        attempt: int,
+        **kwargs,
+    ) -> None:
+        """Log external API failures."""
+        self._log(
+            "error",
+            "External API call failed",
+            context=LogContext.EXTERNAL_API,
+            api_name=api_name,
+            endpoint=endpoint,
+            error=error,
+            attempt=attempt,
+            **kwargs,
+        )
+    
+    def api_cache_hit(
+        self,
+        api_name: str,
+        operation: str,
+        **kwargs,
+    ) -> None:
+        """Log API cache hits."""
+        self._log(
+            "debug",
+            "API cache hit",
+            context=LogContext.PERFORMANCE,
+            api_name=api_name,
+            operation=operation,
+            **kwargs,
+        )
 
     def security_event(self, event_type: str, **kwargs) -> None:
         """Log security-related events."""

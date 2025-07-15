@@ -85,9 +85,8 @@ async def create_listing(
     Returns:
         JSON response with the created listing details including item ID and fees
     """
-    # Get server instance from context
-    server = ctx.server
-    client = EbayApiClient(server.config, server.logger)
+    # Get client instance from mcp
+    client = EbayApiClient(mcp.config, mcp.logger)
     
     await ctx.info(f"Creating new eBay listing: {title}")
     await ctx.report_progress(0.1, "Validating listing parameters...")
@@ -192,7 +191,7 @@ async def create_listing(
                 "item_id": item_id,
                 "title": input_data.title,
                 "status": "active",
-                "listing_url": f"https://www.{server.config.domain}/itm/{item_id}",
+                "listing_url": f"https://www.{mcp.config.domain}/itm/{item_id}",
                 "fees": {
                     "total": round(total_fee, 2),
                     "details": fee_details
@@ -216,7 +215,7 @@ async def create_listing(
         ).to_json_string()
     except Exception as e:
         await ctx.error(f"Failed to create listing: {str(e)}")
-        server.logger.tool_failed("create_listing", str(e), 0)
+        mcp.logger.tool_failed("create_listing", str(e), 0)
         return error_response(
             ErrorCode.INTERNAL_ERROR,
             f"Failed to create listing: {str(e)}"
@@ -265,8 +264,7 @@ async def revise_listing(
     Returns:
         JSON response confirming the revision with updated details
     """
-    server = ctx.server
-    client = EbayApiClient(server.config, server.logger)
+    client = EbayApiClient(mcp.config, mcp.logger)
     
     await ctx.info(f"Revising eBay listing: {item_id}")
     await ctx.report_progress(0.1, "Validating revision parameters...")
@@ -354,7 +352,7 @@ async def revise_listing(
                 "item_id": input_data.item_id,
                 "revised_fields": revised_fields,
                 "revision_time": datetime.now().isoformat(),
-                "listing_url": f"https://www.{server.config.domain}/itm/{input_data.item_id}"
+                "listing_url": f"https://www.{mcp.config.domain}/itm/{input_data.item_id}"
             },
             message=f"Successfully revised listing {item_id}"
         ).to_json_string()
@@ -393,8 +391,7 @@ async def end_listing(
     Returns:
         JSON response confirming the listing was ended
     """
-    server = ctx.server
-    client = EbayApiClient(server.config, server.logger)
+    client = EbayApiClient(mcp.config, mcp.logger)
     
     await ctx.info(f"Ending eBay listing: {item_id}")
     
@@ -467,8 +464,7 @@ async def get_my_ebay_selling(
     Returns:
         JSON response with seller's listings and summary statistics
     """
-    server = ctx.server
-    client = EbayApiClient(server.config, server.logger)
+    client = EbayApiClient(mcp.config, mcp.logger)
     
     await ctx.info(f"Getting seller's {listing_type} listings")
     await ctx.report_progress(0.1, "Validating parameters...")
@@ -610,8 +606,7 @@ async def get_user_info(
     Returns:
         JSON response with user account details and statistics
     """
-    server = ctx.server
-    client = EbayApiClient(server.config, server.logger)
+    client = EbayApiClient(mcp.config, mcp.logger)
     
     user_desc = f"user {user_id}" if user_id else "authenticated user"
     await ctx.info(f"Getting information for {user_desc}")

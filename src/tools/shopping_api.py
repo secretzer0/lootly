@@ -95,8 +95,7 @@ async def get_single_item(
     Returns:
         JSON response with detailed item information
     """
-    server = ctx.server
-    client = EbayApiClient(server.config, server.logger)
+    client = EbayApiClient(mcp.config, mcp.logger)
     
     await ctx.info(f"Getting details for item ID: {item_id}")
     await ctx.report_progress(0.1, "Validating input...")
@@ -202,7 +201,7 @@ async def get_single_item(
         ).to_json_string()
     except Exception as e:
         await ctx.error(f"Failed to get item details: {str(e)}")
-        server.logger.tool_failed("get_single_item", str(e), 0)
+        mcp.logger.tool_failed("get_single_item", str(e), 0)
         return error_response(
             ErrorCode.INTERNAL_ERROR,
             f"Failed to retrieve item details: {str(e)}"
@@ -229,8 +228,7 @@ async def get_item_status(
     Returns:
         JSON response with item status, quantity available, and basic info
     """
-    server = ctx.server
-    client = EbayApiClient(server.config, server.logger)
+    client = EbayApiClient(mcp.config, mcp.logger)
     
     await ctx.info(f"Checking status for item ID: {item_id}")
     
@@ -282,7 +280,7 @@ async def get_item_status(
         ).to_json_string()
     except Exception as e:
         await ctx.error(f"Failed to check item status: {str(e)}")
-        server.logger.tool_failed("get_item_status", str(e), 0)
+        mcp.logger.tool_failed("get_item_status", str(e), 0)
         return error_response(
             ErrorCode.INTERNAL_ERROR,
             f"Failed to check item status: {str(e)}"
@@ -314,8 +312,7 @@ async def get_shipping_costs(
     Returns:
         JSON response with shipping options and costs
     """
-    server = ctx.server
-    client = EbayApiClient(server.config, server.logger)
+    client = EbayApiClient(mcp.config, mcp.logger)
     
     await ctx.info(f"Calculating shipping for item {item_id} to {destination_country_code}")
     await ctx.report_progress(0.1, "Validating shipping parameters...")
@@ -414,7 +411,7 @@ async def get_shipping_costs(
         ).to_json_string()
     except Exception as e:
         await ctx.error(f"Failed to calculate shipping: {str(e)}")
-        server.logger.tool_failed("get_shipping_costs", str(e), 0)
+        mcp.logger.tool_failed("get_shipping_costs", str(e), 0)
         return error_response(
             ErrorCode.INTERNAL_ERROR,
             f"Failed to calculate shipping costs: {str(e)}"
@@ -442,8 +439,7 @@ async def get_multiple_items(
     Returns:
         JSON response with details for all requested items
     """
-    server = ctx.server
-    client = EbayApiClient(server.config, server.logger)
+    client = EbayApiClient(mcp.config, mcp.logger)
     
     await ctx.info(f"Getting details for {len(item_ids)} items")
     await ctx.report_progress(0.1, "Validating item IDs...")
@@ -529,7 +525,7 @@ async def get_multiple_items(
         ).to_json_string()
     except Exception as e:
         await ctx.error(f"Failed to get multiple items: {str(e)}")
-        server.logger.tool_failed("get_multiple_items", str(e), 0)
+        mcp.logger.tool_failed("get_multiple_items", str(e), 0)
         return error_response(
             ErrorCode.INTERNAL_ERROR,
             f"Failed to retrieve items: {str(e)}"
@@ -562,8 +558,7 @@ async def find_products(
     Returns:
         JSON response with product catalog information
     """
-    server = ctx.server
-    client = EbayApiClient(server.config, server.logger)
+    client = EbayApiClient(mcp.config, mcp.logger)
     
     search_criteria = query_keywords or product_id or "general search"
     await ctx.info(f"Searching product catalog: {search_criteria}")
@@ -670,7 +665,7 @@ async def find_products(
         ).to_json_string()
     except Exception as e:
         await ctx.error(f"Product search failed: {str(e)}")
-        server.logger.tool_failed("find_products", str(e), 0)
+        mcp.logger.tool_failed("find_products", str(e), 0)
         return error_response(
             ErrorCode.INTERNAL_ERROR,
             f"Failed to search products: {str(e)}"

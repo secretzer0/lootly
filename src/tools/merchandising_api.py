@@ -27,6 +27,12 @@ class GetRelatedCategoryItemsInput(BaseModel):
     """Input validation for get_related_category_items."""
     category_id: str = Field(..., description="eBay category ID")
     max_results: int = Field(20, ge=1, le=100, description="Maximum number of items to return")
+    
+    @field_validator('category_id')
+    def validate_category_id(cls, v):
+        if not v or not v.strip():
+            raise ValueError("Category ID cannot be empty")
+        return v.strip()
 
 
 class GetSimilarItemsInput(BaseModel):
@@ -142,7 +148,7 @@ async def get_most_watched_items(
         )
         
         # Initialize API client
-        api_client = EbayApiClient(ctx.server.config, ctx.server.logger)
+        api_client = EbayApiClient(mcp.config, mcp.logger)
         
         # Build API parameters
         params = {
@@ -195,7 +201,7 @@ async def get_most_watched_items(
         return error_response(ErrorCode.VALIDATION_ERROR, str(e)).to_json_string()
     except Exception as e:
         await ctx.error(f"Failed to get most watched items: {str(e)}")
-        ctx.server.logger.tool_failed("get_most_watched_items", str(e), 0)
+        mcp.logger.tool_failed("get_most_watched_items", str(e), 0)
         return error_response(
             ErrorCode.INTERNAL_ERROR,
             f"Failed to retrieve most watched items: {str(e)}"
@@ -231,7 +237,7 @@ async def get_related_category_items(
         )
         
         # Initialize API client
-        api_client = EbayApiClient(ctx.server.config, ctx.server.logger)
+        api_client = EbayApiClient(mcp.config, mcp.logger)
         
         # Build API parameters
         params = {
@@ -287,7 +293,7 @@ async def get_related_category_items(
         return error_response(ErrorCode.VALIDATION_ERROR, str(e)).to_json_string()
     except Exception as e:
         await ctx.error(f"Failed to get related category items: {str(e)}")
-        ctx.server.logger.tool_failed("get_related_category_items", str(e), 0)
+        mcp.logger.tool_failed("get_related_category_items", str(e), 0)
         return error_response(
             ErrorCode.INTERNAL_ERROR,
             f"Failed to retrieve related category items: {str(e)}"
@@ -324,7 +330,7 @@ async def get_similar_items(
         )
         
         # Initialize API client
-        api_client = EbayApiClient(ctx.server.config, ctx.server.logger)
+        api_client = EbayApiClient(mcp.config, mcp.logger)
         
         # Build API parameters
         params = {
@@ -374,7 +380,7 @@ async def get_similar_items(
         return error_response(ErrorCode.VALIDATION_ERROR, str(e)).to_json_string()
     except Exception as e:
         await ctx.error(f"Failed to get similar items: {str(e)}")
-        ctx.server.logger.tool_failed("get_similar_items", str(e), 0)
+        mcp.logger.tool_failed("get_similar_items", str(e), 0)
         return error_response(
             ErrorCode.INTERNAL_ERROR,
             f"Failed to find similar items: {str(e)}"
@@ -411,7 +417,7 @@ async def get_top_selling_products(
         )
         
         # Initialize API client
-        api_client = EbayApiClient(ctx.server.config, ctx.server.logger)
+        api_client = EbayApiClient(mcp.config, mcp.logger)
         
         # Build API parameters
         params = {
@@ -497,7 +503,7 @@ async def get_top_selling_products(
         return error_response(ErrorCode.VALIDATION_ERROR, str(e)).to_json_string()
     except Exception as e:
         await ctx.error(f"Failed to get top selling products: {str(e)}")
-        ctx.server.logger.tool_failed("get_top_selling_products", str(e), 0)
+        mcp.logger.tool_failed("get_top_selling_products", str(e), 0)
         return error_response(
             ErrorCode.INTERNAL_ERROR,
             f"Failed to retrieve top selling products: {str(e)}"
