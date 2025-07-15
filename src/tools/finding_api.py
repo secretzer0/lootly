@@ -8,6 +8,83 @@ from api.ebay_client import EbayApiClient
 from lootly_server import mcp
 
 
+async def _parse_ebay_item(item: Dict[str, Any], ctx: Context) -> Optional[Dict[str, Any]]:
+    """Parse a single eBay item from API response with proper error handling."""
+    try:
+        # Helper to extract values from eBay's nested list format
+        def get_value(obj, key, default=None):
+            val = obj.get(key, [default])
+            if isinstance(val, list) and val:
+                return val[0]
+            return val if val != [default] else default
+            
+        # Extract basic info
+        item_id = get_value(item, "itemId")
+        title = get_value(item, "title")
+        
+        # Extract selling status
+        selling_status = get_value(item, "sellingStatus", {})
+        current_price = get_value(selling_status, "currentPrice", {})
+        price_value = float(current_price.get("value", 0)) if isinstance(current_price, dict) else 0
+        currency = current_price.get("_currencyId", "USD") if isinstance(current_price, dict) else "USD"
+        
+        # Extract condition
+        condition = get_value(item, "condition", {})
+        condition_name = get_value(condition, "conditionDisplayName") if isinstance(condition, dict) else None
+        
+        # Extract listing info
+        listing_info = get_value(item, "listingInfo", {})
+        listing_type = get_value(listing_info, "listingType") if isinstance(listing_info, dict) else None
+        end_time = get_value(listing_info, "endTime") if isinstance(listing_info, dict) else None
+        
+        # Extract location
+        location = get_value(item, "location")
+        
+        # Extract shipping info
+        shipping_info = get_value(item, "shippingInfo", {})
+        if isinstance(shipping_info, dict):
+            shipping_cost = get_value(shipping_info, "shippingServiceCost", {})
+            shipping_cost_value = float(shipping_cost.get("value", 0)) if isinstance(shipping_cost, dict) else 0
+            shipping_type = get_value(shipping_info, "shippingType")
+        else:
+            shipping_cost_value = 0
+            shipping_type = None
+            
+        # Extract URLs
+        view_url = get_value(item, "viewItemURL")
+        gallery_url = get_value(item, "galleryURL")
+        
+        # Extract other selling status info
+        time_left = get_value(selling_status, "timeLeft") if isinstance(selling_status, dict) else None
+        bid_count = get_value(selling_status, "bidCount", 0) if isinstance(selling_status, dict) else 0
+        if bid_count:
+            bid_count = int(bid_count)
+            
+        return {
+            "item_id": item_id,
+            "title": title,
+            "price": {
+                "value": price_value,
+                "currency": currency
+            },
+            "condition": condition_name,
+            "listing_type": listing_type,
+            "location": location,
+            "shipping": {
+                "cost": shipping_cost_value,
+                "type": shipping_type
+            },
+            "url": view_url,
+            "image_url": gallery_url,
+            "end_time": end_time,
+            "time_left": time_left,
+            "bids": bid_count
+        }
+    except Exception as e:
+        await ctx.error(f"Failed to parse item: {str(e)}")
+        return None
+
+
 class SearchItemsInput(BaseModel):
     """Input model for search_items tool."""
     keywords: str = Field(..., min_length=1, description="Search keywords")
@@ -148,37 +225,55 @@ async def search_items(
         
         await ctx.report_progress(0.8, "Processing search results...")
         
-        # Extract results
-        search_result = response.get("searchResult", [{}])[0]
+        # Debug logging
+        await ctx.debug(f"Raw API response keys: {list(response.keys()) if response else 'None'}")
+        
+        # Extract results - handle different response structures
+        search_result = response.get("searchResult", [{}])
+        if isinstance(search_result, list) and search_result:
+            search_result = search_result[0]
+        elif not isinstance(search_result, dict):
+            search_result = {}
+            
         items = search_result.get("item", [])
+        
+        # Debug log first item structure
+        if items:
+            await ctx.debug(f"First item keys: {list(items[0].keys()) if items and isinstance(items[0], dict) else 'Not a dict'}")
         
         # Format items for response
         formatted_items = []
         for item in items:
-            formatted_item = {
-                "item_id": item.get("itemId", [None])[0],
-                "title": item.get("title", [None])[0],
-                "price": {
-                    "value": float(item.get("sellingStatus", [{}])[0].get("currentPrice", [{}])[0].get("value", 0)),
-                    "currency": item.get("sellingStatus", [{}])[0].get("currentPrice", [{}])[0].get("_currencyId", "USD")
-                },
-                "condition": item.get("condition", [{}])[0].get("conditionDisplayName", [None])[0],
-                "listing_type": item.get("listingInfo", [{}])[0].get("listingType", [None])[0],
-                "location": item.get("location", [None])[0],
-                "shipping": {
-                    "cost": float(item.get("shippingInfo", [{}])[0].get("shippingServiceCost", [{}])[0].get("value", 0)),
-                    "type": item.get("shippingInfo", [{}])[0].get("shippingType", [None])[0]
-                },
-                "url": item.get("viewItemURL", [None])[0],
-                "image_url": item.get("galleryURL", [None])[0],
-                "end_time": item.get("listingInfo", [{}])[0].get("endTime", [None])[0]
-            }
-            formatted_items.append(formatted_item)
+            try:
+                formatted_item = await _parse_ebay_item(item, ctx)
+                if formatted_item:
+                    formatted_items.append(formatted_item)
+            except Exception as e:
+                await ctx.error(f"Error parsing item: {str(e)}")
+                continue
         
         # Get pagination info
-        pagination_output = response.get("paginationOutput", [{}])[0]
-        total_entries = int(pagination_output.get("totalEntries", [0])[0])
-        total_pages = int(pagination_output.get("totalPages", [0])[0])
+        # Debug - check response structure
+        if not response.get("paginationOutput"):
+            await ctx.debug(f"No paginationOutput in response. Keys: {list(response.keys())}")
+            
+        pagination_output = response.get("paginationOutput", [{}])
+        if isinstance(pagination_output, list) and pagination_output:
+            pagination_output = pagination_output[0]
+        elif not isinstance(pagination_output, dict):
+            pagination_output = {}
+            
+        total_entries_val = pagination_output.get("totalEntries", [0])
+        if isinstance(total_entries_val, list) and total_entries_val:
+            total_entries = int(total_entries_val[0])
+        else:
+            total_entries = 0
+            
+        total_pages_val = pagination_output.get("totalPages", [0])
+        if isinstance(total_pages_val, list) and total_pages_val:
+            total_pages = int(total_pages_val[0])
+        else:
+            total_pages = 0
         
         await ctx.report_progress(1.0, "Search complete")
         await ctx.info(f"Found {len(formatted_items)} items (page {input_data.page_number}/{total_pages})")
@@ -275,7 +370,17 @@ async def get_search_keywords(
         
         # Extract suggestions
         keywords = response.get("keywords", [])
-        suggestions = [kw.get("keyword", [None])[0] for kw in keywords if kw.get("keyword")]
+        if not keywords:
+            keywords = []
+        
+        suggestions = []
+        for kw in keywords:
+            if isinstance(kw, dict):
+                keyword_val = kw.get("keyword", [None])
+                if isinstance(keyword_val, list) and keyword_val and keyword_val[0]:
+                    suggestions.append(keyword_val[0])
+                elif isinstance(keyword_val, str) and keyword_val:
+                    suggestions.append(keyword_val)
         
         await ctx.info(f"Found {len(suggestions)} keyword suggestions")
         
@@ -361,26 +466,38 @@ async def find_items_by_category(
         )
         
         # Extract and format results (similar to search_items)
-        search_result = response.get("searchResult", [{}])[0]
+        search_result = response.get("searchResult", [{}])
+        if isinstance(search_result, list) and search_result:
+            search_result = search_result[0]
+        elif not isinstance(search_result, dict):
+            search_result = {}
+            
         items = search_result.get("item", [])
+        if not items:
+            items = []
         
         formatted_items = []
         for item in items:
-            formatted_item = {
-                "item_id": item.get("itemId", [None])[0],
-                "title": item.get("title", [None])[0],
-                "price": {
-                    "value": float(item.get("sellingStatus", [{}])[0].get("currentPrice", [{}])[0].get("value", 0)),
-                    "currency": item.get("sellingStatus", [{}])[0].get("currentPrice", [{}])[0].get("_currencyId", "USD")
-                },
-                "condition": item.get("condition", [{}])[0].get("conditionDisplayName", [None])[0],
-                "url": item.get("viewItemURL", [None])[0],
-                "image_url": item.get("galleryURL", [None])[0]
-            }
-            formatted_items.append(formatted_item)
+            try:
+                formatted_item = await _parse_ebay_item(item, ctx)
+                if formatted_item:
+                    formatted_items.append(formatted_item)
+            except Exception as e:
+                await ctx.error(f"Error parsing item: {str(e)}")
+                continue
         
-        pagination_output = response.get("paginationOutput", [{}])[0]
-        total_entries = int(pagination_output.get("totalEntries", [0])[0])
+        # Parse pagination
+        pagination_output = response.get("paginationOutput", [{}])
+        if isinstance(pagination_output, list) and pagination_output:
+            pagination_output = pagination_output[0]
+        elif not isinstance(pagination_output, dict):
+            pagination_output = {}
+            
+        total_entries_val = pagination_output.get("totalEntries", [0])
+        if isinstance(total_entries_val, list) and total_entries_val:
+            total_entries = int(total_entries_val[0])
+        else:
+            total_entries = 0
         
         await ctx.info(f"Found {len(formatted_items)} items in category")
         
@@ -539,27 +656,70 @@ async def find_items_advanced(
         )
         
         # Format results
-        search_result = response.get("searchResult", [{}])[0]
+        search_result = response.get("searchResult", [{}])
+        if isinstance(search_result, list) and search_result:
+            search_result = search_result[0]
+        elif not isinstance(search_result, dict):
+            search_result = {}
+            
         items = search_result.get("item", [])
+        if not items:
+            items = []
         
         formatted_items = []
         for item in items:
-            formatted_item = {
-                "item_id": item.get("itemId", [None])[0],
-                "title": item.get("title", [None])[0],
-                "seller": {
-                    "username": item.get("sellerInfo", [{}])[0].get("sellerUserName", [None])[0],
-                    "feedback_score": int(item.get("sellerInfo", [{}])[0].get("feedbackScore", [0])[0]),
-                    "positive_feedback_percent": float(item.get("sellerInfo", [{}])[0].get("positiveFeedbackPercent", [0])[0])
-                },
-                "price": {
-                    "value": float(item.get("sellingStatus", [{}])[0].get("currentPrice", [{}])[0].get("value", 0)),
-                    "currency": item.get("sellingStatus", [{}])[0].get("currentPrice", [{}])[0].get("_currencyId", "USD")
-                },
-                "listing_type": item.get("listingInfo", [{}])[0].get("listingType", [None])[0],
-                "url": item.get("viewItemURL", [None])[0]
-            }
-            formatted_items.append(formatted_item)
+            try:
+                # Use the common parser first
+                base_item = await _parse_ebay_item(item, ctx)
+                if not base_item:
+                    continue
+                    
+                # Add seller info for advanced search
+                seller_info = item.get("sellerInfo", [{}])
+                if isinstance(seller_info, list) and seller_info:
+                    seller_info = seller_info[0]
+                elif not isinstance(seller_info, dict):
+                    seller_info = {}
+                    
+                username = seller_info.get("sellerUserName", [None])
+                if isinstance(username, list) and username:
+                    username = username[0]
+                    
+                feedback_score = seller_info.get("feedbackScore", [0])
+                if isinstance(feedback_score, list) and feedback_score:
+                    feedback_score = int(feedback_score[0])
+                else:
+                    feedback_score = 0
+                    
+                feedback_percent = seller_info.get("positiveFeedbackPercent", [0])
+                if isinstance(feedback_percent, list) and feedback_percent:
+                    feedback_percent = float(feedback_percent[0])
+                else:
+                    feedback_percent = 0
+                    
+                base_item["seller"] = {
+                    "username": username,
+                    "feedback_score": feedback_score,
+                    "positive_feedback_percent": feedback_percent
+                }
+                
+                formatted_items.append(base_item)
+            except Exception as e:
+                await ctx.error(f"Error parsing item: {str(e)}")
+                continue
+        
+        # Parse pagination
+        pagination_output = response.get("paginationOutput", [{}])
+        if isinstance(pagination_output, list) and pagination_output:
+            pagination_output = pagination_output[0]
+        elif not isinstance(pagination_output, dict):
+            pagination_output = {}
+            
+        total_entries_val = pagination_output.get("totalEntries", [0])
+        if isinstance(total_entries_val, list) and total_entries_val:
+            total_entries = int(total_entries_val[0])
+        else:
+            total_entries = 0
         
         filters_applied = len(item_filters)
         await ctx.info(f"Found {len(formatted_items)} items with {filters_applied} filters applied")
@@ -568,7 +728,7 @@ async def find_items_advanced(
             data={
                 "items": formatted_items,
                 "filters_applied": filters_applied,
-                "total_results": int(response.get("paginationOutput", [{}])[0].get("totalEntries", [0])[0])
+                "total_results": total_entries
             },
             message=f"Advanced search completed with {filters_applied} filters"
         ).to_json_string()

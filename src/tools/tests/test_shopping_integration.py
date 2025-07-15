@@ -28,7 +28,9 @@ pytestmark = pytest.mark.integration
 def sandbox_config():
     """Create sandbox configuration."""
     config = EbayConfig.from_env()
-    config.domain = "sandbox.ebay.com"  # Use sandbox
+    # Domain is automatically set based on sandbox_mode
+    assert config.sandbox_mode, "Tests require EBAY_SANDBOX_MODE=true"
+    assert config.domain == "sandbox.ebay.com"
     return config
 
 

@@ -1,35 +1,58 @@
-"""eBay API client wrapper for all eBay APIs."""
-import asyncio
-from typing import Dict, Any, Optional, List
-from functools import lru_cache
-import time
-from ebaysdk.finding import Connection as Finding
-from ebaysdk.trading import Connection as Trading
-from ebaysdk.shopping import Connection as Shopping
-from ebaysdk.merchandising import Connection as Merchandising
-from ebaysdk.exception import ConnectionError
+"""
+Temporary placeholder for eBay API client.
+
+This module is being replaced with the new REST API implementation.
+It provides a stub to prevent import errors during migration.
+"""
+from typing import Dict, Any, Optional
+from unittest.mock import Mock
 from config import EbayConfig
 from logging_config import MCPLogger
-from data_types import ErrorCode
+
+
+# Mock classes for old SDK compatibility during migration
+class Finding(Mock):
+    """Mock Finding API class."""
+    pass
+
+
+class Trading(Mock):
+    """Mock Trading API class."""
+    pass
+
+
+class Shopping(Mock):
+    """Mock Shopping API class."""
+    pass
+
+
+class Merchandising(Mock):
+    """Mock Merchandising API class."""
+    pass
 
 
 class EbayApiClient:
-    """Unified client for all eBay API connections."""
+    """
+    Temporary stub for eBay API client.
+    
+    This class is being replaced by the new REST API implementation
+    using OAuth 2.0 and modern eBay REST APIs.
+    """
     
     def __init__(self, config: EbayConfig, logger: MCPLogger):
         self.config = config
         self.logger = logger
-        self._cache: Dict[str, tuple[Any, float]] = {}
+        # Note: Using placeholder during REST API migration
         
-        # Initialize API connections
+        # Mock API connections for compatibility
         self._finding_api = None
         self._trading_api = None
         self._shopping_api = None
         self._merchandising_api = None
     
     @property
-    def finding(self) -> Finding:
-        """Get or create Finding API connection."""
+    def finding(self):
+        """Mock Finding API connection."""
         if not self._finding_api:
             self._finding_api = Finding(
                 appid=self.config.app_id,
@@ -40,16 +63,13 @@ class EbayApiClient:
         return self._finding_api
     
     @property
-    def trading(self) -> Trading:
-        """Get or create Trading API connection."""
+    def trading(self):
+        """Mock Trading API connection."""
         if not self._trading_api:
-            if not self.config.dev_id or not self.config.cert_id:
-                raise ValueError("Trading API requires dev_id and cert_id")
-            
             self._trading_api = Trading(
                 appid=self.config.app_id,
-                devid=self.config.dev_id,
-                certid=self.config.cert_id,
+                devid=getattr(self.config, 'dev_id', None),
+                certid=getattr(self.config, 'cert_id', None),
                 config_file=None,
                 siteid=self.config.site_id,
                 domain=f"api.{self.config.domain}"
@@ -57,8 +77,8 @@ class EbayApiClient:
         return self._trading_api
     
     @property
-    def shopping(self) -> Shopping:
-        """Get or create Shopping API connection."""
+    def shopping(self):
+        """Mock Shopping API connection."""
         if not self._shopping_api:
             self._shopping_api = Shopping(
                 appid=self.config.app_id,
@@ -69,8 +89,8 @@ class EbayApiClient:
         return self._shopping_api
     
     @property
-    def merchandising(self) -> Merchandising:
-        """Get or create Merchandising API connection."""
+    def merchandising(self):
+        """Mock Merchandising API connection."""
         if not self._merchandising_api:
             self._merchandising_api = Merchandising(
                 appid=self.config.app_id,
@@ -87,96 +107,33 @@ class EbayApiClient:
         params: Dict[str, Any],
         use_cache: bool = True
     ) -> Dict[str, Any]:
-        """Execute an API call with retry logic and caching."""
-        # Check cache first
-        if use_cache:
-            cache_key = f"{api_name}:{operation}:{str(params)}"
-            cached = self._get_cached(cache_key)
-            if cached:
-                self.logger.api_cache_hit(api_name, operation)
-                return cached
-        
-        # Get the appropriate API connection
-        api = getattr(self, api_name)
-        
-        # Execute with retries
-        last_error = None
-        for attempt in range(self.config.max_retries):
-            try:
-                start_time = time.time()
-                
-                # Execute in thread pool since ebaysdk is synchronous
-                loop = asyncio.get_event_loop()
-                response = await loop.run_in_executor(
-                    None,
-                    api.execute,
-                    operation,
-                    params
-                )
-                
-                duration = time.time() - start_time
-                self.logger.external_api_called(
-                    api_name,
-                    f"{operation}",
-                    200,
-                    duration
-                )
-                
-                # Cache successful response
-                if use_cache:
-                    self._set_cached(cache_key, response.dict())
-                
-                return response.dict()
-                
-            except ConnectionError as e:
-                last_error = e
-                self.logger.external_api_failed(
-                    api_name,
-                    f"{operation}",
-                    str(e),
-                    attempt + 1
-                )
-                
-                if attempt < self.config.max_retries - 1:
-                    # Exponential backoff
-                    await asyncio.sleep(2 ** attempt)
-        
-        # All retries failed
-        raise last_error
-    
-    def _get_cached(self, key: str) -> Optional[Dict[str, Any]]:
-        """Get cached data if not expired."""
-        if key in self._cache:
-            data, timestamp = self._cache[key]
-            if time.time() - timestamp < self.config.cache_ttl:
-                return data
-            else:
-                # Remove expired cache
-                del self._cache[key]
-        return None
-    
-    def _set_cached(self, key: str, data: Dict[str, Any]) -> None:
-        """Set cache data with timestamp."""
-        self._cache[key] = (data, time.time())
-    
-    def clear_cache(self) -> None:
-        """Clear all cached data."""
-        self._cache.clear()
-        self.logger.info("Cache cleared")
+        """Placeholder method that returns migration notice."""
+        return {
+            "success": False,
+            "error": {
+                "code": "MIGRATION_IN_PROGRESS",
+                "message": f"The {api_name} API is being migrated to REST. This operation is temporarily unavailable.",
+                "details": {
+                    "api": api_name,
+                    "operation": operation,
+                    "migration_status": "in_progress"
+                }
+            }
+        }
     
     def validate_pagination(self, page_number: int) -> None:
         """Validate pagination parameters."""
         if page_number < 1:
             raise ValueError("Page number must be >= 1")
-        if page_number > self.config.max_pages:
-            raise ValueError(f"Page number exceeds maximum of {self.config.max_pages}")
+        if page_number > 100:
+            raise ValueError("Page number exceeds maximum of 100")
     
-    def format_error_response(self, error: Exception, error_code: ErrorCode) -> Dict[str, Any]:
+    def format_error_response(self, error: Exception, error_code: str) -> Dict[str, Any]:
         """Format error response for consistency."""
         return {
             "success": False,
             "error": {
-                "code": error_code.value,
+                "code": error_code,
                 "message": str(error),
                 "type": type(error).__name__
             }
