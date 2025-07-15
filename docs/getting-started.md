@@ -15,7 +15,7 @@ This guide walks you through setting up Lootly for different use cases, from bas
 
 1. **Clone and Install**
 ```bash
-git clone https://github.com/yourusername/lootly
+git clone https://github.com/secretzer0/lootly
 cd lootly
 uv sync
 ```
@@ -32,7 +32,7 @@ Edit your Claude Desktop configuration file:
   "mcpServers": {
     "lootly": {
       "command": "uv",
-      "args": ["run", "python", "src/main.py"],
+      "args": ["run", "lootly"],
       "cwd": "/full/path/to/lootly",
       "env": {
         "EBAY_SANDBOX_MODE": "true"
@@ -52,11 +52,41 @@ What are current eBay market trends?
 Show me domestic shipping rates
 ```
 
-### Method 2: Docker Deployment
+### Method 2: Claude CLI Integration
+
+1. **Install and Setup**
+```bash
+git clone https://github.com/secretzer0/lootly
+cd lootly
+uv sync
+```
+
+2. **Add to Claude CLI**
+```bash
+# Add local server (STDIO transport)
+claude mcp add lootly uv run lootly --cwd /path/to/lootly
+
+# Set environment variables
+claude mcp env lootly EBAY_APP_ID=your-app-id-here
+claude mcp env lootly EBAY_CERT_ID=your-cert-id-here
+claude mcp env lootly EBAY_DEV_ID=your-dev-id-here
+claude mcp env lootly EBAY_SANDBOX_MODE=true
+```
+
+3. **Test Integration**
+```bash
+# List configured servers
+claude mcp list
+
+# Test the connection
+claude "Show me eBay categories for Electronics"
+```
+
+### Method 3: Docker Deployment
 
 1. **Clone Repository**
 ```bash
-git clone https://github.com/yourusername/lootly
+git clone https://github.com/secretzer0/lootly
 cd lootly
 ```
 
@@ -134,7 +164,7 @@ Update your Claude Desktop configuration:
   "mcpServers": {
     "lootly": {
       "command": "uv",
-      "args": ["run", "python", "src/main.py"],
+      "args": ["run", "lootly"],
       "cwd": "/full/path/to/lootly",
       "env": {
         "EBAY_APP_ID": "your-app-id-here",
@@ -155,19 +185,19 @@ Lootly supports multiple transport protocols for different integration scenarios
 ### stdio (Default)
 Best for Claude Desktop and CLI tools:
 ```bash
-uv run python src/main.py
+uv run lootly
 ```
 
 ### Server-Sent Events (SSE)
 For web applications that need real-time updates:
 ```bash
-LOOTLY_TRANSPORT=sse LOOTLY_HOST=0.0.0.0 LOOTLY_PORT=8000 uv run python src/main.py
+LOOTLY_TRANSPORT=sse LOOTLY_HOST=0.0.0.0 LOOTLY_PORT=8000 uv run lootly
 ```
 
 ### HTTP with Streaming
 Modern web integration (recommended over SSE):
 ```bash
-LOOTLY_TRANSPORT=streamable-http LOOTLY_HOST=0.0.0.0 LOOTLY_PORT=8000 uv run python src/main.py
+LOOTLY_TRANSPORT=streamable-http LOOTLY_HOST=0.0.0.0 LOOTLY_PORT=8000 uv run lootly
 ```
 
 ## Verification
@@ -177,7 +207,7 @@ LOOTLY_TRANSPORT=streamable-http LOOTLY_HOST=0.0.0.0 LOOTLY_PORT=8000 uv run pyt
 1. **Basic Functionality (No API Keys)**
 ```bash
 # Test server starts
-uv run python -c "from lootly_server import create_lootly_server; print('✅ Server loads successfully')"
+uv run python -c "from lootly_server import create_lootly_server; print('✅ Installation successful')"
 
 # Run unit tests
 uv run pytest -v
@@ -202,7 +232,7 @@ EBAY_RUN_INTEGRATION_TESTS=true uv run pytest src/tools/tests/test_finding_integ
 **Import Errors**
 ```bash
 # Make sure you're using uv run
-uv run python src/main.py  # ✅ Correct
+uv run lootly              # ✅ Correct
 python src/main.py         # ❌ May fail
 ```
 
