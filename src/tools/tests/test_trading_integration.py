@@ -21,11 +21,9 @@ from tools.trading_api import (
 from config import EbayConfig
 
 
-# Skip all tests in this file if EBAY_RUN_INTEGRATION_TESTS is not set
-pytestmark = pytest.mark.skipif(
-    os.getenv("EBAY_RUN_INTEGRATION_TESTS") != "true",
-    reason="Integration tests disabled. Set EBAY_RUN_INTEGRATION_TESTS=true to run."
-)
+# Integration tests are now enabled by default
+# To skip them, use: pytest -m "not integration"
+pytestmark = pytest.mark.integration
 
 
 def has_valid_trading_credentials() -> bool:
@@ -124,7 +122,7 @@ class TestRealGetUserInfo:
     @pytest.mark.asyncio
     async def test_real_get_authenticated_user(self, real_context):
         """Test getting authenticated user info from sandbox."""
-        result_json = await get_user_info(ctx=real_context)
+        result_json = await get_user_info.fn(ctx=real_context)
         
         result = json.loads(result_json)
         print(f"\nUser Info Response: {json.dumps(result, indent=2)}")
@@ -151,7 +149,7 @@ class TestRealGetMyEbaySelling:
     @pytest.mark.asyncio
     async def test_real_get_active_listings(self, real_context):
         """Test getting active listings from sandbox."""
-        result_json = await get_my_ebay_selling(
+        result_json = await get_my_ebay_selling.fn(
             listing_type="Active",
             page_size=10,
             ctx=real_context
@@ -178,7 +176,7 @@ class TestRealGetMyEbaySelling:
     @pytest.mark.asyncio
     async def test_real_get_sold_listings(self, real_context):
         """Test getting sold listings from sandbox."""
-        result_json = await get_my_ebay_selling(
+        result_json = await get_my_ebay_selling.fn(
             listing_type="Sold",
             page_size=10,
             ctx=real_context
@@ -195,7 +193,7 @@ class TestRealCreateListing:
     @pytest.mark.asyncio
     async def test_real_create_basic_listing(self, real_context, test_listing_data):
         """Test creating a basic listing in sandbox."""
-        result_json = await create_listing(
+        result_json = await create_listing.fn(
             title=test_listing_data["title"],
             description=test_listing_data["description"],
             category_id=test_listing_data["category_id"],
@@ -237,7 +235,7 @@ class TestRealCreateListing:
             "https://i.ebayimg.com/images/g/H~MAAOSwZQxW4kRH/s-l1600.jpg"
         ]
         
-        result_json = await create_listing(
+        result_json = await create_listing.fn(
             **test_listing_data,
             ctx=real_context
         )
@@ -261,7 +259,7 @@ class TestRealReviseEndListing:
         """Test complete lifecycle: create, revise, and end a listing."""
         # Step 1: Create a listing
         print("\n=== Step 1: Creating listing ===")
-        create_result = await create_listing(
+        create_result = await create_listing.fn(
             **test_listing_data,
             ctx=real_context
         )
@@ -279,7 +277,7 @@ class TestRealReviseEndListing:
         # Step 2: Revise the listing
         print("\n=== Step 2: Revising listing ===")
         new_price = test_listing_data["start_price"] + 5.00
-        revise_result = await revise_listing(
+        revise_result = await revise_listing.fn(
             item_id=item_id,
             title=f"{test_listing_data['title']} - REVISED",
             price=new_price,
@@ -299,7 +297,7 @@ class TestRealReviseEndListing:
         
         # Step 3: End the listing
         print("\n=== Step 3: Ending listing ===")
-        end_result = await end_listing(
+        end_result = await end_listing.fn(
             item_id=item_id,
             reason="NotAvailable",
             ctx=real_context
@@ -320,7 +318,7 @@ class TestRealErrorScenarios:
     @pytest.mark.asyncio
     async def test_real_invalid_category(self, real_context):
         """Test creating listing with invalid category."""
-        result_json = await create_listing(
+        result_json = await create_listing.fn(
             title="Test Invalid Category",
             description="This should fail",
             category_id="999999999",  # Invalid category
@@ -340,7 +338,7 @@ class TestRealErrorScenarios:
     @pytest.mark.asyncio
     async def test_real_revise_nonexistent_item(self, real_context):
         """Test revising a non-existent item."""
-        result_json = await revise_listing(
+        result_json = await revise_listing.fn(
             item_id="999999999999",  # Non-existent item
             title="New Title",
             ctx=real_context
@@ -365,7 +363,7 @@ class TestRealAuthenticationErrors:
         print("\n=== Testing with invalid credentials ===")
         
         # Try to get user info with bad credentials
-        result_json = await get_user_info(ctx=real_context)
+        result_json = await get_user_info.fn(ctx=real_context)
         result = json.loads(result_json)
         
         print(f"\nError Response: {json.dumps(result, indent=2)}")
@@ -392,7 +390,7 @@ class TestRealSandboxBehavior:
     async def test_sandbox_test_user(self, real_context):
         """Test that we can identify sandbox test users."""
         # Get authenticated user info
-        result_json = await get_user_info(ctx=real_context)
+        result_json = await get_user_info.fn(ctx=real_context)
         result = json.loads(result_json)
         
         if result["status"] == ResponseStatus.SUCCESS.value:

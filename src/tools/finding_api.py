@@ -58,7 +58,6 @@ async def search_items(
     """
     # Get server instance from global mcp
     from lootly_server import mcp
-    client = EbayApiClient(mcp.config, mcp.logger)
     
     await ctx.info(f"Searching eBay for: {keywords}")
     await ctx.report_progress(0.1, "Validating search parameters...")
@@ -84,6 +83,9 @@ async def search_items(
                 },
                 message="eBay API credentials not available - see note for setup instructions"
             ).to_json_string()
+        
+        # Create client after credential check
+        client = EbayApiClient(mcp.config, mcp.logger)
         
         # Validate input
         input_data = validate_tool_input(SearchItemsInput, {
@@ -238,7 +240,6 @@ async def get_search_keywords(
         JSON response with keyword suggestions
     """
     from lootly_server import mcp
-    client = EbayApiClient(mcp.config, mcp.logger)
     
     await ctx.info(f"Getting keyword suggestions for: {partial_keyword}")
     
@@ -252,6 +253,9 @@ async def get_search_keywords(
             },
             message="eBay API credentials not available - see note for setup instructions"
         ).to_json_string()
+    
+    # Create client after credential check
+    client = EbayApiClient(mcp.config, mcp.logger)
     
     try:
         # Validate input
@@ -317,7 +321,6 @@ async def find_items_by_category(
         JSON response with items from the category
     """
     from lootly_server import mcp
-    client = EbayApiClient(mcp.config, mcp.logger)
     
     await ctx.info(f"Browsing category: {category_id}")
     
@@ -332,6 +335,9 @@ async def find_items_by_category(
             },
             message="eBay API credentials not available - see note for setup instructions"
         ).to_json_string()
+    
+    # Create client after credential check
+    client = EbayApiClient(mcp.config, mcp.logger)
     
     try:
         # Validate pagination
@@ -449,7 +455,6 @@ async def find_items_advanced(
         JSON response with filtered search results
     """
     from lootly_server import mcp
-    client = EbayApiClient(mcp.config, mcp.logger)
     
     await ctx.info("Performing advanced search with filters")
     
@@ -464,6 +469,9 @@ async def find_items_advanced(
             },
             message="eBay API credentials not available - see note for setup instructions"
         ).to_json_string()
+    
+    # Create client after credential check
+    client = EbayApiClient(mcp.config, mcp.logger)
     
     try:
         # Validate input

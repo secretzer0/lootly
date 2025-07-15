@@ -53,4 +53,5 @@ python_classes = ["Test*"]
 pythonpath = ["src"]
 markers = [
     "integration: marks tests as integration tests (deselect with '-m \"not integration\"')",
+    "no_credentials: marks tests that should run without eBay API credentials",
 ]

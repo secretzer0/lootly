@@ -48,8 +48,60 @@ def mock_ebay_client():
         yield mock_client
 
 
+@pytest.fixture(autouse=True)
+def mock_global_mcp(request):
+    """Mock the global mcp object for all tests."""
+    # We need to mock at the lootly_server level since functions import from there
+    with patch('lootly_server.mcp') as mock_mcp:
+        # Set up config - check if test wants to simulate no credentials
+        mock_mcp.config = Mock()
+        
+        # Check for marker to disable credentials
+        if hasattr(request, 'node') and request.node.get_closest_marker('no_credentials'):
+            mock_mcp.config.app_id = ""
+            mock_mcp.config.cert_id = ""
+            mock_mcp.config.dev_id = ""
+        else:
+            # Default: provide valid test credentials
+            mock_mcp.config.app_id = "test-app-id"
+            mock_mcp.config.cert_id = "test-cert-id"
+            mock_mcp.config.dev_id = "test-dev-id"
+        
+        mock_mcp.config.domain = "sandbox.ebay.com"
+        mock_mcp.config.site_id = "EBAY-US"
+        
+        # Set up logger
+        mock_mcp.logger = Mock()
+        mock_mcp.logger.tool_failed = Mock()
+        
+        yield mock_mcp
+
+
 class TestCreateListing:
     """Tests for create_listing tool."""
+    
+    @pytest.mark.asyncio
+    @pytest.mark.no_credentials
+    async def test_create_listing_no_credentials(self, mock_context):
+        """Test creating listing without credentials."""
+        result = await create_listing.fn(
+            title="Test Item",
+            description="This is a test item description",
+            category_id="12345",
+            start_price=19.99,
+            condition_id="1000",
+            shipping_service="USPSPriority",
+            shipping_cost=5.99,
+            ctx=mock_context
+        )
+        
+        response = json.loads(result)
+        
+        # Should return success with note about missing credentials
+        assert response["status"] == ResponseStatus.SUCCESS.value
+        assert "note" in response["data"]
+        assert "EBAY_APP_ID" in response["data"]["note"]
+        assert response["data"]["item_id"] is None
     
     @pytest.mark.asyncio
     async def test_create_listing_success(self, mock_context, mock_ebay_client):

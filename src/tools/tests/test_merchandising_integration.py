@@ -19,11 +19,9 @@ from tools.merchandising_api import (
 from config import EbayConfig
 
 
-# Skip all tests if EBAY_RUN_INTEGRATION_TESTS is not set
-pytestmark = pytest.mark.skipif(
-    os.getenv("EBAY_RUN_INTEGRATION_TESTS") != "true",
-    reason="Integration tests disabled. Set EBAY_RUN_INTEGRATION_TESTS=true to run."
-)
+# Integration tests are now enabled by default
+# To skip them, use: pytest -m "not integration"
+pytestmark = pytest.mark.integration
 
 
 def has_valid_credentials() -> bool:
@@ -96,7 +94,7 @@ class TestRealGetMostWatchedItems:
     @pytest.mark.asyncio
     async def test_real_most_watched_items_no_category(self, real_context):
         """Test getting most watched items without category filter."""
-        result_json = await get_most_watched_items(
+        result_json = await get_most_watched_items.fn(
             max_results=10,
             ctx=real_context
         )
@@ -124,7 +122,7 @@ class TestRealGetMostWatchedItems:
     @pytest.mark.asyncio
     async def test_real_most_watched_items_with_category(self, real_context):
         """Test getting most watched items in specific category."""
-        result_json = await get_most_watched_items(
+        result_json = await get_most_watched_items.fn(
             category_id=SANDBOX_CATEGORY_ELECTRONICS,
             max_results=5,
             ctx=real_context
@@ -146,7 +144,7 @@ class TestRealGetRelatedCategoryItems:
     @pytest.mark.asyncio
     async def test_real_related_category_items(self, real_context):
         """Test getting items from related categories."""
-        result_json = await get_related_category_items(
+        result_json = await get_related_category_items.fn(
             category_id=SANDBOX_CATEGORY_ELECTRONICS,
             max_results=10,
             ctx=real_context
@@ -175,7 +173,7 @@ class TestRealGetSimilarItems:
     async def test_real_similar_items(self, real_context):
         """Test finding similar items."""
         # First, try to get a real item ID from most watched
-        watched_result = await get_most_watched_items(
+        watched_result = await get_most_watched_items.fn(
             max_results=1,
             ctx=real_context
         )
@@ -190,7 +188,7 @@ class TestRealGetSimilarItems:
             print(f"\nUsing default test item ID: {test_item_id}")
         
         # Now find similar items
-        result_json = await get_similar_items(
+        result_json = await get_similar_items.fn(
             item_id=test_item_id,
             max_results=10,
             ctx=real_context
@@ -209,7 +207,7 @@ class TestRealGetSimilarItems:
     @pytest.mark.asyncio
     async def test_real_similar_items_invalid_id(self, real_context):
         """Test error handling for invalid item ID."""
-        result_json = await get_similar_items(
+        result_json = await get_similar_items.fn(
             item_id="999999999999999",  # Invalid ID
             max_results=5,
             ctx=real_context
@@ -232,7 +230,7 @@ class TestRealGetTopSellingProducts:
     @pytest.mark.asyncio
     async def test_real_top_selling_products(self, real_context):
         """Test getting top selling products."""
-        result_json = await get_top_selling_products(
+        result_json = await get_top_selling_products.fn(
             max_results=10,
             ctx=real_context
         )
@@ -257,7 +255,7 @@ class TestRealGetTopSellingProducts:
     @pytest.mark.asyncio
     async def test_real_top_selling_products_by_category(self, real_context):
         """Test getting top selling products in specific category."""
-        result_json = await get_top_selling_products(
+        result_json = await get_top_selling_products.fn(
             category_id=SANDBOX_CATEGORY_COLLECTIBLES,
             max_results=5,
             ctx=real_context
@@ -279,7 +277,7 @@ class TestRealErrorScenarios:
     @pytest.mark.asyncio
     async def test_real_invalid_category_error(self, real_context):
         """Test with invalid category ID."""
-        result_json = await get_related_category_items(
+        result_json = await get_related_category_items.fn(
             category_id="999999999",  # Invalid category
             ctx=real_context
         )
@@ -295,7 +293,7 @@ class TestRealErrorScenarios:
         # Make 5 rapid requests
         tasks = []
         for i in range(5):
-            task = get_most_watched_items(max_results=1, ctx=real_context)
+            task = get_most_watched_items.fn(max_results=1, ctx=real_context)
             tasks.append(task)
         
         results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -322,7 +320,7 @@ class TestRealAuthenticationErrors:
         
         print("\n=== Testing Merchandising API with invalid credentials ===")
         
-        result_json = await get_most_watched_items(ctx=real_context)
+        result_json = await get_most_watched_items.fn(ctx=real_context)
         result = json.loads(result_json)
         
         print(f"\nError Response: {json.dumps(result, indent=2)}")

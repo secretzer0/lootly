@@ -85,8 +85,8 @@ async def create_listing(
     Returns:
         JSON response with the created listing details including item ID and fees
     """
-    # Get client instance from mcp
-    client = EbayApiClient(mcp.config, mcp.logger)
+    # Import mcp at function level
+    from lootly_server import mcp
     
     await ctx.info(f"Creating new eBay listing: {title}")
     await ctx.report_progress(0.1, "Validating listing parameters...")
@@ -103,6 +103,9 @@ async def create_listing(
             },
             message="eBay API credentials not available - see note for setup instructions"
         ).to_json_string()
+    
+    # Create client after credential check
+    client = EbayApiClient(mcp.config, mcp.logger)
     
     try:
         # Validate input
@@ -277,7 +280,8 @@ async def revise_listing(
     Returns:
         JSON response confirming the revision with updated details
     """
-    client = EbayApiClient(mcp.config, mcp.logger)
+    # Import mcp at function level
+    from lootly_server import mcp
     
     await ctx.info(f"Revising eBay listing: {item_id}")
     await ctx.report_progress(0.1, "Validating revision parameters...")
@@ -293,6 +297,9 @@ async def revise_listing(
             },
             message="eBay API credentials not available - see note for setup instructions"
         ).to_json_string()
+    
+    # Create client after credential check
+    client = EbayApiClient(mcp.config, mcp.logger)
     
     try:
         # Validate input
@@ -416,7 +423,8 @@ async def end_listing(
     Returns:
         JSON response confirming the listing was ended
     """
-    client = EbayApiClient(mcp.config, mcp.logger)
+    # Import mcp at function level
+    from lootly_server import mcp
     
     await ctx.info(f"Ending eBay listing: {item_id}")
     
@@ -431,6 +439,9 @@ async def end_listing(
             },
             message="eBay API credentials not available - see note for setup instructions"
         ).to_json_string()
+    
+    # Create client after credential check
+    client = EbayApiClient(mcp.config, mcp.logger)
     
     try:
         # Validate reason
@@ -501,7 +512,8 @@ async def get_my_ebay_selling(
     Returns:
         JSON response with seller's listings and summary statistics
     """
-    client = EbayApiClient(mcp.config, mcp.logger)
+    # Import mcp at function level
+    from lootly_server import mcp
     
     await ctx.info(f"Getting seller's {listing_type} listings")
     await ctx.report_progress(0.1, "Validating parameters...")
@@ -527,6 +539,9 @@ async def get_my_ebay_selling(
             },
             message="eBay API credentials not available - see note for setup instructions"
         ).to_json_string()
+    
+    # Create client after credential check
+    client = EbayApiClient(mcp.config, mcp.logger)
     
     try:
         # Validate listing type
@@ -665,7 +680,8 @@ async def get_user_info(
     Returns:
         JSON response with user account details and statistics
     """
-    client = EbayApiClient(mcp.config, mcp.logger)
+    # Import mcp at function level
+    from lootly_server import mcp
     
     user_desc = f"user {user_id}" if user_id else "authenticated user"
     await ctx.info(f"Getting information for {user_desc}")
@@ -685,6 +701,9 @@ async def get_user_info(
             },
             message="eBay API credentials not available - see note for setup instructions"
         ).to_json_string()
+    
+    # Create client after credential check
+    client = EbayApiClient(mcp.config, mcp.logger)
     
     try:
         # Build request

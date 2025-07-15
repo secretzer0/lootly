@@ -95,7 +95,8 @@ async def get_single_item(
     Returns:
         JSON response with detailed item information
     """
-    client = EbayApiClient(mcp.config, mcp.logger)
+    # Import mcp at function level
+    from lootly_server import mcp
     
     await ctx.info(f"Getting details for item ID: {item_id}")
     await ctx.report_progress(0.1, "Validating input...")
@@ -120,6 +121,9 @@ async def get_single_item(
             },
             message="eBay API credentials not available - see note for setup instructions"
         ).to_json_string()
+    
+    # Create client after credential check
+    client = EbayApiClient(mcp.config, mcp.logger)
     
     try:
         # Validate input
@@ -249,7 +253,8 @@ async def get_item_status(
     Returns:
         JSON response with item status, quantity available, and basic info
     """
-    client = EbayApiClient(mcp.config, mcp.logger)
+    # Import mcp at function level
+    from lootly_server import mcp
     
     await ctx.info(f"Checking status for item ID: {item_id}")
     
@@ -271,6 +276,9 @@ async def get_item_status(
             },
             message="eBay API credentials not available - see note for setup instructions"
         ).to_json_string()
+    
+    # Create client after credential check
+    client = EbayApiClient(mcp.config, mcp.logger)
     
     try:
         # Validate input
@@ -352,7 +360,8 @@ async def get_shipping_costs(
     Returns:
         JSON response with shipping options and costs
     """
-    client = EbayApiClient(mcp.config, mcp.logger)
+    # Import mcp at function level
+    from lootly_server import mcp
     
     await ctx.info(f"Calculating shipping for item {item_id} to {destination_country_code}")
     await ctx.report_progress(0.1, "Validating shipping parameters...")
@@ -372,6 +381,9 @@ async def get_shipping_costs(
             },
             message="eBay API credentials not available - see note for setup instructions"
         ).to_json_string()
+    
+    # Create client after credential check
+    client = EbayApiClient(mcp.config, mcp.logger)
     
     try:
         # Validate input
@@ -495,7 +507,8 @@ async def get_multiple_items(
     Returns:
         JSON response with details for all requested items
     """
-    client = EbayApiClient(mcp.config, mcp.logger)
+    # Import mcp at function level
+    from lootly_server import mcp
     
     await ctx.info(f"Getting details for {len(item_ids)} items")
     await ctx.report_progress(0.1, "Validating item IDs...")
@@ -512,6 +525,9 @@ async def get_multiple_items(
             },
             message="eBay API credentials not available - see note for setup instructions"
         ).to_json_string()
+    
+    # Create client after credential check
+    client = EbayApiClient(mcp.config, mcp.logger)
     
     try:
         # Validate input
@@ -627,7 +643,8 @@ async def find_products(
     Returns:
         JSON response with product catalog information
     """
-    client = EbayApiClient(mcp.config, mcp.logger)
+    # Import mcp at function level
+    from lootly_server import mcp
     
     search_criteria = query_keywords or product_id or "general search"
     await ctx.info(f"Searching product catalog: {search_criteria}")
@@ -648,6 +665,9 @@ async def find_products(
             },
             message="eBay API credentials not available - see note for setup instructions"
         ).to_json_string()
+    
+    # Create client after credential check
+    client = EbayApiClient(mcp.config, mcp.logger)
     
     try:
         # Validate input

@@ -19,11 +19,9 @@ from tools.shopping_api import (
 )
 
 
-# Skip all tests in this file if EBAY_RUN_INTEGRATION_TESTS is not set
-pytestmark = pytest.mark.skipif(
-    os.getenv("EBAY_RUN_INTEGRATION_TESTS") != "true",
-    reason="Integration tests disabled. Set EBAY_RUN_INTEGRATION_TESTS=true to run."
-)
+# Integration tests are now enabled by default
+# To skip them, use: pytest -m "not integration"
+pytestmark = pytest.mark.integration
 
 
 @pytest.fixture
@@ -64,7 +62,7 @@ class TestShoppingAPISandboxIntegration:
         test_item_id = "110551991234"  # Example sandbox item
         
         try:
-            result = await get_single_item(
+            result = await get_single_item.fn(
                 test_item_id,
                 include_selector="Description,ItemSpecifics",
                 ctx=sandbox_context
@@ -91,7 +89,7 @@ class TestShoppingAPISandboxIntegration:
         test_item_id = "110551991234"
         
         try:
-            result = await get_item_status(test_item_id, ctx=sandbox_context)
+            result = await get_item_status.fn(test_item_id, ctx=sandbox_context)
             response = json.loads(result)
             
             if response["status"] == "success":
@@ -112,7 +110,7 @@ class TestShoppingAPISandboxIntegration:
         test_item_id = "110551991234"
         
         try:
-            result = await get_shipping_costs(
+            result = await get_shipping_costs.fn(
                 test_item_id,
                 destination_country_code="US",
                 destination_postal_code="90210",
@@ -139,7 +137,7 @@ class TestShoppingAPISandboxIntegration:
         test_item_ids = ["110551991234", "110551991235", "110551991236"]
         
         try:
-            result = await get_multiple_items(
+            result = await get_multiple_items.fn(
                 test_item_ids[:2],  # Test with first 2 items
                 ctx=sandbox_context
             )
@@ -159,7 +157,7 @@ class TestShoppingAPISandboxIntegration:
     async def test_find_products_sandbox(self, sandbox_context):
         """Test searching products in sandbox catalog."""
         try:
-            result = await find_products(
+            result = await find_products.fn(
                 query_keywords="test product",
                 max_entries=5,
                 ctx=sandbox_context
@@ -186,7 +184,7 @@ class TestShoppingAPISandboxIntegration:
         """Test error handling with invalid item ID."""
         invalid_item_id = "INVALID123"
         
-        result = await get_single_item(invalid_item_id, ctx=sandbox_context)
+        result = await get_single_item.fn(invalid_item_id, ctx=sandbox_context)
         response = json.loads(result)
         
         # Should return an error response
@@ -201,7 +199,7 @@ class TestShoppingAPISandboxIntegration:
         # This test searches for common items to ensure results
         try:
             # First, find products to get valid item IDs
-            result = await find_products(
+            result = await find_products.fn(
                 query_keywords="test",
                 max_entries=10,
                 ctx=sandbox_context
@@ -231,7 +229,7 @@ class TestShoppingAPIPerformance:
         
         async def get_item(item_id):
             try:
-                return await get_single_item(item_id, ctx=sandbox_context)
+                return await get_single_item.fn(item_id, ctx=sandbox_context)
             except Exception as e:
                 return json.dumps({
                     "status": "error",

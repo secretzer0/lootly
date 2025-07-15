@@ -10,11 +10,9 @@ from tools.finding_api import search_items, get_search_keywords, find_items_by_c
 from config import EbayConfig
 
 
-# Skip all tests in this file if EBAY_RUN_INTEGRATION_TESTS is not set
-pytestmark = pytest.mark.skipif(
-    os.getenv("EBAY_RUN_INTEGRATION_TESTS") != "true",
-    reason="Integration tests disabled. Set EBAY_RUN_INTEGRATION_TESTS=true to run."
-)
+# Integration tests are now enabled by default
+# To skip them, use: pytest -m "not integration"
+pytestmark = pytest.mark.integration
 
 
 def is_valid_app_id(app_id: str) -> bool:
@@ -85,7 +83,7 @@ def real_context(real_config):
 async def test_real_search_items(real_context):
     """Test real item search on eBay sandbox."""
     # Search for a common item that should exist in sandbox
-    result_json = await search_items(
+    result_json = await search_items.fn(
         keywords="Harry Potter",  # Common test item in sandbox
         min_price=1.0,
         max_price=100.0,
@@ -116,7 +114,7 @@ async def test_real_search_items(real_context):
 @pytest.mark.asyncio
 async def test_real_search_keywords(real_context):
     """Test real keyword suggestions."""
-    result_json = await get_search_keywords(
+    result_json = await get_search_keywords.fn(
         partial_keyword="iphone",
         ctx=real_context
     )
@@ -137,7 +135,7 @@ async def test_real_search_keywords(real_context):
 async def test_real_find_by_category(real_context):
     """Test real category browsing."""
     # Electronics category in sandbox
-    result_json = await find_items_by_category(
+    result_json = await find_items_by_category.fn(
         category_id="293",  # Electronics
         page_number=1,
         page_size=5,
@@ -155,7 +153,7 @@ async def test_real_find_by_category(real_context):
 @pytest.mark.asyncio
 async def test_real_advanced_search(real_context):
     """Test real advanced search with filters."""
-    result_json = await find_items_advanced(
+    result_json = await find_items_advanced.fn(
         keywords="book",
         free_shipping_only=True,
         listing_type="FixedPrice",
@@ -175,7 +173,7 @@ async def test_real_advanced_search(real_context):
 async def test_real_api_error_handling(real_context):
     """Test real API error responses."""
     # Use an invalid category ID to trigger an error
-    result_json = await find_items_by_category(
+    result_json = await find_items_by_category.fn(
         category_id="999999999",  # Invalid category
         ctx=real_context
     )
@@ -192,7 +190,7 @@ async def test_real_api_error_handling(real_context):
 async def test_real_pagination(real_context):
     """Test real pagination."""
     # First page
-    result1_json = await search_items(
+    result1_json = await search_items.fn(
         keywords="test",
         page_number=1,
         page_size=5,
@@ -203,7 +201,7 @@ async def test_real_pagination(real_context):
     
     if result1["data"]["pagination"]["has_next"]:
         # Second page
-        result2_json = await search_items(
+        result2_json = await search_items.fn(
             keywords="test",
             page_number=2, 
             page_size=5,
@@ -228,7 +226,7 @@ async def test_sandbox_vs_production(real_context):
     assert real_context.server.config.domain == "sandbox.ebay.com"
     
     # Make a simple call to verify sandbox
-    result_json = await search_items(
+    result_json = await search_items.fn(
         keywords="test",
         page_size=1,
         ctx=real_context
@@ -251,7 +249,7 @@ async def test_real_api_performance(real_context):
     import time
     
     start = time.time()
-    result_json = await search_items(
+    result_json = await search_items.fn(
         keywords="laptop",
         page_size=10,
         ctx=real_context
@@ -267,6 +265,80 @@ async def test_real_api_performance(real_context):
 
 @pytest.mark.integration
 @pytest.mark.asyncio
+async def test_no_credentials():
+    """Test API behavior when no credentials are configured."""
+    import tempfile
+    import shutil
+    from importlib import reload
+    
+    # Save current .env
+    env_backup = None
+    if os.path.exists('.env'):
+        with open('.env', 'r') as f:
+            env_backup = f.read()
+    
+    # Save current environment variables
+    saved_env = {}
+    env_vars = ['EBAY_APP_ID', 'EBAY_CERT_ID', 'EBAY_DEV_ID']
+    for var in env_vars:
+        if var in os.environ:
+            saved_env[var] = os.environ[var]
+            del os.environ[var]  # Remove from environment
+    
+    try:
+        # Create a temporary .env without EBAY_APP_ID
+        with open('.env', 'w') as f:
+            f.write("# Test environment without credentials\n")
+            f.write("EBAY_SANDBOX_MODE=true\n")
+            f.write("EBAY_SITE_ID=EBAY-US\n")
+            # No EBAY_APP_ID
+        
+        # Force reload of modules to pick up new config
+        import lootly_server
+        reload(lootly_server)
+        import tools.finding_api
+        reload(tools.finding_api)
+        
+        # Import the function after reload
+        from tools.finding_api import search_items
+        
+        # Create context
+        ctx = AsyncMock()
+        ctx.info = AsyncMock()
+        ctx.error = AsyncMock()
+        ctx.report_progress = AsyncMock()
+        
+        result_json = await search_items.fn(
+            keywords="test item",
+            ctx=ctx
+        )
+        
+        result = json.loads(result_json)
+        print(f"\nNo Credentials Response: {json.dumps(result, indent=2)}")
+        
+        # Should get a success response with helpful message
+        assert result["status"] == ResponseStatus.SUCCESS.value
+        assert "note" in result["data"]
+        assert "EBAY_APP_ID" in result["data"]["note"]
+        assert len(result["data"]["items"]) == 0
+        
+    finally:
+        # Restore original .env
+        if env_backup:
+            with open('.env', 'w') as f:
+                f.write(env_backup)
+        
+        # Restore environment variables
+        for var, value in saved_env.items():
+            os.environ[var] = value
+        
+        # Reload modules to restore original state
+        reload(lootly_server)
+        reload(tools.finding_api)
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
 async def test_invalid_credentials(real_context):
     """Test API behavior with invalid credentials."""
     # Check if we're using test/invalid credentials
@@ -278,7 +350,7 @@ async def test_invalid_credentials(real_context):
     print(f"\nTesting with invalid App ID: {app_id}")
     
     # Try to make an API call with invalid credentials
-    result_json = await search_items(
+    result_json = await search_items.fn(
         keywords="test item",
         page_size=1,
         ctx=real_context
@@ -343,7 +415,7 @@ async def test_endpoint_connectivity(real_context):
 async def test_rate_limit_headers(real_context):
     """Test that API responses include rate limit information."""
     # This test works with both valid and invalid credentials
-    result_json = await search_items(
+    result_json = await search_items.fn(
         keywords="test",
         page_size=1,
         ctx=real_context
@@ -368,22 +440,22 @@ async def test_different_error_scenarios(real_context):
     test_cases = [
         {
             "name": "Empty keywords",
-            "test": lambda: search_items(keywords="", ctx=real_context),
+            "test": lambda: search_items.fn(keywords="", ctx=real_context),
             "expected_error": "validation"
         },
         {
             "name": "Invalid category",  
-            "test": lambda: find_items_by_category(category_id="invalid-category", ctx=real_context),
+            "test": lambda: find_items_by_category.fn(category_id="invalid-category", ctx=real_context),
             "expected_error": "category"
         },
         {
             "name": "Page number too high",
-            "test": lambda: search_items(keywords="test", page_number=999, ctx=real_context),
+            "test": lambda: search_items.fn(keywords="test", page_number=999, ctx=real_context),
             "expected_error": "pagination"
         },
         {
             "name": "Invalid sort order",
-            "test": lambda: search_items(keywords="test", sort_order="InvalidSort", ctx=real_context),
+            "test": lambda: search_items.fn(keywords="test", sort_order="InvalidSort", ctx=real_context),
             "expected_error": "parameter"
         }
     ]
