@@ -141,6 +141,18 @@ async def get_most_watched_items(
     await ctx.info("Getting most watched items...")
     
     try:
+        # Check if credentials are available
+        if not mcp.config.app_id:
+            return success_response(
+                data={
+                    "items": [],
+                    "total_count": 0,
+                    "category_id": category_id,
+                    "note": "eBay API credentials not configured. To get live market trends, please set EBAY_APP_ID environment variable."
+                },
+                message="eBay API credentials not available - see note for setup instructions"
+            ).to_json_string()
+        
         # Validate input
         input_data = validate_tool_input(
             GetMostWatchedItemsInput,
@@ -410,6 +422,18 @@ async def get_top_selling_products(
     await ctx.info("Getting top selling products...")
     
     try:
+        # Check if credentials are available
+        if not mcp.config.app_id:
+            return success_response(
+                data={
+                    "products": [],
+                    "total_count": 0,
+                    "category_id": category_id,
+                    "note": "eBay API credentials not configured. To get live top selling products, please set EBAY_APP_ID environment variable."
+                },
+                message="eBay API credentials not available - see note for setup instructions"
+            ).to_json_string()
+        
         # Validate input
         input_data = validate_tool_input(
             GetTopSellingProductsInput,

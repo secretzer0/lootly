@@ -10,7 +10,7 @@ load_dotenv()
 
 # Load configuration
 config = EbayConfig.from_env()
-config.validate_credentials()
+# Note: Credential validation is now handled per-tool to allow graceful degradation
 
 # Setup logging
 logger = setup_mcp_logging(config)
