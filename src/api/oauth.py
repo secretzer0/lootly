@@ -6,7 +6,7 @@ Includes token caching and automatic refresh functionality.
 """
 import base64
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict
 import aiohttp
 from pydantic import BaseModel, Field
@@ -50,15 +50,15 @@ class CachedToken(BaseModel):
     
     def is_expired(self, buffer_minutes: int = 5) -> bool:
         """Check if token is expired with configurable buffer."""
-        return datetime.utcnow() >= self.expires_at - timedelta(minutes=buffer_minutes)
+        return datetime.now(timezone.utc) >= self.expires_at - timedelta(minutes=buffer_minutes)
     
     def time_until_expiry(self) -> timedelta:
         """Get time remaining until token expires."""
-        return self.expires_at - datetime.utcnow()
+        return self.expires_at - datetime.now(timezone.utc)
     
     def is_near_expiry(self, buffer_minutes: int = 10) -> bool:
         """Check if token is near expiry (within buffer time)."""
-        return datetime.utcnow() >= self.expires_at - timedelta(minutes=buffer_minutes)
+        return datetime.now(timezone.utc) >= self.expires_at - timedelta(minutes=buffer_minutes)
 
 
 class OAuthManager:
@@ -172,7 +172,9 @@ class OAuthManager:
         }
         
         logger.debug(f"Requesting OAuth token for scope: {OAuthScopes.get_scope_description(scope)}")
+        logger.debug(f"Actual scope string: {scope}")
         logger.debug(f"Using endpoint: {self.config.token_url}")
+        logger.debug(f"Request data: {data}")
         
         self._metrics['token_requests'] += 1
         
@@ -205,7 +207,7 @@ class OAuthManager:
                     
                     # Calculate expiration time
                     expires_in = token_data.get("expires_in", 7200)  # Default 2 hours
-                    expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
+                    expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
                     
                     logger.info(f"OAuth token obtained successfully (expires in {expires_in}s)")
                     
@@ -437,19 +439,22 @@ class OAuthScopes:
     SELL_FULFILLMENT = "https://api.ebay.com/oauth/api_scope/sell.fulfillment"
     SELL_ANALYTICS = "https://api.ebay.com/oauth/api_scope/sell.analytics.readonly"
     SELL_FINANCES = "https://api.ebay.com/oauth/api_scope/sell.finances"
+    SELL_MARKETPLACE_INSIGHTS = "https://api.ebay.com/oauth/api_scope/sell.marketplace.insights.readonly"
     
     # Commerce API scopes
-    COMMERCE_CATALOG = "https://api.ebay.com/oauth/api_scope/commerce.catalog.readonly"
-    COMMERCE_TAXONOMY = "https://api.ebay.com/oauth/api_scope/commerce.taxonomy.readonly"
+    COMMERCE_TAXONOMY = "https://api.ebay.com/oauth/api_scope"  # Taxonomy API uses basic scope
     COMMERCE_IDENTITY = "https://api.ebay.com/oauth/api_scope/commerce.identity.readonly"
     
     # Combined scopes for common use cases
     ALL_BUY = " ".join([BUY_BROWSE, BUY_OFFER, BUY_ORDER, BUY_MARKETING, BUY_INSIGHTS])
     ALL_SELL = " ".join([SELL_INVENTORY, SELL_MARKETING, SELL_ACCOUNT, SELL_FULFILLMENT])
-    ALL_COMMERCE = " ".join([COMMERCE_CATALOG, COMMERCE_TAXONOMY, COMMERCE_IDENTITY])
+    ALL_COMMERCE = " ".join([COMMERCE_TAXONOMY, COMMERCE_IDENTITY])
     
     # User consent scopes (require user authorization)
-    USER_CONSENT_SCOPES = " ".join([SELL_ACCOUNT, SELL_INVENTORY])
+    USER_CONSENT_SCOPES = " ".join([SELL_ACCOUNT, SELL_INVENTORY, SELL_ANALYTICS, SELL_FULFILLMENT, SELL_MARKETING, SELL_MARKETPLACE_INSIGHTS])
+    
+    # Test with basic scope only
+    # USER_CONSENT_SCOPES = "https://api.ebay.com/oauth/api_scope"
     
     # Basic API access (default)
     API_SCOPE = "https://api.ebay.com/oauth/api_scope"
@@ -471,8 +476,8 @@ class OAuthScopes:
             cls.SELL_FULFILLMENT: "Manage order fulfillment and shipping",
             cls.SELL_ANALYTICS: "Access seller analytics and performance data",
             cls.SELL_FINANCES: "Access financial data and reports",
-            cls.COMMERCE_CATALOG: "Access product catalog data",
-            cls.COMMERCE_TAXONOMY: "Access category and taxonomy data",
+            cls.SELL_MARKETPLACE_INSIGHTS: "Access marketplace insights data",
+            cls.COMMERCE_TAXONOMY: "Access category and taxonomy data (using basic API scope)",
             cls.COMMERCE_IDENTITY: "Access identity and profile data",
             cls.API_SCOPE: "Basic API access"
         }
@@ -485,8 +490,7 @@ class OAuthScopes:
             cls.BUY_BROWSE, cls.BUY_OFFER, cls.BUY_ORDER, cls.BUY_MARKETING, cls.BUY_INSIGHTS,
             cls.SELL_INVENTORY, cls.SELL_INVENTORY_READONLY, cls.SELL_MARKETING, 
             cls.SELL_ACCOUNT, cls.SELL_ACCOUNT_READONLY, cls.SELL_FULFILLMENT,
-            cls.SELL_ANALYTICS, cls.SELL_FINANCES,
-            cls.COMMERCE_CATALOG, cls.COMMERCE_TAXONOMY, cls.COMMERCE_IDENTITY,
+            cls.SELL_ANALYTICS, cls.SELL_FINANCES, cls.SELL_MARKETPLACE_INSIGHTS,
             cls.API_SCOPE
         ]
         

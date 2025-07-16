@@ -6,7 +6,7 @@ with built-in rate limiting, retry logic, and error handling.
 """
 import asyncio
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any, Union
 import aiohttp
 from pydantic import BaseModel, Field
@@ -42,7 +42,7 @@ class RateLimiter:
     
     def __init__(self, calls_per_day: int = 5000):
         self.calls_per_day = calls_per_day
-        self.window_start = datetime.utcnow()
+        self.window_start = datetime.now(timezone.utc)
         self.call_count = 0
         self._lock = asyncio.Lock()
         
@@ -53,7 +53,7 @@ class RateLimiter:
         Blocks if daily limit is reached until the next day.
         """
         async with self._lock:
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
             
             # Reset counter if new day
             if now.date() > self.window_start.date():
@@ -75,7 +75,7 @@ class RateLimiter:
                 await asyncio.sleep(wait_seconds)
                 
                 # Reset after wait
-                self.window_start = datetime.utcnow()
+                self.window_start = datetime.now(timezone.utc)
                 self.call_count = 0
             
             self.call_count += 1
@@ -176,7 +176,8 @@ class EbayRestClient:
             "Authorization": f"Bearer {token}",
             "X-EBAY-C-MARKETPLACE-ID": "EBAY_US",
             "Accept": "application/json",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "Content-Language": "en-US"  # Required for inventory/offer APIs
         }
         
         if headers:
@@ -349,7 +350,7 @@ class MockEbayRestClient:
             "json": json,
             "headers": headers,
             "scope": scope,
-            "timestamp": datetime.utcnow()
+            "timestamp": datetime.now(timezone.utc)
         })
         
         # Generate response key
@@ -389,7 +390,7 @@ class MockEbayRestClient:
         return {
             "calls_today": len(self.call_history),
             "calls_limit": 5000,
-            "window_start": datetime.utcnow().isoformat(),
+            "window_start": datetime.now(timezone.utc).isoformat(),
             "percentage_used": (len(self.call_history) / 5000) * 100
         }
     

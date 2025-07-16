@@ -8,7 +8,7 @@ from typing import Optional, List, Dict, Any, Union
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum
-from pydantic import BaseModel, Field, HttpUrl, field_validator, ConfigDict
+from pydantic import BaseModel, Field, HttpUrl, field_validator, ConfigDict, field_serializer
 
 
 # ==================== Common Models ====================
@@ -217,11 +217,15 @@ class Item(BaseModel):
     brand: Optional[str] = Field(None, description="Brand name")
     mpn: Optional[str] = Field(None, description="Manufacturer part number")
     
-    class Config:
-        json_encoders = {
-            datetime: lambda v: v.isoformat(),
-            Decimal: lambda v: float(v)
-        }
+    @field_serializer('listing_start_date', 'listing_end_date')
+    def serialize_datetime(self, dt: datetime) -> str:
+        return dt.isoformat() if dt else None
+    
+    @field_serializer('price', 'original_price')
+    def serialize_money(self, money: Money) -> dict:
+        if money:
+            return {"value": float(money.value), "currency": money.currency}
+        return None
 
 
 class SearchResult(BaseModel):
@@ -248,8 +252,8 @@ class TrendingKeyword(BaseModel):
     percentage_change: float = Field(..., description="Percentage change")
     category: Optional[Category] = Field(None, description="Associated category")
     
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "keyword": "vintage camera",
                 "search_volume": 15000,
@@ -258,6 +262,7 @@ class TrendingKeyword(BaseModel):
                 "category": {"category_id": "625", "category_name": "Cameras & Photo"}
             }
         }
+    )
 
 
 class CategoryInsight(BaseModel):
@@ -280,8 +285,8 @@ class SeasonalTrend(BaseModel):
     demand_increase: float = Field(..., description="Demand increase percentage")
     optimal_listing_time: str = Field(..., description="Best time to list")
     
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "period": "Back to School",
                 "categories": [{"category_id": "617", "category_name": "Books"}],
@@ -290,6 +295,7 @@ class SeasonalTrend(BaseModel):
                 "optimal_listing_time": "July 15 - August 15"
             }
         }
+    )
 
 
 # ==================== Inventory API Models ====================
@@ -303,8 +309,8 @@ class InventoryItem(BaseModel):
     availability: Dict[str, Any] = Field(..., description="Availability details")
     package_weight_and_size: Optional[Dict[str, Any]] = Field(None, description="Package details")
     
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "sku": "CAMERA-001",
                 "product": {
@@ -320,6 +326,7 @@ class InventoryItem(BaseModel):
                 }
             }
         }
+    )
 
 
 class Offer(BaseModel):
@@ -335,10 +342,9 @@ class Offer(BaseModel):
     listing_policies: Dict[str, str] = Field(..., description="Policy IDs")
     category_id: str = Field(..., description="eBay category ID")
     
-    class Config:
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }
+    @field_serializer('listing_start_date')
+    def serialize_datetime(self, dt: datetime) -> str:
+        return dt.isoformat() if dt else None
 
 
 # ==================== Response Models ====================
@@ -350,8 +356,8 @@ class ApiResponse(BaseModel):
     warnings: List[str] = Field(default_factory=list, description="Warning messages")
     metadata: Optional[Dict[str, Any]] = Field(None, description="Response metadata")
     
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "success": True,
                 "data": {"item_id": "123456789"},
@@ -359,6 +365,7 @@ class ApiResponse(BaseModel):
                 "metadata": {"api_version": "v1", "response_time": 0.123}
             }
         }
+    )
 
 
 class PagedResponse(BaseModel):
@@ -419,10 +426,10 @@ class CreateListingRequest(BaseModel):
     payment_policy_id: str = Field(..., description="Payment policy ID")
     return_policy_id: str = Field(..., description="Return policy ID")
     shipping_policy_id: str = Field(..., description="Shipping policy ID")
-    images: List[HttpUrl] = Field(..., min_items=1, max_items=24, description="Image URLs")
+    images: List[HttpUrl] = Field(..., min_length=1, max_length=24, description="Image URLs")
     
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "sku": "CAMERA-001",
                 "category_id": "31388",
@@ -434,3 +441,4 @@ class CreateListingRequest(BaseModel):
                 "images": ["https://example.com/image1.jpg"]
             }
         }
+    )

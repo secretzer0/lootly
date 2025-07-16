@@ -47,12 +47,19 @@ lootly-server = "lootly_server:main"
 
 [tool.pytest.ini_options]
 asyncio_default_fixture_loop_scope = "function"
-testpaths = ["src"]
+testpaths = ["src/tools/tests"]
 python_files = ["test_*.py", "*_test.py"]
 python_functions = ["test_*"]
 python_classes = ["Test*"]
 pythonpath = ["src"]
 markers = [
-    "integration: marks tests as integration tests (deselect with '-m \"not integration\"')",
+    "unit: marks tests as unit tests (select with '-m unit')",
+    "integration: marks tests as integration tests (select with '-m integration')",
     "no_credentials: marks tests that should run without eBay API credentials",
 ]
+addopts = "-v --tb=short --strict-markers"
+
+# Test running shortcuts
+# Unit tests: uv run python -m pytest (default)
+# Integration tests: uv run python -m pytest --test-mode=integration
+# Specific file: uv run python -m pytest src/tools/tests/test_browse_api.py

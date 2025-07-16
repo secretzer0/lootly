@@ -4,7 +4,7 @@ Provides market trend analysis and insights. Works with or without API credentia
 using static analysis when APIs are not available.
 """
 from typing import Dict, Any, Optional, List
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from fastmcp import Context
 from data_types import MCPResourceData
 from lootly_server import mcp
@@ -145,7 +145,7 @@ MARKET_INTELLIGENCE = {
 
 def _get_current_season() -> str:
     """Get current season/quarter."""
-    month = datetime.now().month
+    month = datetime.now(timezone.utc).month
     if month <= 3:
         return "Q1_January_March"
     elif month <= 6:
@@ -158,7 +158,7 @@ def _get_current_season() -> str:
 
 def _get_current_market_phase() -> str:
     """Determine current market phase based on date."""
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     month = now.month
     day = now.day
     
@@ -182,7 +182,7 @@ def _get_current_market_phase() -> str:
 def _get_current_actionable_insights() -> List[Dict[str, str]]:
     """Get actionable insights based on current date."""
     insights = []
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     current_season = _get_current_season()
     
     # Seasonal insights
@@ -227,12 +227,12 @@ async def ebay_all_market_trends_resource(ctx: Context) -> str:
     """Get comprehensive eBay market trend analysis."""
     try:
         current_quarter = _get_current_season().replace("_", " ")
-        current_month = datetime.now().strftime("%B")
+        current_month = datetime.now(timezone.utc).strftime("%B")
         
         return MCPResourceData(
             data={
                 "current_market_snapshot": {
-                    "analysis_date": datetime.now().strftime("%Y-%m-%d"),
+                    "analysis_date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
                     "current_quarter": current_quarter,
                     "current_month": current_month,
                     "market_phase": _get_current_market_phase()
@@ -277,7 +277,7 @@ async def ebay_seasonal_trends_resource(ctx: Context) -> str:
             },
             metadata={
                 "data_source": "seasonal_analysis",
-                "current_date": datetime.now().strftime("%Y-%m-%d")
+                "current_date": datetime.now(timezone.utc).strftime("%Y-%m-%d")
             }
         ).to_json_string()
         
@@ -391,7 +391,7 @@ async def ebay_market_opportunities_resource(ctx: Context) -> str:
             },
             metadata={
                 "data_source": "opportunity_analysis",
-                "market_date": datetime.now().strftime("%Y-%m-%d")
+                "market_date": datetime.now(timezone.utc).strftime("%Y-%m-%d")
             }
         ).to_json_string()
         
@@ -405,7 +405,7 @@ async def ebay_market_opportunities_resource(ctx: Context) -> str:
 def _get_upcoming_opportunities(days_ahead: int) -> List[Dict[str, str]]:
     """Get opportunities for the next N days."""
     opportunities = []
-    future_date = datetime.now() + timedelta(days=days_ahead)
+    future_date = datetime.now(timezone.utc) + timedelta(days=days_ahead)
     
     # Check for major shopping events
     if future_date.month == 11 and future_date.day >= 20:

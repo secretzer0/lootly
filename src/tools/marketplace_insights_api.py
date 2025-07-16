@@ -8,7 +8,7 @@ from typing import Dict, Any, Optional, List
 from fastmcp import Context
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 from decimal import Decimal
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from api.oauth import OAuthManager, OAuthConfig, OAuthScopes
 from api.rest_client import EbayRestClient, RestConfig
@@ -283,7 +283,7 @@ async def search_item_sales(
             filters.append(f"conditions:{{{input_data.conditions}}}")
         
         # Last sold date filter
-        end_date = datetime.now()
+        end_date = datetime.now(timezone.utc)
         start_date = end_date - timedelta(days=input_data.last_sold_days)
         filters.append(f"lastSoldDate:[{start_date.isoformat()}..{end_date.isoformat()}]")
         

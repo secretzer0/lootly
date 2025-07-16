@@ -7,7 +7,7 @@ intelligent TTL management, and cache invalidation patterns.
 import json
 import logging
 from typing import Any, Dict, Optional, Union, List
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass, field
 from abc import ABC, abstractmethod
 import asyncio
@@ -55,12 +55,12 @@ class CacheEntry:
     """Cache entry with metadata."""
     value: Any
     expires_at: datetime
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     access_count: int = 0
     
     def is_expired(self) -> bool:
         """Check if entry is expired."""
-        return datetime.utcnow() > self.expires_at
+        return datetime.now(timezone.utc) > self.expires_at
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization."""
@@ -144,7 +144,7 @@ class MemoryCache(CacheInterface):
                 if len(self._cache) >= self.max_size:
                     await self._evict_lru()
             
-            expires_at = datetime.utcnow() + timedelta(seconds=ttl)
+            expires_at = datetime.now(timezone.utc) + timedelta(seconds=ttl)
             entry = CacheEntry(value=value, expires_at=expires_at)
             self._cache[key] = entry
             return True
@@ -177,7 +177,7 @@ class MemoryCache(CacheInterface):
     
     async def _evict_expired(self):
         """Remove expired entries."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         expired_keys = [
             key for key, entry in self._cache.items()
             if entry.expires_at <= now
@@ -263,7 +263,7 @@ class RedisCache(CacheInterface):
             client = await self._get_client()
             prefixed_key = self._make_key(key)
             
-            expires_at = datetime.utcnow() + timedelta(seconds=ttl)
+            expires_at = datetime.now(timezone.utc) + timedelta(seconds=ttl)
             entry = CacheEntry(value=value, expires_at=expires_at)
             
             # Serialize entry
@@ -551,17 +551,6 @@ class CacheInvalidator:
         for pattern in patterns:
             await self.cache_manager.delete_pattern(pattern)
     
-    async def invalidate_product_cache(self, epid: str):
-        """Invalidate product-related caches."""
-        patterns = [
-            f"catalog:product:{epid}*",
-            f"catalog:similar:{epid}*",
-            f"catalog:aspects:{epid}*",
-            f"catalog:reviews:{epid}*"
-        ]
-        
-        for pattern in patterns:
-            await self.cache_manager.delete_pattern(pattern)
     
     async def invalidate_search_cache(self, query: str):
         """Invalidate search-related caches."""
@@ -592,7 +581,6 @@ class CacheTTL:
     
     OAUTH_TOKENS = 1800  # 30 minutes
     CATEGORIES = 86400  # 24 hours
-    PRODUCT_CATALOG = 604800  # 7 days
     SHIPPING_RATES = 86400  # 24 hours
     MARKET_TRENDS = 21600  # 6 hours
     SEARCH_RESULTS = 300  # 5 minutes

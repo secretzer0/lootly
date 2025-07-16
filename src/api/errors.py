@@ -106,7 +106,7 @@ class EbayApiError(EbayApiException):
         details = {
             "status_code": status_code,
             "request_id": request_id,
-            "errors": [ErrorDetail(**err).dict(exclude_none=True) for err in errors if isinstance(err, dict)]
+            "errors": [ErrorDetail(**err).model_dump(exclude_none=True) for err in errors if isinstance(err, dict)]
         }
         
         super().__init__(message, category, severity, details)

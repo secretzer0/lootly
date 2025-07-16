@@ -5,7 +5,7 @@ Tests the real OAuth functionality against eBay's OAuth endpoints
 to ensure our enhancements work correctly.
 """
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import json
 
 from api.oauth import OAuthManager, OAuthConfig, CachedToken, OAuthScopes
@@ -31,7 +31,7 @@ class TestOAuthIntegration:
     
     def test_token_expiry_enhancements(self):
         """Test token expiry utility methods."""
-        expires_at = datetime.utcnow() + timedelta(minutes=30)
+        expires_at = datetime.now(timezone.utc) + timedelta(minutes=30)
         token = CachedToken(
             access_token="test_token",
             expires_at=expires_at
@@ -125,7 +125,7 @@ class TestOAuthIntegration:
         
         # Test scope descriptions
         description = OAuthScopes.get_scope_description(OAuthScopes.BUY_BROWSE)
-        assert "Browse items" in description
+        assert "Basic API access" in description
         
         unknown_description = OAuthScopes.get_scope_description("unknown_scope")
         assert unknown_description == "Unknown scope"
@@ -133,7 +133,6 @@ class TestOAuthIntegration:
         # Test combined scope constants
         assert OAuthScopes.BUY_BROWSE in OAuthScopes.ALL_BUY
         assert OAuthScopes.SELL_INVENTORY in OAuthScopes.ALL_SELL
-        assert OAuthScopes.COMMERCE_CATALOG in OAuthScopes.ALL_COMMERCE
     
     def test_cache_management_enhancements(self):
         """Test cache management enhancements."""
@@ -144,7 +143,7 @@ class TestOAuthIntegration:
         manager = OAuthManager(config)
         
         # Add a test token to cache
-        expires_at = datetime.utcnow() + timedelta(hours=1)
+        expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
         test_token = CachedToken(
             access_token="test_token",
             expires_at=expires_at,

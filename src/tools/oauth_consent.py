@@ -8,9 +8,11 @@ import os
 import json
 import uuid
 import aiohttp
+import sys
+import webbrowser
 from pathlib import Path
 from typing import Dict, Any, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from fastmcp import Context
 from pydantic import BaseModel, Field, ConfigDict
 
@@ -31,7 +33,7 @@ class UserTokenData(BaseModel):
     expires_at: datetime = Field(..., description="Token expiration time")
     scope: str = Field(..., description="Granted scopes")
     user_id: Optional[str] = Field(None, description="eBay user ID")
-    created_at: datetime = Field(default_factory=datetime.utcnow, description="Token creation time")
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="Token creation time")
 
 
 class TokenStorage:
@@ -134,6 +136,25 @@ class TokenStorage:
 _token_storage = TokenStorage()
 
 
+def _can_open_browser() -> bool:
+    """Check if we can open a browser (running in stdio mode)."""
+    # Check if we're running in a terminal/stdio environment
+    # This is a simple heuristic - in practice, MCP servers running locally
+    # through stdio can often open browsers
+    return sys.stdin.isatty() and sys.stdout.isatty()
+
+
+def _open_browser(url: str) -> bool:
+    """Open URL in the default browser if possible."""
+    if not _can_open_browser():
+        return False
+    
+    try:
+        return webbrowser.open(url)
+    except Exception:
+        return False
+
+
 @mcp.tool
 async def check_user_consent_status(ctx: Context) -> str:
     """
@@ -170,7 +191,7 @@ async def check_user_consent_status(ctx: Context) -> str:
         ).to_json_string()
     
     # Check if token is expired
-    if user_token.expires_at <= datetime.utcnow():
+    if user_token.expires_at <= datetime.now(timezone.utc):
         return success_response(
             data={
                 "has_consent": False,
@@ -231,17 +252,23 @@ async def initiate_user_consent(ctx: Context) -> str:
     # Build authorization URL
     base_url = "https://auth.sandbox.ebay.com/oauth2/authorize" if mcp.config.sandbox_mode else "https://auth.ebay.com/oauth2/authorize"
     
-    # Use localhost as redirect URI (standard for native apps)
-    redirect_uri = "https://localhost"
+    # Use redirect URI from environment or default to RuName
+    # eBay uses RuName as redirect URI for some apps
+    redirect_uri = os.getenv("EBAY_REDIRECT_URI", "Travis_Melhiser-TravisMe-Lootly-menhqo")
+    await ctx.info(f"Using redirect URI: {redirect_uri}")
     
-    auth_url = (
-        f"{base_url}"
-        f"?client_id={mcp.config.app_id}"
-        f"&response_type=code"
-        f"&redirect_uri={redirect_uri}"
-        f"&scope={OAuthScopes.USER_CONSENT_SCOPES}"
-        f"&state={state}"
-    )
+    # URL encode parameters
+    from urllib.parse import urlencode
+    
+    params = {
+        "client_id": mcp.config.app_id,
+        "response_type": "code",
+        "redirect_uri": redirect_uri,
+        "scope": OAuthScopes.USER_CONSENT_SCOPES,
+        "state": state
+    }
+    
+    auth_url = f"{base_url}?{urlencode(params)}"
     
     # Store state for validation (in memory for this session)
     # In production, you'd want to store this more persistently
@@ -251,11 +278,11 @@ async def initiate_user_consent(ctx: Context) -> str:
     
     # Provide user instructions
     instructions = [
-        "1. Click the authorization URL below to open eBay's consent page",
-        "2. Log in to your eBay account and grant the requested permissions",
-        "3. After granting consent, you'll be redirected to localhost (this will show an error page - this is normal)",
-        "4. Copy the ENTIRE URL from your browser's address bar",
-        "5. Use the 'complete_user_consent' tool with the copied URL to finish the process"
+        "Click the authorization URL to open eBay's consent page",
+        "Log in to your eBay account and grant the requested permissions",
+        "After granting consent, you'll be redirected to localhost (this will show an error page - this is normal)",
+        "Copy the ENTIRE URL from your browser's address bar",
+        "Paste the URL back in this console when prompted"
     ]
     
     required_scopes = [
@@ -271,6 +298,16 @@ async def initiate_user_consent(ctx: Context) -> str:
     
     await ctx.info(f"Authorization URL generated. State: {state}")
     
+    # Try to open browser automatically if running locally
+    browser_opened = _open_browser(auth_url)
+    
+    if browser_opened:
+        await ctx.info("🌐 Browser opened automatically! Complete authorization in the browser window.")
+        browser_status = "Browser opened automatically"
+    else:
+        await ctx.info("🔗 Copy the authorization URL below and open it in your browser.")
+        browser_status = "Browser not opened - copy URL manually"
+    
     return success_response(
         data={
             "authorization_url": auth_url,
@@ -279,9 +316,12 @@ async def initiate_user_consent(ctx: Context) -> str:
             "required_scopes": required_scopes,
             "instructions": instructions,
             "expires_in": 600,  # URL expires in 10 minutes
-            "environment": "sandbox" if mcp.config.sandbox_mode else "production"
+            "environment": "sandbox" if mcp.config.sandbox_mode else "production",
+            "browser_opened": browser_opened,
+            "browser_status": browser_status,
+            "next_step": "Use complete_user_consent with the callback URL after authorization"
         },
-        message="User consent initiated. Please follow the instructions to complete authorization."
+        message=f"✅ User consent initiated. {browser_status}. Complete authorization and then use complete_user_consent with the callback URL."
     ).to_json_string()
 
 
@@ -369,7 +409,7 @@ async def complete_user_consent(
         
         # Create user token data
         expires_in = token_response.get("expires_in", 7200)
-        expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
+        expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
         
         user_token = UserTokenData(
             access_token=token_response["access_token"],
@@ -468,7 +508,7 @@ async def get_user_access_token(app_id: str) -> Optional[str]:
         return None
     
     # Check if token is expired
-    if user_token.expires_at <= datetime.utcnow():
+    if user_token.expires_at <= datetime.now(timezone.utc):
         # TODO: Implement token refresh logic
         # For now, return None to indicate consent is needed
         return None

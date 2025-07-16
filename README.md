@@ -6,7 +6,7 @@ Lootly provides comprehensive eBay marketplace intelligence through the Model Co
 
 ## ✨ Key Features
 
-- **🔍 Modern REST APIs** - Browse, Catalog, Taxonomy, and Marketplace Insights
+- **🔍 Modern REST APIs** - Browse, Taxonomy, and Marketplace Insights
 - **📊 Market Intelligence** - Real-time trends, seasonal insights, pricing analysis  
 - **🏪 Seller Tools** - Inventory management, listing creation, and business policies
 - **🔐 Secure OAuth** - Built-in user consent flow for account access
@@ -16,11 +16,11 @@ Lootly provides comprehensive eBay marketplace intelligence through the Model Co
 
 **✅ Fully Functional REST APIs:**
 - **Browse API** - Search and browse eBay listings with advanced filters
-- **Catalog API** - Product metadata, image search, and catalog matching
 - **Taxonomy API** - Dynamic category hierarchy and item aspects
 - **Marketplace Insights API** - Market trends and seasonal data
 - **Account API** - Business policies and seller account management (requires user OAuth)
 - **Inventory API** - Modern listing management and offer creation (requires user OAuth)
+
 
 **⚠️ Legacy APIs (Limited Support):**
 - **Finding API** - Basic search functionality (being phased out)
@@ -231,16 +231,6 @@ Get detailed information for eBay item 123456789012
 Search for electronics in category 293 with local pickup
 ```
 
-### Product Catalog (Catalog API)
-```
-Search the product catalog for "Samsung Galaxy S24"
-
-Get product details for eBay Product ID 12345678901
-
-Find products similar to this image: https://example.com/product.jpg
-
-Get product aspects for eBay Product ID 98765432109
-```
 
 ### Category Management (Taxonomy API)
 ```
@@ -296,7 +286,6 @@ Show me my active offers
 |---------|-------------|-------------------|
 | **Browse Items** | Search eBay with advanced filters and sorting | App ID only |
 | **Item Details** | Get detailed item information and status | App ID only |
-| **Product Catalog** | Search products, get details, image search | App ID only |
 | **Category Management** | Dynamic categories, suggestions, item aspects | App ID only |
 | **Market Intelligence** | Trending categories, seasonal insights, analytics | App ID only |
 | **Account Policies** | Business policies, rate tables, seller standards | App ID + Cert ID + OAuth |

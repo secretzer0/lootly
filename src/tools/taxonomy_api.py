@@ -1,49 +1,23 @@
 """
-eBay Taxonomy API tools for dynamic category management.
+eBay Taxonomy API tools for intelligent category management.
 
-Provides access to eBay's category hierarchy, category suggestions, and item aspects.
-This replaces static category data with live, up-to-date information from eBay.
+Provides progressive category navigation, smart caching, and LLM-friendly 
+category search. Implements eBay's recommended caching strategy with 
+version-based invalidation.
 """
-from typing import Dict, Any, Optional, List
+from typing import Optional
 from fastmcp import Context
 from pydantic import BaseModel, Field, field_validator, ConfigDict
-from datetime import datetime
+from datetime import datetime, timezone
 
 from api.oauth import OAuthManager, OAuthConfig, OAuthScopes
 from api.rest_client import EbayRestClient, RestConfig
-from api.errors import EbayApiError, ValidationError as ApiValidationError
+from api.errors import EbayApiError
+from api.category_cache import get_category_tree_json, find_category_subtree
 from data_types import success_response, error_response, ErrorCode
 from lootly_server import mcp
 
 
-class CategoryTreeInput(BaseModel):
-    """Input validation for category tree operations."""
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
-    category_tree_id: str = Field(..., description="Category tree ID (e.g., '0' for US)")
-    category_id: Optional[str] = Field(None, description="Specific category ID to retrieve")
-    
-    @field_validator('category_tree_id')
-    @classmethod
-    def validate_tree_id(cls, v):
-        if not v or not v.strip():
-            raise ValueError("Category tree ID cannot be empty")
-        return v.strip()
-
-
-class CategorySuggestionsInput(BaseModel):
-    """Input validation for category suggestions."""
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
-    category_tree_id: str = Field(..., description="Category tree ID")
-    query: str = Field(..., min_length=1, max_length=350, description="Search query")
-    
-    @field_validator('query')
-    @classmethod
-    def validate_query(cls, v):
-        if not v or not v.strip():
-            raise ValueError("Query cannot be empty")
-        return v.strip()
 
 
 class ItemAspectsInput(BaseModel):
@@ -59,56 +33,6 @@ class ItemAspectsInput(BaseModel):
         if not v or not v.strip():
             raise ValueError("Category ID cannot be empty")
         return v.strip()
-
-
-# Static fallback data for when API is not available
-STATIC_CATEGORY_DATA = {
-    "default_tree_id": "0",  # US marketplace
-    "major_categories": [
-        {"category_id": "1", "category_name": "Collectibles", "level": 1, "leaf": False},
-        {"category_id": "267", "category_name": "Books, Movies & Music", "level": 1, "leaf": False},
-        {"category_id": "11450", "category_name": "Clothing, Shoes & Accessories", "level": 1, "leaf": False},
-        {"category_id": "58058", "category_name": "Computers/Tablets & Networking", "level": 1, "leaf": False},
-        {"category_id": "293", "category_name": "Consumer Electronics", "level": 1, "leaf": False},
-        {"category_id": "11700", "category_name": "Home & Garden", "level": 1, "leaf": False},
-        {"category_id": "281", "category_name": "Jewelry & Watches", "level": 1, "leaf": False},
-        {"category_id": "888", "category_name": "Sporting Goods", "level": 1, "leaf": False},
-        {"category_id": "220", "category_name": "Toys & Hobbies", "level": 1, "leaf": False},
-        {"category_id": "131090", "category_name": "Video Games & Consoles", "level": 1, "leaf": False}
-    ]
-}
-
-
-def _convert_category_node(node: Dict[str, Any]) -> Dict[str, Any]:
-    """Convert API category node to our format."""
-    return {
-        "category_id": node.get("categoryId"),
-        "category_name": node.get("categoryName"),
-        "level": node.get("categoryTreeNodeLevel", 1),
-        "leaf": node.get("leafCategory", False),
-        "parent_id": node.get("parentCategoryId"),
-        "child_count": len(node.get("childCategoryTreeNodes", [])),
-        "has_children": len(node.get("childCategoryTreeNodes", [])) > 0
-    }
-
-
-def _convert_category_subtree(subtree: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """Convert API category subtree to flat list."""
-    categories = []
-    
-    def process_node(node: Dict[str, Any], parent_id: Optional[str] = None):
-        # Convert current node
-        category = _convert_category_node(node)
-        if parent_id:
-            category["parent_id"] = parent_id
-        categories.append(category)
-        
-        # Process children
-        for child in node.get("childCategoryTreeNodes", []):
-            process_node(child, node.get("categoryId"))
-    
-    process_node(subtree)
-    return categories
 
 
 @mcp.tool
@@ -195,6 +119,8 @@ async def get_default_category_tree_id(
         await rest_client.close()
 
 
+
+
 @mcp.tool
 async def get_category_tree(
     ctx: Context,
@@ -202,287 +128,92 @@ async def get_category_tree(
     category_id: Optional[str] = None
 ) -> str:
     """
-    Get the complete category tree or a specific category subtree.
+    Get eBay category tree as raw JSON for LLM analysis.
     
-    Retrieves the hierarchical category structure from eBay's Taxonomy API.
-    Can get the entire tree or a specific subtree starting from a category.
+    Returns complete category hierarchy (17,000+ categories) or subtree starting from 
+    a specific parent category. LLMs can process this JSON directly to find the best 
+    category match or understand the hierarchy structure.
+    
+    Usage for LLMs:
+    - Call with no category_id for FULL category tree (all 17k+ categories)
+    - Call with category_id="58058" for just Computer/Electronics subtree  
+    - Process the raw JSON to find best category matches
+    - Use the hierarchy to understand parent/child relationships
     
     Args:
-        category_tree_id: Category tree ID (default "0" for US)
-        category_id: Optional category ID to get subtree (omit for full tree)
+        category_tree_id: Category tree ID (default "0" for US marketplace)
+        category_id: Optional parent category ID to get subtree (omit for full tree)
         ctx: MCP context
     
     Returns:
-        JSON response with category tree structure
+        Raw JSON with complete category data for LLM processing
     """
     await ctx.info(f"Getting category tree {category_tree_id}" + 
                   (f" starting from {category_id}" if category_id else ""))
-    await ctx.report_progress(0.1, "Validating parameters...")
     
     # Check credentials
     if not mcp.config.app_id or not mcp.config.cert_id:
-        await ctx.info("Using static category data - set credentials for live data")
-        return success_response(
-            data={
-                "category_tree_id": category_tree_id,
-                "categories": STATIC_CATEGORY_DATA["major_categories"],
-                "total_categories": len(STATIC_CATEGORY_DATA["major_categories"]),
-                "data_source": "static_fallback",
-                "note": "Live category data requires eBay API credentials"
-            },
-            message="Using static category data"
-        ).to_json_string()
-    
-    # Validate input
-    try:
-        input_data = CategoryTreeInput(
-            category_tree_id=category_tree_id,
-            category_id=category_id
-        )
-    except Exception as e:
-        await ctx.error(f"Validation error: {str(e)}")
         return error_response(
-            ErrorCode.VALIDATION_ERROR,
-            str(e)
+            ErrorCode.CONFIGURATION_ERROR,
+            "eBay API credentials required for category tree access"
         ).to_json_string()
-    
-    # Initialize API clients
-    oauth_config = OAuthConfig(
-        client_id=mcp.config.app_id,
-        client_secret=mcp.config.cert_id,
-        sandbox=mcp.config.sandbox_mode
-    )
-    oauth_manager = OAuthManager(oauth_config)
-    
-    rest_config = RestConfig(
-        sandbox=mcp.config.sandbox_mode,
-        rate_limit_per_day=mcp.config.rate_limit_per_day
-    )
-    rest_client = EbayRestClient(oauth_manager, rest_config)
     
     try:
-        await ctx.report_progress(0.3, "Fetching category tree from eBay...")
-        
-        # Build endpoint
-        if input_data.category_id:
-            endpoint = f"/commerce/taxonomy/v1/category_tree/{input_data.category_tree_id}/get_category_subtree"
-            params = {"category_id": input_data.category_id}
-        else:
-            endpoint = f"/commerce/taxonomy/v1/category_tree/{input_data.category_tree_id}"
-            params = {}
-        
-        # Make API request
-        response = await rest_client.get(
-            endpoint,
-            params=params,
-            scope=OAuthScopes.COMMERCE_TAXONOMY
+        # Initialize API clients
+        oauth_config = OAuthConfig(
+            client_id=mcp.config.app_id,
+            client_secret=mcp.config.cert_id,
+            sandbox=mcp.config.sandbox_mode
         )
+        oauth_manager = OAuthManager(oauth_config)
         
-        await ctx.report_progress(0.8, "Processing category data...")
+        rest_config = RestConfig(
+            sandbox=mcp.config.sandbox_mode,
+            rate_limit_per_day=mcp.config.rate_limit_per_day
+        )
+        rest_client = EbayRestClient(oauth_manager, rest_config)
         
-        # Parse response
-        if input_data.category_id:
-            # Subtree response
-            categories = _convert_category_subtree(response)
-        else:
-            # Full tree response
-            root_node = response.get("rootCategoryNode", {})
-            categories = _convert_category_subtree(root_node)
+        try:
+            # Get raw category tree JSON from cache or API
+            category_tree_json = await get_category_tree_json(
+                oauth_manager, 
+                rest_client, 
+                marketplace_id="EBAY_US"
+            )
+            
+            if category_id:
+                # Find subtree for specific category
+                subtree_json = find_category_subtree(category_tree_json, category_id)
+                if not subtree_json:
+                    return error_response(
+                        ErrorCode.NOT_FOUND_ERROR,
+                        f"Category {category_id} not found in tree"
+                    ).to_json_string()
+                
+                await ctx.info(f"Retrieved subtree for category {category_id}")
+                
+                return success_response(
+                    data=subtree_json,  # Raw JSON subtree
+                    message=f"Category subtree for {category_id}"
+                ).to_json_string()
+            else:
+                # Return full tree as raw JSON
+                await ctx.info(f"Retrieved full category tree with {len(str(category_tree_json))} characters")
+                
+                return success_response(
+                    data=category_tree_json,  # Complete raw JSON
+                    message="Complete eBay category tree for LLM processing"
+                ).to_json_string()
         
-        # Build metadata
-        metadata = {
-            "category_tree_id": input_data.category_tree_id,
-            "category_tree_version": response.get("categoryTreeVersion"),
-            "applicable_marketplace_ids": response.get("applicableMarketplaceIds", []),
-            "total_categories": len(categories),
-            "data_source": "live_api",
-            "fetched_at": datetime.now().isoformat()
-        }
+        finally:
+            await rest_client.close()
         
-        await ctx.report_progress(1.0, "Complete")
-        await ctx.info(f"Retrieved {len(categories)} categories")
-        
-        return success_response(
-            data={
-                "categories": categories,
-                "metadata": metadata,
-                "query": {
-                    "category_tree_id": input_data.category_tree_id,
-                    "category_id": input_data.category_id,
-                    "subtree_only": bool(input_data.category_id)
-                }
-            },
-            message=f"Retrieved {len(categories)} categories from tree {input_data.category_tree_id}"
-        ).to_json_string()
-        
-    except EbayApiError as e:
-        await ctx.error(f"eBay API error: {str(e)}")
-        return error_response(
-            ErrorCode.EXTERNAL_API_ERROR,
-            str(e),
-            {"status_code": e.status_code, "category_tree_id": category_tree_id}
-        ).to_json_string()
     except Exception as e:
         await ctx.error(f"Failed to get category tree: {str(e)}")
         return error_response(
             ErrorCode.INTERNAL_ERROR,
             f"Failed to get category tree: {str(e)}"
         ).to_json_string()
-    finally:
-        await rest_client.close()
-
-
-@mcp.tool
-async def get_category_suggestions(
-    ctx: Context,
-    query: str,
-    category_tree_id: str = "0"
-) -> str:
-    """
-    Get category suggestions for a search query.
-    
-    Suggests the most appropriate categories for listing an item based on
-    keywords or product description.
-    
-    Args:
-        query: Search query or item description
-        category_tree_id: Category tree ID (default "0" for US)
-        ctx: MCP context
-    
-    Returns:
-        JSON response with suggested categories
-    """
-    await ctx.info(f"Getting category suggestions for: {query}")
-    await ctx.report_progress(0.1, "Validating query...")
-    
-    # Check credentials
-    if not mcp.config.app_id or not mcp.config.cert_id:
-        # Return basic suggestions based on common patterns
-        suggestions = []
-        query_lower = query.lower()
-        
-        # Simple keyword matching for fallback
-        if any(word in query_lower for word in ['iphone', 'android', 'phone', 'smartphone']):
-            suggestions.append({
-                "category_id": "9355",
-                "category_name": "Cell Phones & Smartphones",
-                "relevancy": 95,
-                "path": "Electronics > Cell Phones & Accessories > Cell Phones & Smartphones"
-            })
-        elif any(word in query_lower for word in ['laptop', 'computer', 'desktop', 'pc']):
-            suggestions.append({
-                "category_id": "177",
-                "category_name": "Computers & Tablets",
-                "relevancy": 90,
-                "path": "Computers/Tablets & Networking > Laptops & Netbooks"
-            })
-        elif any(word in query_lower for word in ['book', 'novel', 'textbook']):
-            suggestions.append({
-                "category_id": "267",
-                "category_name": "Books",
-                "relevancy": 85,
-                "path": "Books, Movies & Music > Books"
-            })
-        else:
-            # Generic suggestions
-            suggestions.append({
-                "category_id": "1",
-                "category_name": "Collectibles",
-                "relevancy": 50,
-                "path": "Collectibles"
-            })
-        
-        return success_response(
-            data={
-                "suggestions": suggestions,
-                "query": query,
-                "category_tree_id": category_tree_id,
-                "data_source": "static_pattern_matching",
-                "note": "Set eBay API credentials for AI-powered category suggestions"
-            },
-            message=f"Found {len(suggestions)} category suggestions (static)"
-        ).to_json_string()
-    
-    # Validate input
-    try:
-        input_data = CategorySuggestionsInput(
-            category_tree_id=category_tree_id,
-            query=query
-        )
-    except Exception as e:
-        await ctx.error(f"Validation error: {str(e)}")
-        return error_response(
-            ErrorCode.VALIDATION_ERROR,
-            str(e)
-        ).to_json_string()
-    
-    # Initialize API clients
-    oauth_config = OAuthConfig(
-        client_id=mcp.config.app_id,
-        client_secret=mcp.config.cert_id,
-        sandbox=mcp.config.sandbox_mode
-    )
-    oauth_manager = OAuthManager(oauth_config)
-    
-    rest_config = RestConfig(
-        sandbox=mcp.config.sandbox_mode,
-        rate_limit_per_day=mcp.config.rate_limit_per_day
-    )
-    rest_client = EbayRestClient(oauth_manager, rest_config)
-    
-    try:
-        await ctx.report_progress(0.3, "Getting AI category suggestions...")
-        
-        # Make API request
-        response = await rest_client.get(
-            f"/commerce/taxonomy/v1/category_tree/{input_data.category_tree_id}/get_category_suggestions",
-            params={"q": input_data.query},
-            scope=OAuthScopes.COMMERCE_TAXONOMY
-        )
-        
-        await ctx.report_progress(0.8, "Processing suggestions...")
-        
-        # Parse suggestions
-        suggestions = []
-        for suggestion in response.get("categorySuggestions", []):
-            category = suggestion.get("category", {})
-            suggestions.append({
-                "category_id": category.get("categoryId"),
-                "category_name": category.get("categoryName"),
-                "category_tree_node_level": category.get("categoryTreeNodeLevel"),
-                "category_tree_node_ancestors": category.get("categoryTreeNodeAncestors", []),
-                "relevancy": suggestion.get("relevancy", "0")
-            })
-        
-        await ctx.report_progress(1.0, "Complete")
-        await ctx.info(f"Found {len(suggestions)} category suggestions")
-        
-        return success_response(
-            data={
-                "suggestions": suggestions,
-                "query": input_data.query,
-                "category_tree_id": input_data.category_tree_id,
-                "data_source": "live_api",
-                "fetched_at": datetime.now().isoformat()
-            },
-            message=f"Found {len(suggestions)} category suggestions"
-        ).to_json_string()
-        
-    except EbayApiError as e:
-        await ctx.error(f"eBay API error: {str(e)}")
-        return error_response(
-            ErrorCode.EXTERNAL_API_ERROR,
-            str(e),
-            {"status_code": e.status_code, "query": query}
-        ).to_json_string()
-    except Exception as e:
-        await ctx.error(f"Failed to get category suggestions: {str(e)}")
-        return error_response(
-            ErrorCode.INTERNAL_ERROR,
-            f"Failed to get category suggestions: {str(e)}"
-        ).to_json_string()
-    finally:
-        await rest_client.close()
 
 
 @mcp.tool
@@ -591,7 +322,7 @@ async def get_item_aspects_for_category(
                 "aspects": aspects,
                 "total_aspects": len(aspects),
                 "data_source": "live_api",
-                "fetched_at": datetime.now().isoformat()
+                "fetched_at": datetime.now(timezone.utc).isoformat()
             },
             message=f"Found {len(aspects)} item aspects for category {category_id}"
         ).to_json_string()
@@ -694,7 +425,7 @@ async def get_compatibility_properties(
                 "compatibility_properties": compatibility_properties,
                 "total_properties": len(compatibility_properties),
                 "data_source": "live_api",
-                "fetched_at": datetime.now().isoformat()
+                "fetched_at": datetime.now(timezone.utc).isoformat()
             },
             message=f"Found {len(compatibility_properties)} compatibility properties"
         ).to_json_string()
