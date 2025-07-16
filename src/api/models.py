@@ -298,53 +298,6 @@ class SeasonalTrend(BaseModel):
     )
 
 
-# ==================== Inventory API Models ====================
-
-class InventoryItem(BaseModel):
-    """Inventory item for sellers."""
-    sku: str = Field(..., description="Stock keeping unit")
-    product: Dict[str, Any] = Field(..., description="Product details")
-    condition: ConditionId = Field(..., description="Item condition")
-    condition_description: Optional[str] = Field(None, description="Condition details")
-    availability: Dict[str, Any] = Field(..., description="Availability details")
-    package_weight_and_size: Optional[Dict[str, Any]] = Field(None, description="Package details")
-    
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "sku": "CAMERA-001",
-                "product": {
-                    "title": "Vintage Canon AE-1",
-                    "description": "Classic 35mm film camera",
-                    "brand": "Canon",
-                    "mpn": "AE-1"
-                },
-                "condition": "USED_EXCELLENT",
-                "availability": {
-                    "quantity": 1,
-                    "warehouse_location": "Shelf A-5"
-                }
-            }
-        }
-    )
-
-
-class Offer(BaseModel):
-    """Listing offer details."""
-    offer_id: Optional[str] = Field(None, description="Offer ID")
-    sku: str = Field(..., description="Inventory SKU")
-    marketplace_id: MarketplaceId = Field(..., description="Target marketplace")
-    format: str = Field(..., description="Listing format (FIXED_PRICE, AUCTION)")
-    listing_description: str = Field(..., description="Listing description")
-    listing_duration: str = Field(..., description="Duration (GTC, DAYS_7, etc)")
-    listing_start_date: Optional[datetime] = Field(None, description="Start date")
-    pricing_summary: Dict[str, Any] = Field(..., description="Pricing details")
-    listing_policies: Dict[str, str] = Field(..., description="Policy IDs")
-    category_id: str = Field(..., description="eBay category ID")
-    
-    @field_serializer('listing_start_date')
-    def serialize_datetime(self, dt: datetime) -> str:
-        return dt.isoformat() if dt else None
 
 
 # ==================== Response Models ====================
@@ -415,7 +368,6 @@ class SearchRequest(BaseModel):
 
 class CreateListingRequest(BaseModel):
     """Create new listing request."""
-    sku: str = Field(..., description="Inventory SKU")
     category_id: str = Field(..., description="eBay category ID")
     title: str = Field(..., min_length=1, max_length=80, description="Listing title")
     description: str = Field(..., min_length=1, description="Listing description")
@@ -431,7 +383,6 @@ class CreateListingRequest(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "sku": "CAMERA-001",
                 "category_id": "31388",
                 "title": "Vintage Canon AE-1 35mm Film Camera - Excellent Condition",
                 "description": "Classic camera in great working condition...",

@@ -26,7 +26,6 @@ from tools.oauth_consent import (
     complete_user_consent,
     revoke_user_consent
 )
-from tools.inventory_api import create_inventory_item, get_inventory_items
 from tools.account_api import get_seller_standards
 from lootly_server import mcp
 from fastmcp import Context
@@ -172,41 +171,6 @@ async def test_apis_with_consent(ctx):
     except Exception as e:
         print(f"❌ Account API error: {str(e)}")
     
-    # Test 2: Inventory API - Get items
-    print("\n📦 Testing Inventory API (get items)...")
-    try:
-        result = await get_inventory_items.fn(ctx, limit=5)
-        data = json.loads(result)
-        if data["status"] == "success":
-            count = len(data["data"]["inventory_items"])
-            print(f"✅ Inventory API (get): Found {count} items")
-        else:
-            print(f"❌ Inventory API (get): {data['error_message']}")
-    except Exception as e:
-        print(f"❌ Inventory API (get) error: {str(e)}")
-    
-    # Test 3: Inventory API - Create item
-    print("\n📦 Testing Inventory API (create item)...")
-    try:
-        test_sku = f"OAUTH-TEST-{datetime.now().strftime('%Y%m%d%H%M%S')}"
-        result = await create_inventory_item.fn(
-            ctx=ctx,
-            sku=test_sku,
-            title="OAuth Test Item - Success!",
-            description="This item was created after successful OAuth consent flow",
-            category_id="166",  # Safe category
-            price=9.99,
-            quantity=1,
-            brand="TestBrand",
-            condition="NEW"
-        )
-        data = json.loads(result)
-        if data["status"] == "success":
-            print(f"✅ Inventory API (create): Created item {test_sku}")
-        else:
-            print(f"❌ Inventory API (create): {data['error_message']}")
-    except Exception as e:
-        print(f"❌ Inventory API (create) error: {str(e)}")
     
     print("\n🎉 OAuth flow and API testing complete!")
     print("✅ All tests used REAL OAuth tokens and REAL API calls - no mocking!")

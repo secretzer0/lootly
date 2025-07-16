@@ -177,7 +177,7 @@ class EbayRestClient:
             "X-EBAY-C-MARKETPLACE-ID": "EBAY_US",
             "Accept": "application/json",
             "Content-Type": "application/json",
-            "Content-Language": "en-US"  # Required for inventory/offer APIs
+            "Content-Language": "en-US"
         }
         
         if headers:

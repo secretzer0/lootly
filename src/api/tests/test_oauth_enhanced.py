@@ -303,7 +303,7 @@ class TestOAuthScopes:
         assert OAuthScopes.validate_scope(OAuthScopes.BUY_BROWSE)
         
         # Valid multiple scopes
-        combined_scope = f"{OAuthScopes.BUY_BROWSE} {OAuthScopes.SELL_INVENTORY}"
+        combined_scope = f"{OAuthScopes.BUY_BROWSE} {OAuthScopes.BUY_ORDER}"
         assert OAuthScopes.validate_scope(combined_scope)
         
         # Invalid scope
@@ -325,7 +325,7 @@ class TestOAuthScopes:
         """Test combined scope constants."""
         # Check that combined scopes contain expected individual scopes
         assert OAuthScopes.BUY_BROWSE in OAuthScopes.ALL_BUY
-        assert OAuthScopes.SELL_INVENTORY in OAuthScopes.ALL_SELL
+        assert OAuthScopes.SELL_MARKETING in OAuthScopes.ALL_SELL
         
         # Validate combined scopes
         assert OAuthScopes.validate_scope(OAuthScopes.ALL_BUY)

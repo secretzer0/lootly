@@ -1,7 +1,7 @@
 """
 MCP-native OAuth consent tool for eBay user authorization.
 
-Handles user consent flow for APIs requiring user tokens (Account, Inventory).
+Handles user consent flow for APIs requiring user tokens (Account).
 Provides an MCP-native experience without web redirects.
 """
 import os
@@ -185,7 +185,7 @@ async def check_user_consent_status(ctx: Context) -> str:
                 "has_consent": False,
                 "consent_required": True,
                 "required_scopes": OAuthScopes.USER_CONSENT_SCOPES.split(),
-                "message": "User consent required for Account and Inventory APIs"
+                "message": "User consent required for Account API"
             },
             message="User consent required"
         ).to_json_string()
@@ -289,10 +289,6 @@ async def initiate_user_consent(ctx: Context) -> str:
         {
             "scope": OAuthScopes.SELL_ACCOUNT,
             "description": "Manage seller account settings and policies"
-        },
-        {
-            "scope": OAuthScopes.SELL_INVENTORY,
-            "description": "Manage inventory items and listings"
         }
     ]
     
@@ -433,7 +429,7 @@ async def complete_user_consent(
                 "expires_at": user_token.expires_at.isoformat(),
                 "token_type": user_token.token_type,
                 "has_refresh_token": bool(user_token.refresh_token),
-                "message": "User consent granted successfully. You can now use Account and Inventory APIs."
+                "message": "User consent granted successfully. You can now use Account API."
             },
             message="User consent completed successfully"
         ).to_json_string()
@@ -475,7 +471,7 @@ async def revoke_user_consent(ctx: Context) -> str:
         return success_response(
             data={
                 "consent_revoked": True,
-                "message": "User consent has been revoked. Account and Inventory APIs will no longer work until consent is granted again."
+                "message": "User consent has been revoked. Account API will no longer work until consent is granted again."
             },
             message="User consent revoked"
         ).to_json_string()

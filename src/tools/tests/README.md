@@ -73,7 +73,6 @@ EBAY_DEV_ID=your-ebay-dev-id
 - `test_account_api.py` - Seller account and standards (10 tests)
 - `test_marketplace_insights_api.py` - Sales trends and insights (10 tests)
 - `test_marketing_api.py` - Promotions and campaigns (10 tests)
-- `test_shipping_api.py` - Shipping and fulfillment (8 tests)
 - `test_taxonomy_api.py` - Category and aspect metadata (16 tests)
 - `test_trending_api.py` - Market trends and popular items (9 tests)
 

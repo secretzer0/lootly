@@ -119,7 +119,7 @@ class EbayConfig(BaseModel):
         
         if not self.cert_id:
             messages.append(
-                "⚠️  EBAY_CERT_ID missing - Required for Account/Inventory APIs and OAuth"
+                "⚠️  EBAY_CERT_ID missing - Required for Account API and OAuth"
             )
         else:
             messages.append("✅ EBAY_CERT_ID configured")
@@ -136,7 +136,7 @@ class EbayConfig(BaseModel):
             messages.append("✅ Ready for: Browse, Catalog, Taxonomy APIs")
         
         if status["ready_for_user_apis"]:
-            messages.append("✅ Ready for: Account, Inventory APIs with OAuth")
+            messages.append("✅ Ready for: Account API with OAuth")
         
         if not status["ready_for_basic_apis"]:
             messages.append(

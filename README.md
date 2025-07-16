@@ -2,13 +2,13 @@
 
 **AI-powered eBay integration for Claude and other LLMs**
 
-Lootly provides comprehensive eBay marketplace intelligence through the Model Context Protocol (MCP). Search items, analyze markets, manage inventory, and discover deals - all directly from your AI assistant.
+Lootly provides comprehensive eBay marketplace intelligence through the Model Context Protocol (MCP). Search items, analyze markets, and discover deals - all directly from your AI assistant.
 
 ## ✨ Key Features
 
 - **🔍 Modern REST APIs** - Browse, Taxonomy, and Marketplace Insights
 - **📊 Market Intelligence** - Real-time trends, seasonal insights, pricing analysis  
-- **🏪 Seller Tools** - Inventory management, listing creation, and business policies
+- **🏪 Seller Tools** - Business policies and account management
 - **🔐 Secure OAuth** - Built-in user consent flow for account access
 - **🚀 Easy Integration** - Simple installation and Claude Desktop setup
 
@@ -19,7 +19,6 @@ Lootly provides comprehensive eBay marketplace intelligence through the Model Co
 - **Taxonomy API** - Dynamic category hierarchy and item aspects
 - **Marketplace Insights API** - Market trends and seasonal data
 - **Account API** - Business policies and seller account management (requires user OAuth)
-- **Inventory API** - Modern listing management and offer creation (requires user OAuth)
 
 
 **⚠️ Legacy APIs (Limited Support):**
@@ -159,9 +158,9 @@ What are current market trends on eBay?
 Get category suggestions for "smartphone accessories"
 ```
 
-### 7. OAuth Setup for Account/Inventory APIs
+### 7. OAuth Setup for Account API
 
-For APIs that require user permissions (Account, Inventory), you'll need to complete OAuth authorization:
+For APIs that require user permissions (Account), you'll need to complete OAuth authorization:
 
 1. **Check your consent status**:
    ```
@@ -267,19 +266,6 @@ Get my shipping rate tables
 Check my seller standards profile
 ```
 
-### Inventory Management (Requires OAuth)
-```
-Create an inventory item for SKU "IPHONE15-128-BLK"
-
-Get my inventory items
-
-Create an offer for my inventory item
-
-Publish my offer to create a live listing
-
-Show me my active offers
-```
-
 ## 🎯 What You Can Do
 
 | Feature | Description | Credentials Needed |
@@ -289,7 +275,6 @@ Show me my active offers
 | **Category Management** | Dynamic categories, suggestions, item aspects | App ID only |
 | **Market Intelligence** | Trending categories, seasonal insights, analytics | App ID only |
 | **Account Policies** | Business policies, rate tables, seller standards | App ID + Cert ID + OAuth |
-| **Inventory Management** | Create items, offers, and manage listings | App ID + Cert ID + OAuth |
 | **OAuth Flow** | MCP-native user consent and token management | App ID + Cert ID |
 | **Legacy APIs** | Shopping, Trading, Finding (limited support) | App ID + Cert ID |
 
@@ -370,7 +355,7 @@ EBAY_RUN_INTEGRATION_TESTS=true uv run pytest
 
 **❌ "EBAY_CERT_ID environment variable is required"**
 - Solution: Add your Certificate ID to the `.env` file
-- Required for Account/Inventory APIs and OAuth
+- Required for Account API and OAuth
 - Keep this value secure!
 
 **❌ "User consent required for Account API"**
@@ -397,7 +382,7 @@ EBAY_RUN_INTEGRATION_TESTS=true uv run pytest
 - Check your rate limits on eBay developer dashboard
 - Verify network connectivity
 
-**Account/Inventory APIs not working:**
+**Account API not working:**
 - Requires OAuth user consent
 - Use the built-in OAuth flow to authorize access
 - Check that your tokens haven't expired

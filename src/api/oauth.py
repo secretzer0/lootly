@@ -428,30 +428,27 @@ class OAuthScopes:
     BUY_OFFER = "https://api.ebay.com/oauth/api_scope/buy.offer"
     BUY_ORDER = "https://api.ebay.com/oauth/api_scope/buy.order"
     BUY_MARKETING = "https://api.ebay.com/oauth/api_scope/buy.marketing"
-    BUY_INSIGHTS = "https://api.ebay.com/oauth/api_scope/buy.marketplace.insights"
+    BUY_MARKETPLACE_INSIGHTS = "https://api.ebay.com/oauth/api_scope/buy.marketplace.insights"
     
     # Sell API scopes
-    SELL_INVENTORY = "https://api.ebay.com/oauth/api_scope/sell.inventory"
-    SELL_INVENTORY_READONLY = "https://api.ebay.com/oauth/api_scope/sell.inventory.readonly"
     SELL_MARKETING = "https://api.ebay.com/oauth/api_scope/sell.marketing"
     SELL_ACCOUNT = "https://api.ebay.com/oauth/api_scope/sell.account"
     SELL_ACCOUNT_READONLY = "https://api.ebay.com/oauth/api_scope/sell.account.readonly"
     SELL_FULFILLMENT = "https://api.ebay.com/oauth/api_scope/sell.fulfillment"
     SELL_ANALYTICS = "https://api.ebay.com/oauth/api_scope/sell.analytics.readonly"
     SELL_FINANCES = "https://api.ebay.com/oauth/api_scope/sell.finances"
-    SELL_MARKETPLACE_INSIGHTS = "https://api.ebay.com/oauth/api_scope/sell.marketplace.insights.readonly"
     
     # Commerce API scopes
     COMMERCE_TAXONOMY = "https://api.ebay.com/oauth/api_scope"  # Taxonomy API uses basic scope
     COMMERCE_IDENTITY = "https://api.ebay.com/oauth/api_scope/commerce.identity.readonly"
     
     # Combined scopes for common use cases
-    ALL_BUY = " ".join([BUY_BROWSE, BUY_OFFER, BUY_ORDER, BUY_MARKETING, BUY_INSIGHTS])
-    ALL_SELL = " ".join([SELL_INVENTORY, SELL_MARKETING, SELL_ACCOUNT, SELL_FULFILLMENT])
+    ALL_BUY = " ".join([BUY_BROWSE, BUY_OFFER, BUY_ORDER, BUY_MARKETING, BUY_MARKETPLACE_INSIGHTS])
+    ALL_SELL = " ".join([SELL_MARKETING, SELL_ACCOUNT, SELL_FULFILLMENT])
     ALL_COMMERCE = " ".join([COMMERCE_TAXONOMY, COMMERCE_IDENTITY])
     
     # User consent scopes (require user authorization)
-    USER_CONSENT_SCOPES = " ".join([SELL_ACCOUNT, SELL_INVENTORY, SELL_ANALYTICS, SELL_FULFILLMENT, SELL_MARKETING, SELL_MARKETPLACE_INSIGHTS])
+    USER_CONSENT_SCOPES = " ".join([SELL_ACCOUNT, SELL_ANALYTICS, SELL_FULFILLMENT, SELL_MARKETING ])
     
     # Test with basic scope only
     # USER_CONSENT_SCOPES = "https://api.ebay.com/oauth/api_scope"
@@ -467,16 +464,13 @@ class OAuthScopes:
             cls.BUY_OFFER: "Make offers on eBay items",
             cls.BUY_ORDER: "Manage purchase orders",
             cls.BUY_MARKETING: "Access marketing and promotional data",
-            cls.BUY_INSIGHTS: "Access marketplace insights and analytics",
-            cls.SELL_INVENTORY: "Manage inventory items and listings",
-            cls.SELL_INVENTORY_READONLY: "Read-only access to inventory items",
+            cls.BUY_MARKETPLACE_INSIGHTS: "Access marketplace insights and sales data",
             cls.SELL_MARKETING: "Manage marketing campaigns and promotions",
             cls.SELL_ACCOUNT: "Manage seller account settings and policies",
             cls.SELL_ACCOUNT_READONLY: "Read-only access to seller account data",
             cls.SELL_FULFILLMENT: "Manage order fulfillment and shipping",
             cls.SELL_ANALYTICS: "Access seller analytics and performance data",
             cls.SELL_FINANCES: "Access financial data and reports",
-            cls.SELL_MARKETPLACE_INSIGHTS: "Access marketplace insights data",
             cls.COMMERCE_TAXONOMY: "Access category and taxonomy data (using basic API scope)",
             cls.COMMERCE_IDENTITY: "Access identity and profile data",
             cls.API_SCOPE: "Basic API access"
@@ -487,11 +481,9 @@ class OAuthScopes:
     def validate_scope(cls, scope: str) -> bool:
         """Validate that scope is a known eBay OAuth scope."""
         known_scopes = [
-            cls.BUY_BROWSE, cls.BUY_OFFER, cls.BUY_ORDER, cls.BUY_MARKETING, cls.BUY_INSIGHTS,
-            cls.SELL_INVENTORY, cls.SELL_INVENTORY_READONLY, cls.SELL_MARKETING, 
-            cls.SELL_ACCOUNT, cls.SELL_ACCOUNT_READONLY, cls.SELL_FULFILLMENT,
-            cls.SELL_ANALYTICS, cls.SELL_FINANCES, cls.SELL_MARKETPLACE_INSIGHTS,
-            cls.API_SCOPE
+            cls.BUY_BROWSE, cls.BUY_OFFER, cls.BUY_ORDER, cls.BUY_MARKETING, cls.BUY_MARKETPLACE_INSIGHTS,
+            cls.SELL_MARKETING, cls.SELL_ACCOUNT, cls.SELL_ACCOUNT_READONLY, 
+            cls.SELL_FULFILLMENT, cls.SELL_ANALYTICS, cls.SELL_FINANCES, cls.API_SCOPE
         ]
         
         # Check if scope is a single known scope or multiple space-separated scopes

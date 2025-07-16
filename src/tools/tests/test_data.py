@@ -322,105 +322,75 @@ class TestDataGood:
         "defaultProgram": False
     }
     
-    # ==============================================================================
-    # Inventory API Test Data
-    # ==============================================================================
-    
-    INVENTORY_ITEM_IPHONE = {
-        "sku": "IPHONE-15-PRO-256-TITANIUM",
-        "product": {
-            "title": "Apple iPhone 15 Pro - 256GB - Natural Titanium",
-            "description": "Brand new iPhone 15 Pro with advanced camera system",
-            "brand": "Apple",
-            "mpn": "MTQA3LL/A",
-            "epid": "249325755",
-            "imageUrls": [
-                "https://i.ebayimg.com/images/g/123/s-l1600.jpg"
-            ],
-            "aspects": {
-                "Brand": ["Apple"],
-                "Model": ["iPhone 15 Pro"],
-                "Storage Capacity": ["256 GB"],
-                "Color": ["Natural Titanium"]
-            }
-        },
-        "condition": "NEW",
-        "availability": {
-            "shipToLocationAvailability": {
-                "quantity": 10
-            }
-        },
-        "location": {
-            "address": {
-                "city": "San Jose",
-                "stateOrProvince": "CA",
-                "postalCode": "95110",
-                "country": "US"
-            }
-        },
-        "pricing": {
-            "price": {
-                "value": "999.99",
-                "currency": "USD"
-            }
-        }
-    }
-    
-    OFFER_FIXED_PRICE = {
-        "offerId": "5123456789",
-        "sku": "IPHONE-15-PRO-256-TITANIUM",
-        "marketplaceId": "EBAY_US",
-        "format": "FIXED_PRICE",
-        "pricingSummary": {
-            "price": {
-                "value": "999.99",
-                "currency": "USD"
-            }
-        },
-        "listingDescription": "Brand new iPhone 15 Pro with advanced camera system",
-        "categoryId": "9355",
-        "merchantLocationKey": "warehouse-1",
-        "listingDuration": "GTC",
-        "status": "PUBLISHED",
-        "listingPolicies": {
-            "paymentPolicyId": "payment_policy_1",
-            "fulfillmentPolicyId": "shipping_policy_1",
-            "returnPolicyId": "return_policy_1"
-        }
-    }
     
     # ==============================================================================
     # Marketing API Test Data
     # ==============================================================================
     
-    MARKETING_PRODUCT_IPHONE = {
-        "productId": "EPID249325755",
-        "title": "Apple iPhone 15 Pro - 256GB",
-        "priceRange": {
-            "minPrice": {
-                "value": "899.99",
-                "currency": "USD"
-            },
-            "maxPrice": {
-                "value": "1099.99",
-                "currency": "USD"
-            }
+    # Based on ACTUAL getMerchandisedProducts API response from integration test
+    MERCHANDISED_PRODUCT_SAMSUNG = {
+        "epid": "210746054",
+        "title": "Samsung Galaxy S6 SM-G920V - 32GB - Black Sapphire (Verizon) Smartphone",
+        "image": {
+            "imageUrl": "http://i.ebayimg.com/00/s/MTE1NVg2MDg=/z/U14AAOSwstxVHFW3/$_6.JPG?set_id=89040003C1"
         },
-        "reviewCount": 1250,
-        "averageRating": 4.8,
-        "imageUrl": "https://i.ebayimg.com/images/g/marketing/s-l1600.jpg",
-        "productUrl": "https://www.ebay.com/itm/marketing/123456789",
-        "categoryId": "9355",
-        "salesRank": 1,
-        "availableQuantity": 500
+        "marketPriceDetails": [
+            {
+                "conditionGroup": "NEW_OTHER",
+                "conditionIds": ["1500", "1750"],
+                "estimatedStartPrice": {
+                    "value": "169.99",
+                    "currency": "USD"
+                }
+            },
+            {
+                "conditionGroup": "USED",
+                "conditionIds": ["2750", "3000", "4000", "5000", "6000"],
+                "estimatedStartPrice": {
+                    "value": "89.99",
+                    "currency": "USD"
+                },
+                "estimatedEndPrice": {
+                    "value": "129.99",
+                    "currency": "USD"
+                }
+            }
+        ],
+        "averageRating": 4.2,
+        "ratingCount": 542,
+        "reviewCount": 318
     }
     
     MERCHANDISED_PRODUCTS_RESPONSE = {
-        "merchandisedProducts": [MARKETING_PRODUCT_IPHONE],
-        "marketplaceId": "EBAY_US",
-        "metricType": "BEST_SELLING",
-        "categoryId": "9355",
-        "total": 1
+        "merchandisedProducts": [MERCHANDISED_PRODUCT_SAMSUNG]
+    }
+    
+    # ==============================================================================
+    # Marketplace Insights API Test Data
+    # ==============================================================================
+    
+    # Based on ACTUAL API response from sandbox
+    ITEM_SALE_CAMERA = {
+        "itemId": "v1|110588014268|0",
+        "title": "Demo Fotocamera Analogica",
+        "condition": "New",
+        "conditionId": "1000",
+        "buyingOption": None,
+        "quantitySold": 1,
+        "seller": {
+            "feedbackScore": 500
+        },
+        "itemLocation": {
+            "country": "US",
+            "postalCode": "951**"
+        },
+        "itemWebUrl": "https://cgi.sandbox.ebay.com/itm/Demo-Fotocamera-Analogica/110588014268"
+    }
+    
+    ITEM_SALES_SEARCH_RESPONSE = {
+        "itemSales": [ITEM_SALE_CAMERA],
+        "total": 1,
+        "href": "http://api.sandbox.ebay.com/buy/marketplace_insights/v1_beta/item_sales/search?category_ids=9355&offset=0&limit=10"
     }
     
     # ==============================================================================
@@ -573,61 +543,30 @@ class TestDataBad:
         "metrics": []  # Empty metrics
     }
     
-    # ==============================================================================
-    # Inventory API Bad Data
-    # ==============================================================================
-    
-    INVENTORY_ITEM_IPHONE = {
-        "sku": "",  # Empty SKU
-        "product": {
-            "title": "",  # Empty title
-            "imageUrls": ["not-a-url"],
-            "aspects": []  # Empty aspects
-        },
-        "condition": "INVALID",
-        "availability": {
-            "shipToLocationAvailability": {
-                "quantity": -10  # Negative quantity
-            }
-        }
-    }
-    
-    OFFER_FIXED_PRICE = {
-        "offerId": "",
-        "sku": "INVALID@SKU!",  # Invalid characters
-        "format": "INVALID_FORMAT",
-        "pricingSummary": {
-            "price": {
-                "value": "0.00",  # Zero price
-                "currency": "XXX"  # Invalid currency
-            }
-        },
-        "categoryId": "",  # Empty category
-        "status": "INVALID_STATUS"
-    }
     
     # ==============================================================================
     # Marketing API Bad Data
     # ==============================================================================
     
-    MARKETING_PRODUCT_IPHONE = {
-        "productId": "",  # Empty ID
+    MERCHANDISED_PRODUCT_IPHONE = {
+        "epid": "",  # Empty EPID
         "title": "",  # Empty title
-        "priceRange": {
-            "minPrice": {
+        "image": {
+            "imageUrl": "not-a-url"  # Invalid URL
+        },
+        "marketPriceDetails": [{
+            "estimatedStartPrice": {
                 "value": "-100",  # Negative price
                 "currency": "XXX"  # Invalid currency
             },
-            "maxPrice": {
+            "estimatedEndPrice": {
                 "value": "not-a-number",  # Invalid number
                 "currency": "USD"
             }
-        },
-        "reviewCount": -50,  # Negative count
+        }],
         "averageRating": 10.5,  # Rating > 5
-        "imageUrl": "not-a-url",
-        "productUrl": "",
-        "categoryId": "invalid-category"
+        "ratingCount": -50,  # Negative count
+        "reviewCount": -10  # Negative count
     }
     
     # ==============================================================================
@@ -727,20 +666,3 @@ class TestDataHelpers:
             "itemSummaries": items
         }
     
-    @staticmethod
-    def get_inventory_response(items=None, use_bad_data=False):
-        """Generate an inventory response with given items."""
-        if use_bad_data:
-            return {
-                "href": "/sell/inventory/v1/inventory_item",
-                "inventoryItems": "not-an-array"  # Bad data
-            }
-            
-        if items is None:
-            items = [TestDataGood.INVENTORY_ITEM_IPHONE]
-        return {
-            "href": "/sell/inventory/v1/inventory_item",
-            "total": len(items),
-            "size": len(items),
-            "inventoryItems": items
-        }

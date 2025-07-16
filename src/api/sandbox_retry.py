@@ -24,7 +24,6 @@ class SandboxErrorType(str, Enum):
     ERROR_25001 = "25001"  # "A system error has occurred"
     RATE_LIMIT_MOCK = "rate_limit_mock"  # Sandbox rate limit simulation
     TIMEOUT_SIMULATION = "timeout_simulation"  # Sandbox timeout simulation
-    INVENTORY_SYNC = "inventory_sync"  # Inventory synchronization delays
     OAUTH_REFRESH = "oauth_refresh"  # OAuth token refresh issues in sandbox
 
 
@@ -63,15 +62,12 @@ class SandboxRetryManager:
             "Internal Server Error": SandboxErrorType.TIMEOUT_SIMULATION,
             "Service Temporarily Unavailable": SandboxErrorType.TIMEOUT_SIMULATION,
             "Rate limit exceeded": SandboxErrorType.RATE_LIMIT_MOCK,
-            "Inventory synchronization": SandboxErrorType.INVENTORY_SYNC,
             "OAuth token": SandboxErrorType.OAUTH_REFRESH,
         }
     
     def _initialize_fallbacks(self) -> Dict[SandboxErrorType, Callable[[], SandboxFallback]]:
         """Initialize fallback data generators."""
         return {
-            SandboxErrorType.ERROR_25001: self._get_inventory_fallback,
-            SandboxErrorType.INVENTORY_SYNC: self._get_inventory_fallback,
             SandboxErrorType.RATE_LIMIT_MOCK: self._get_rate_limit_fallback,
             SandboxErrorType.TIMEOUT_SIMULATION: self._get_timeout_fallback,
             SandboxErrorType.OAUTH_REFRESH: self._get_oauth_fallback,
@@ -204,37 +200,6 @@ class SandboxRetryManager:
             "sandbox_note": "This data is provided as a fallback due to known sandbox reliability issues"
         }
     
-    def _get_inventory_fallback(self) -> SandboxFallback:
-        """Fallback data for inventory-related sandbox errors."""
-        return SandboxFallback(
-            data={
-                "inventory_items": [
-                    {
-                        "sku": "SANDBOX-FALLBACK-001",
-                        "title": "Sample Product - Sandbox Fallback",
-                        "description": "This is sample inventory data provided due to sandbox Error 25001",
-                        "price": {"value": 19.99, "currency": "USD"},
-                        "quantity": 10,
-                        "condition": "NEW",
-                        "category_id": "625",
-                        "listing_status": "ACTIVE",
-                        "created_date": datetime.now(timezone.utc).isoformat(),
-                        "sandbox_fallback": True
-                    }
-                ],
-                "total_items": 1,
-                "limit": 25,
-                "offset": 0,
-                "has_more": False
-            },
-            message="Inventory items retrieved (sandbox fallback)",
-            metadata={
-                "original_error": "Error 25001 - A system error has occurred",
-                "common_cause": "Known eBay sandbox reliability issue",
-                "production_note": "This error typically does not occur in production environments"
-            }
-        )
-    
     def _get_rate_limit_fallback(self) -> SandboxFallback:
         """Fallback data for rate limit sandbox errors."""
         return SandboxFallback(
@@ -274,7 +239,7 @@ class SandboxRetryManager:
                 "auth_status": "fallback_success",
                 "token_valid": True,
                 "sandbox_auth": True,
-                "scopes": ["https://api.ebay.com/oauth/api_scope/sell.inventory"]
+                "scopes": ["https://api.ebay.com/oauth/api_scope"]
             },
             message="Authentication verified (sandbox fallback)",
             metadata={
@@ -333,30 +298,3 @@ def is_sandbox_error_25001(error: Exception) -> bool:
     return "25001" in error_message or "system error has occurred" in error_message
 
 
-async def handle_inventory_error(error: Exception, ctx=None) -> Optional[str]:
-    """
-    Specialized handler for inventory API errors with smart fallbacks.
-    
-    Args:
-        error: The exception that occurred
-        ctx: MCP context for reporting
-        
-    Returns:
-        Fallback response string if handled, None if should re-raise
-    """
-    if is_sandbox_error_25001(error):
-        if ctx:
-            await ctx.info("🔧 Handling Error 25001 with inventory fallback")
-        
-        fallback = default_retry_manager._get_inventory_fallback()
-        return success_response(
-            data={
-                **fallback.data,
-                "error_handled": True,
-                "original_error": "25001",
-                "sandbox_reliability_issue": True
-            },
-            message="Inventory data retrieved (Error 25001 fallback)"
-        ).to_json_string()
-    
-    return None

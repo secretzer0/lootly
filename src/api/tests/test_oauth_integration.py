@@ -117,7 +117,7 @@ class TestOAuthIntegration:
         assert OAuthScopes.validate_scope(OAuthScopes.BUY_BROWSE)
         
         # Test valid multiple scopes
-        combined_scope = f"{OAuthScopes.BUY_BROWSE} {OAuthScopes.SELL_INVENTORY}"
+        combined_scope = f"{OAuthScopes.BUY_BROWSE} {OAuthScopes.COMMERCE_TAXONOMY}"
         assert OAuthScopes.validate_scope(combined_scope)
         
         # Test invalid scope

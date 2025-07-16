@@ -55,14 +55,12 @@ def create_lootly_server():
     
     # Tools
     import tools.browse_api  # New Browse API (replaces Finding API)
-    import tools.marketplace_insights_api  # New Marketplace Insights API
     import tools.taxonomy_api  # New Taxonomy API (dynamic categories)
     import tools.account_api  # New Account API (business policies)
-    import tools.inventory_api  # New Inventory API (modern listing management)
     import tools.oauth_consent  # OAuth consent management
     import tools.marketing_api  # New Marketing API for merchandising
+    import tools.marketplace_insights_api  # Marketplace Insights API for sales data
     import tools.trending_api  # Trending items using Browse API
-    import tools.shipping_api  # Real-time shipping cost calculations
     
     # Resources
     import resources.categories

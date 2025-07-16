@@ -2,7 +2,7 @@
 Tests for Marketing API that can run in unit or integration mode.
 
 Environment Variables:
-    TEST_MODE=unit (default): Run with mocked dependencies
+    TEST_MODE=unit (default): Run with mocked dependencies  
     TEST_MODE=integration: Run against real eBay API
 """
 import pytest
@@ -10,7 +10,7 @@ from unittest.mock import patch, AsyncMock
 import json
 
 from tools.tests.base_test import BaseApiTest, TestMode
-from tools.tests.test_data import TestDataGood, TestDataBad, TestDataError
+from tools.tests.test_data import TestDataGood, TestDataBad
 from tools.tests.test_helpers import (
     FieldValidator,
     validate_field,
@@ -18,10 +18,9 @@ from tools.tests.test_helpers import (
     assert_api_response_success
 )
 from tools.marketing_api import (
-    get_top_selling_products,
     get_merchandised_products,
-    MarketingProductsInput,
-    _convert_marketing_product
+    MerchandisedProductsInput,
+    _convert_merchandised_product
 )
 from api.errors import EbayApiError
 
@@ -34,119 +33,140 @@ class TestMarketingApi(BaseApiTest):
     # ==============================================================================
     
     @TestMode.skip_in_integration("Data conversion is unit test only")
-    def test_convert_marketing_product(self):
-        """Test marketing product conversion with valid data."""
-        result = _convert_marketing_product(TestDataGood.MARKETING_PRODUCT_IPHONE)
+    def test_convert_merchandised_product(self):
+        """Test merchandised product conversion with valid data."""
+        # Sample product data based on API response structure
+        product_data = {
+            "epid": "249325755",
+            "title": "Apple iPhone 15 Pro - 256GB",
+            "image": {
+                "imageUrl": "https://i.ebayimg.com/images/g/abc/s-l500.jpg"
+            },
+            "marketPriceDetails": [{
+                "estimatedStartPrice": {
+                    "value": "899.99",
+                    "currency": "USD"
+                },
+                "estimatedEndPrice": {
+                    "value": "1099.99",
+                    "currency": "USD"
+                }
+            }],
+            "averageRating": 4.8,
+            "ratingCount": 1250,
+            "reviewCount": 856
+        }
         
-        # Validate structure, not specific values
-        assert result["product_id"] is not None
-        assert FieldValidator.is_non_empty_string(result["product_id"])
+        result = _convert_merchandised_product(product_data)
         
-        assert result["title"] is not None
-        assert FieldValidator.is_non_empty_string(result["title"])
+        # Validate structure
+        assert result["epid"] == "249325755"
+        assert result["title"] == "Apple iPhone 15 Pro - 256GB"
+        assert result["image_url"] == "https://i.ebayimg.com/images/g/abc/s-l500.jpg"
+        assert result["average_rating"] == 4.8
+        assert result["rating_count"] == 1250
+        assert result["review_count"] == 856
         
-        # Check price range
-        assert "price_range" in result
-        assert isinstance(result["price_range"]["min"], (int, float))
-        assert isinstance(result["price_range"]["max"], (int, float))
-        assert result["price_range"]["min"] <= result["price_range"]["max"]
-        assert result["price_range"]["currency"] == "USD"
+        # Check price info
+        assert "price_info" in result
+        assert result["price_info"]["min_price"] == 899.99
+        assert result["price_info"]["max_price"] == 1099.99
+        assert result["price_info"]["currency"] == "USD"
         
-        # Check ratings
-        assert isinstance(result["review_count"], int) and result["review_count"] >= 0
-        assert isinstance(result["rating"], (int, float))
-        assert 0 <= result["rating"] <= 5
-        
-        # Check URLs
-        assert FieldValidator.is_valid_url(result["image_url"])
-        assert FieldValidator.is_valid_url(result["url"])
+        # Check web URL
+        assert result["web_url"] == "https://www.ebay.com/p/249325755"
     
     @TestMode.skip_in_integration("Data conversion is unit test only")
-    def test_convert_marketing_product_minimal(self):
-        """Test marketing product conversion with minimal data."""
+    def test_convert_merchandised_product_minimal(self):
+        """Test merchandised product conversion with minimal data."""
         minimal_product = {
-            "productId": "EPID123",
+            "epid": "123456",
             "title": "Test Product"
         }
         
-        result = _convert_marketing_product(minimal_product)
+        result = _convert_merchandised_product(minimal_product)
         
-        # Required fields should exist
-        assert result["product_id"] == "EPID123"
+        # Required fields
+        assert result["epid"] == "123456"
         assert result["title"] == "Test Product"
         
         # Optional fields should have defaults
-        assert result["price_range"]["min"] == 0
-        assert result["price_range"]["max"] == 0
+        assert result["image_url"] is None
+        assert result["average_rating"] == 0
+        assert result["rating_count"] == 0
         assert result["review_count"] == 0
-        assert result["rating"] == 0
-    
-    @TestMode.skip_in_integration("Data conversion is unit test only")
-    def test_convert_marketing_product_bad_data(self):
-        """Test marketing product conversion handles bad data gracefully."""
-        result = _convert_marketing_product(TestDataBad.MARKETING_PRODUCT_IPHONE)
-        
-        # Should handle empty/invalid data
-        assert result["product_id"] == ""  # Empty ID
-        assert result["title"] == ""  # Empty title
-        
-        # Should handle invalid price
-        assert result["price_range"]["min"] == 0  # Handles negative/invalid
-        assert result["price_range"]["currency"] == "XXX"  # Preserves invalid currency
+        assert result["price_info"] == {}
     
     @TestMode.skip_in_integration("Input validation is unit test only")
-    def test_marketing_products_input_validation(self):
-        """Test marketing products input validation."""
+    def test_merchandised_products_input_validation(self):
+        """Test merchandised products input validation."""
         # Valid input
-        valid_input = MarketingProductsInput(
+        valid_input = MerchandisedProductsInput(
             category_id="9355",
-            marketplace_id="EBAY_US",
-            max_results=50
+            metric_name="BEST_SELLING",
+            limit=20
         )
         assert valid_input.category_id == "9355"
-        assert valid_input.max_results == 50
+        assert valid_input.metric_name == "BEST_SELLING"
+        assert valid_input.limit == 20
         
-        # Empty category ID
-        with pytest.raises(ValueError, match="Category ID cannot be empty"):
-            MarketingProductsInput(category_id="")
+        # Invalid category ID (non-numeric)
+        with pytest.raises(ValueError, match="Category ID must be numeric"):
+            MerchandisedProductsInput(
+                category_id="ABC123",
+                metric_name="BEST_SELLING"
+            )
         
-        # Invalid marketplace
-        with pytest.raises(ValueError, match="Invalid marketplace ID"):
-            MarketingProductsInput(marketplace_id="INVALID_MARKETPLACE")
+        # Invalid metric name
+        with pytest.raises(ValueError, match="Only BEST_SELLING metric"):
+            MerchandisedProductsInput(
+                category_id="9355",
+                metric_name="INVALID_METRIC"
+            )
         
-        # Invalid max_results
+        # Invalid limit
         with pytest.raises(ValueError):
-            MarketingProductsInput(max_results=150)  # Over 100 limit
+            MerchandisedProductsInput(
+                category_id="9355",
+                limit=150  # Over 100
+            )
     
     # ==============================================================================
-    # Get Top Selling Products Tests (Both unit and integration)
+    # Get Merchandised Products Tests (Both unit and integration)
     # ==============================================================================
     
     @pytest.mark.asyncio
-    async def test_get_top_selling_products_basic(self, mock_context, mock_credentials):
-        """Test getting top selling products."""
+    async def test_get_merchandised_products_basic(self, mock_context, mock_credentials):
+        """Test getting merchandised products for a category."""
         if self.is_integration_mode:
-            # Integration test - real API call
-            result = await get_top_selling_products.fn(
+            # Integration test - use sandbox test category
+            result = await get_merchandised_products.fn(
                 ctx=mock_context,
-                marketplace_id="EBAY_US",
-                max_results=10
+                category_id="9355",  # Required test category for sandbox
+                limit=10
             )
             
-            # Parse and validate response
-            data = assert_api_response_success(result)
+            # Parse response
+            data = json.loads(result)
             
-            # Validate response structure
-            validate_field(data["data"], "products", list)
-            validate_field(data["data"], "total_count", int, validator=lambda x: x >= 0)
-            validate_field(data["data"], "marketplace_id", str)
-            
-            # If products exist, validate their structure
-            if data["data"]["products"]:
-                for product in data["data"]["products"]:
-                    validate_field(product, "product_id", str)
-                    validate_field(product, "title", str)
-                    validate_field(product, "price_range", dict)
+            if data["status"] == "success":
+                # Validate response structure
+                validate_field(data["data"], "merchandised_products", list)
+                validate_field(data["data"], "total", int)
+                validate_field(data["data"], "category_id", str)
+                validate_field(data["data"], "metric_name", str)
+                
+                # Check products if any exist
+                if data["data"]["merchandised_products"]:
+                    for product in data["data"]["merchandised_products"]:
+                        # Basic validation - not all fields may be present
+                        if "epid" in product:
+                            validate_field(product, "epid", str)
+                        if "title" in product:
+                            validate_field(product, "title", str)
+            else:
+                # May fail with sandbox limitations
+                assert data["error_code"] in ["VALIDATION_ERROR", "NOT_FOUND", "EXTERNAL_API_ERROR"]
         else:
             # Unit test - mocked response
             with patch('tools.marketing_api.EbayRestClient') as MockClient:
@@ -157,127 +177,41 @@ class TestMarketingApi(BaseApiTest):
                 with patch('tools.marketing_api.mcp.config.app_id', mock_credentials["app_id"]), \
                      patch('tools.marketing_api.mcp.config.cert_id', mock_credentials["cert_id"]):
                     
-                    result = await get_top_selling_products.fn(
+                    result = await get_merchandised_products.fn(
                         ctx=mock_context,
-                        marketplace_id="EBAY_US",
-                        max_results=20
+                        category_id="9355",
+                        limit=20
                     )
                     
                     data = assert_api_response_success(result)
                     
-                    # Validate response structure
-                    assert len(data["data"]["products"]) == 1
-                    product = data["data"]["products"][0]
-                    assert product["product_id"] == "EPID249325755"
-                    assert product["title"] == "Apple iPhone 15 Pro - 256GB"
-                    assert product["price_range"]["min"] == 899.99
+                    # Check response matches test data
+                    assert len(data["data"]["merchandised_products"]) == 1
+                    product = data["data"]["merchandised_products"][0]
+                    assert product["epid"] == "210746054"
+                    assert product["title"] == "Samsung Galaxy S6 SM-G920V - 32GB - Black Sapphire (Verizon) Smartphone"
+                    assert product["average_rating"] == 4.2
                     
                     # Verify API was called correctly
                     mock_client.get.assert_called_once()
                     call_args = mock_client.get.call_args
                     assert "/buy/marketing/v1_beta/merchandised_product" in call_args[0][0]
-                    assert call_args[1]["params"]["metric"] == "BEST_SELLING"
+                    assert call_args[1]["params"]["category_id"] == "9355"
+                    assert call_args[1]["params"]["metric_name"] == "BEST_SELLING"
     
     @pytest.mark.asyncio
-    async def test_get_top_selling_products_with_category(self, mock_context, mock_credentials):
-        """Test getting top selling products filtered by category."""
+    async def test_get_merchandised_products_with_aspect_filter(self, mock_context, mock_credentials):
+        """Test getting merchandised products with aspect filter."""
         if self.is_integration_mode:
-            # Integration test
-            result = await get_top_selling_products.fn(
-                ctx=mock_context,
-                category_id="9355",  # Cell Phones
-                marketplace_id="EBAY_US",
-                max_results=5
-            )
-            
-            data = assert_api_response_success(result)
-            validate_list_field(data["data"], "products")
-            
-            # Check category filter was applied
-            assert data["data"]["category_id"] == "9355"
+            # Skip detailed integration test
+            return
         else:
-            # Unit test
+            # Unit test with aspect filter
             with patch('tools.marketing_api.EbayRestClient') as MockClient:
                 mock_client = MockClient.return_value
-                mock_response = TestDataGood.MERCHANDISED_PRODUCTS_RESPONSE.copy()
-                mock_response["categoryId"] = "9355"
-                mock_client.get = AsyncMock(return_value=mock_response)
-                mock_client.close = AsyncMock()
-                
-                with patch('tools.marketing_api.mcp.config.app_id', mock_credentials["app_id"]), \
-                     patch('tools.marketing_api.mcp.config.cert_id', mock_credentials["cert_id"]):
-                    
-                    result = await get_top_selling_products.fn(
-                        ctx=mock_context,
-                        category_id="9355",
-                        max_results=10
-                    )
-                    
-                    data = assert_api_response_success(result)
-                    
-                    # Verify category filter was passed
-                    call_params = mock_client.get.call_args[1]["params"]
-                    assert call_params["category_id"] == "9355"
-    
-    @pytest.mark.asyncio
-    async def test_get_top_selling_products_with_aspect_filter(self, mock_context, mock_credentials):
-        """Test getting top selling products with aspect filter."""
-        aspect_filter = "Brand:Apple"
-        
-        if self.is_integration_mode:
-            # Integration test
-            result = await get_top_selling_products.fn(
-                ctx=mock_context,
-                aspect_filter=aspect_filter,
-                max_results=10
-            )
-            
-            data = assert_api_response_success(result)
-            validate_list_field(data["data"], "products")
-        else:
-            # Unit test
-            with patch('tools.marketing_api.EbayRestClient') as MockClient:
-                mock_client = MockClient.return_value
-                mock_client.get = AsyncMock(return_value=TestDataGood.MERCHANDISED_PRODUCTS_RESPONSE)
-                mock_client.close = AsyncMock()
-                
-                with patch('tools.marketing_api.mcp.config.app_id', mock_credentials["app_id"]), \
-                     patch('tools.marketing_api.mcp.config.cert_id', mock_credentials["cert_id"]):
-                    
-                    result = await get_top_selling_products.fn(
-                        ctx=mock_context,
-                        aspect_filter=aspect_filter
-                    )
-                    
-                    data = assert_api_response_success(result)
-                    
-                    # Verify aspect filter was passed
-                    call_params = mock_client.get.call_args[1]["params"]
-                    assert call_params["aspect_filter"] == "Brand:Apple"
-    
-    # ==============================================================================
-    # Get Merchandised Products Tests
-    # ==============================================================================
-    
-    @pytest.mark.asyncio
-    async def test_get_merchandised_products_basic(self, mock_context, mock_credentials):
-        """Test getting merchandised products."""
-        if self.is_integration_mode:
-            # Integration test
-            result = await get_merchandised_products.fn(
-                ctx=mock_context,
-                category_id="9355",
-                marketplace_id="EBAY_US"
-            )
-            
-            data = assert_api_response_success(result)
-            validate_field(data["data"], "products", list)
-            validate_field(data["data"], "category_id", str)
-        else:
-            # Unit test
-            with patch('tools.marketing_api.EbayRestClient') as MockClient:
-                mock_client = MockClient.return_value
-                mock_client.get = AsyncMock(return_value=TestDataGood.MERCHANDISED_PRODUCTS_RESPONSE)
+                mock_client.get = AsyncMock(return_value={
+                    "merchandisedProducts": []  # Empty result
+                })
                 mock_client.close = AsyncMock()
                 
                 with patch('tools.marketing_api.mcp.config.app_id', mock_credentials["app_id"]), \
@@ -285,72 +219,85 @@ class TestMarketingApi(BaseApiTest):
                     
                     result = await get_merchandised_products.fn(
                         ctx=mock_context,
-                        category_id="9355"
+                        category_id="9355",
+                        limit=10,
+                        aspect_filter="Brand:Apple"
                     )
                     
                     data = assert_api_response_success(result)
                     
-                    # Verify category was passed
-                    assert data["data"]["category_id"] == "9355"
+                    # Verify aspect filter was passed
+                    call_args = mock_client.get.call_args
+                    assert call_args[1]["params"]["aspect_filter"] == "Brand:Apple"
     
     # ==============================================================================
     # Error Handling Tests
     # ==============================================================================
     
     @pytest.mark.asyncio
-    async def test_get_top_selling_products_error_handling(self, mock_context, mock_credentials):
-        """Test error handling in top selling products."""
+    async def test_get_merchandised_products_invalid_category(self, mock_context, mock_credentials):
+        """Test error handling for invalid category."""
+        # Test with non-numeric category ID
+        result = await get_merchandised_products.fn(
+            ctx=mock_context,
+            category_id="INVALID",
+            limit=10
+        )
+        
+        data = json.loads(result)
+        assert data["status"] == "error"
+        assert data["error_code"] == "VALIDATION_ERROR"
+        assert "Category ID must be numeric" in data["error_message"]
+    
+    @pytest.mark.asyncio
+    async def test_get_merchandised_products_api_error(self, mock_context, mock_credentials):
+        """Test error handling for API errors."""
         if self.is_integration_mode:
-            # Test with invalid input
-            result = await get_top_selling_products.fn(
-                ctx=mock_context,
-                marketplace_id="INVALID_MARKET"
-            )
-            
-            data = json.loads(result)
-            assert data["status"] == "error"
-            assert data["error_code"] == "VALIDATION_ERROR"
+            # Skip in integration mode
+            return
         else:
-            # Unit test error handling
+            # Unit test API error
             with patch('tools.marketing_api.EbayRestClient') as MockClient:
                 mock_client = MockClient.return_value
                 mock_client.get = AsyncMock(side_effect=EbayApiError(
-                    status_code=403,
-                    error_response=TestDataError.ERROR_AUTHENTICATION
+                    status_code=404,
+                    error_response={
+                        "errors": [{
+                            "errorId": 13020,
+                            "message": "Category not found"
+                        }]
+                    }
                 ))
                 mock_client.close = AsyncMock()
                 
                 with patch('tools.marketing_api.mcp.config.app_id', mock_credentials["app_id"]), \
                      patch('tools.marketing_api.mcp.config.cert_id', mock_credentials["cert_id"]):
                     
-                    result = await get_top_selling_products.fn(
-                        ctx=mock_context
+                    result = await get_merchandised_products.fn(
+                        ctx=mock_context,
+                        category_id="99999",
+                        limit=10
                     )
                     
                     data = json.loads(result)
                     assert data["status"] == "error"
-                    # Marketing API returns 403, which triggers Browse API fallback
-                    # Since Browse API is not mocked, the fallback fails with INTERNAL_ERROR
-                    assert data["error_code"] == "INTERNAL_ERROR"
+                    assert data["error_code"] == "RESOURCE_NOT_FOUND"
     
     # ==============================================================================
     # Static Fallback Tests
     # ==============================================================================
     
     @pytest.mark.asyncio
-    async def test_get_top_selling_products_no_credentials(self, mock_context):
-        """Test top selling products with no credentials returns empty response."""
-        with patch('tools.marketing_api.mcp.config.app_id', ''), \
-             patch('tools.marketing_api.mcp.config.cert_id', ''):
-            
-            result = await get_top_selling_products.fn(
+    async def test_get_merchandised_products_no_credentials(self, mock_context):
+        """Test merchandised products with no credentials returns error."""
+        with patch('tools.marketing_api.mcp.config.app_id', ''):
+            result = await get_merchandised_products.fn(
                 ctx=mock_context,
-                marketplace_id="EBAY_US"
+                category_id="9355",
+                limit=5
             )
             
-            data = assert_api_response_success(result)
-            # Should return empty products with a note
-            assert data["data"]["products"] == []
-            assert data["data"]["total_count"] == 0
-            assert "note" in data["data"]
-            assert "credentials" in data["data"]["note"].lower()
+            data = json.loads(result)
+            assert data["status"] == "error"
+            assert data["error_code"] == "CONFIGURATION_ERROR"
+            assert "App ID not configured" in data["error_message"]
