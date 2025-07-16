@@ -491,7 +491,7 @@ async def build_marketplace_filter(
         )
         Returns: "itemLocationCountry:US,maxDeliveryCost:0,returnsAccepted:true"
     """
-    await ctx.info("Building marketplace filter string...")
+    await ctx.info("🛠️ Building marketplace filter string...")
     
     fb = FilterBuilder()
     
@@ -630,7 +630,7 @@ async def build_marketplace_filter(
     # Parse filter for description
     filter_parts = filter_string.split(",")
     
-    await ctx.info(f"Built filter with {len(filter_parts)} components")
+    await ctx.info(f"✅ Built filter with {len(filter_parts)} components")
     
     return success_response(
         data={
@@ -724,6 +724,11 @@ async def search_item_sales(
     
     Returns:
         JSON response with sales data and statistics
+        
+    Note:
+        This tool returns structured data for processing. Please analyze the sales data 
+        and provide the user with useful insights (e.g., "Found 10 sales, average price $450")
+        rather than showing them the raw JSON data.
     
     Examples:
         # Search for iPhone sales
@@ -756,8 +761,8 @@ async def search_item_sales(
             condition=["Used", "Very Good"]
         )
     """
-    await ctx.info(f"Searching item sales: q='{q}', categories={category_ids}")
-    await ctx.report_progress(0.1, "Building filters...")
+    await ctx.info(f"🔍 Searching item sales: q='{q}', categories={category_ids}")
+    await ctx.report_progress(0.1, "🛠️ Building filters...")
     
     # Build filter string from helper parameters if not provided
     if not filter:
@@ -861,7 +866,7 @@ async def search_item_sales(
     rest_client = EbayRestClient(oauth_manager, rest_config)
     
     try:
-        await ctx.report_progress(0.3, "Calling eBay Marketplace Insights API...")
+        await ctx.report_progress(0.3, "🌐 Calling eBay Marketplace Insights API...")
         
         # Build query parameters
         params = {
@@ -886,7 +891,7 @@ async def search_item_sales(
             scope=OAuthScopes.BUY_MARKETPLACE_INSIGHTS
         )
         
-        await ctx.report_progress(0.8, "Processing response...")
+        await ctx.report_progress(0.8, "📊 Processing response...")
         
         # Extract sales data
         sales = response.get("itemSales", [])
@@ -908,8 +913,8 @@ async def search_item_sales(
                     "price_currency": converted_sales[0]["price"]["currency"] if converted_sales[0].get("price") else "USD"
                 }
         
-        await ctx.report_progress(1.0, "Complete")
-        await ctx.info(f"Retrieved {len(converted_sales)} item sales")
+        await ctx.report_progress(1.0, "✅ Complete")
+        await ctx.info(f"📈 Retrieved {len(converted_sales)} item sales")
         
         return success_response(
             data={

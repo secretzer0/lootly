@@ -53,8 +53,8 @@ async def get_most_watched_items(
     Returns:
         JSON response with trending items
     """
-    await ctx.info("Getting most watched items using strategic Browse API searches...")
-    await ctx.report_progress(0.1, "Validating input parameters...")
+    await ctx.info("🔥 Getting most watched items using strategic Browse API searches...")
+    await ctx.report_progress(0.1, "✅ Validating input parameters...")
     
     # Check credentials
     if not mcp.config.app_id or not mcp.config.cert_id:
@@ -96,7 +96,7 @@ async def get_most_watched_items(
     rest_client = EbayRestClient(oauth_manager, rest_config)
     
     try:
-        await ctx.report_progress(0.3, "Searching for trending items...")
+        await ctx.report_progress(0.3, "🌐 Searching for trending items...")
         
         # Strategy: Use multiple search approaches to find trending items
         all_items = []
@@ -135,8 +135,8 @@ async def get_most_watched_items(
         # Limit to requested number
         trending_items = unique_items[:input_data.max_results]
         
-        await ctx.report_progress(1.0, "Complete")
-        await ctx.info(f"Found {len(trending_items)} trending items")
+        await ctx.report_progress(1.0, "✅ Complete")
+        await ctx.info(f"🎆 Found {len(trending_items)} trending items")
         
         return success_response(
             data={
@@ -186,7 +186,7 @@ async def get_trending_items_by_category(
     Returns:
         JSON response with trending items from the category
     """
-    await ctx.info(f"Getting trending items for category: {category_id}")
+    await ctx.info(f"🔥 Getting trending items for category: {category_id}")
     
     # Use the same implementation as get_most_watched_items with category filter
     return await get_most_watched_items.fn(

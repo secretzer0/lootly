@@ -53,7 +53,7 @@ async def get_default_category_tree_id(
     Returns:
         JSON response with the default category tree ID
     """
-    await ctx.info(f"Getting default category tree ID for {marketplace_id}")
+    await ctx.info(f"🌳 Getting default category tree ID for {marketplace_id}")
     
     # Check credentials
     if not mcp.config.app_id or not mcp.config.cert_id:
@@ -91,7 +91,7 @@ async def get_default_category_tree_id(
         
         category_tree_id = response.get("categoryTreeId")
         
-        await ctx.info(f"Default category tree ID: {category_tree_id}")
+        await ctx.info(f"✅ Default category tree ID: {category_tree_id}")
         
         return success_response(
             data={
@@ -148,7 +148,7 @@ async def get_category_tree(
     Returns:
         Raw JSON with complete category data for LLM processing
     """
-    await ctx.info(f"Getting category tree {category_tree_id}" + 
+    await ctx.info(f"🌳 Getting category tree {category_tree_id}" + 
                   (f" starting from {category_id}" if category_id else ""))
     
     # Check credentials
@@ -190,7 +190,7 @@ async def get_category_tree(
                         f"Category {category_id} not found in tree"
                     ).to_json_string()
                 
-                await ctx.info(f"Retrieved subtree for category {category_id}")
+                await ctx.info(f"📁 Retrieved subtree for category {category_id}")
                 
                 return success_response(
                     data=subtree_json,  # Raw JSON subtree
@@ -198,7 +198,7 @@ async def get_category_tree(
                 ).to_json_string()
             else:
                 # Return full tree as raw JSON
-                await ctx.info(f"Retrieved full category tree with {len(str(category_tree_json))} characters")
+                await ctx.info(f"📊 Retrieved full category tree with {len(str(category_tree_json))} characters")
                 
                 return success_response(
                     data=category_tree_json,  # Complete raw JSON
@@ -236,8 +236,8 @@ async def get_item_aspects_for_category(
     Returns:
         JSON response with item aspects and constraints
     """
-    await ctx.info(f"Getting item aspects for category {category_id}")
-    await ctx.report_progress(0.1, "Validating parameters...")
+    await ctx.info(f"🔍 Getting item aspects for category {category_id}")
+    await ctx.report_progress(0.1, "✅ Validating parameters...")
     
     # Check credentials
     if not mcp.config.app_id or not mcp.config.cert_id:
@@ -280,7 +280,7 @@ async def get_item_aspects_for_category(
     rest_client = EbayRestClient(oauth_manager, rest_config)
     
     try:
-        await ctx.report_progress(0.3, "Fetching item aspects...")
+        await ctx.report_progress(0.3, "🌐 Fetching item aspects...")
         
         # Make API request
         response = await rest_client.get(
@@ -289,7 +289,7 @@ async def get_item_aspects_for_category(
             scope=OAuthScopes.COMMERCE_TAXONOMY
         )
         
-        await ctx.report_progress(0.8, "Processing aspects...")
+        await ctx.report_progress(0.8, "📦 Processing aspects...")
         
         # Parse aspects
         aspects = []
@@ -312,8 +312,8 @@ async def get_item_aspects_for_category(
             
             aspects.append(aspect_data)
         
-        await ctx.report_progress(1.0, "Complete")
-        await ctx.info(f"Found {len(aspects)} item aspects")
+        await ctx.report_progress(1.0, "✅ Complete")
+        await ctx.info(f"🎯 Found {len(aspects)} item aspects")
         
         return success_response(
             data={

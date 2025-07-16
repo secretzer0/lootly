@@ -98,6 +98,10 @@ async def get_merchandised_products(
     
     Returns:
         JSON response with merchandised products
+        
+    Note:
+        This tool returns product data for analysis. Please provide the user with a 
+        helpful summary of the top products and their key details rather than raw JSON.
     
     Example:
         Get top smartphones:
@@ -108,8 +112,8 @@ async def get_merchandised_products(
         - category_id: "9355"
         - aspect_filter: "Brand:Apple"
     """
-    await ctx.info(f"Getting merchandised products for category: {category_id}")
-    await ctx.report_progress(0.1, "Validating input...")
+    await ctx.info(f"🛒 Getting merchandised products for category: {category_id}")
+    await ctx.report_progress(0.1, "✅ Validating input...")
     
     # Validate input
     try:
@@ -152,7 +156,7 @@ async def get_merchandised_products(
     rest_client = EbayRestClient(oauth_manager, rest_config)
     
     try:
-        await ctx.report_progress(0.3, "Calling eBay Marketing API...")
+        await ctx.report_progress(0.3, "🌐 Calling eBay Marketing API...")
         
         # Build query parameters
         params = {
@@ -171,7 +175,7 @@ async def get_merchandised_products(
             scope=OAuthScopes.BUY_MARKETING
         )
         
-        await ctx.report_progress(0.8, "Processing response...")
+        await ctx.report_progress(0.8, "📦 Processing response...")
         
         # Extract products
         products = response.get("merchandisedProducts", [])
@@ -179,8 +183,8 @@ async def get_merchandised_products(
         # Convert products to our format
         converted_products = [_convert_merchandised_product(product) for product in products]
         
-        await ctx.report_progress(1.0, "Complete")
-        await ctx.info(f"Retrieved {len(converted_products)} merchandised products")
+        await ctx.report_progress(1.0, "✅ Complete")
+        await ctx.info(f"🏆 Retrieved {len(converted_products)} merchandised products")
         
         return success_response(
             data={
@@ -191,7 +195,7 @@ async def get_merchandised_products(
                 "limit": input_data.limit,
                 "aspect_filter": input_data.aspect_filter
             },
-            message=f"Retrieved {len(converted_products)} merchandised products"
+            message=f"Retrieved {len(converted_products)} merchandised products. Please provide a helpful summary of the top products and their key details."
         ).to_json_string()
         
     except EbayApiError as e:

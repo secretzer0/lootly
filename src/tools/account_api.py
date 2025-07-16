@@ -49,12 +49,16 @@ async def get_seller_standards(
     
     Returns:
         JSON response with seller standards
+        
+    Note:
+        This tool returns seller performance data for analysis. Please provide the user 
+        with a clear summary of their seller status and key metrics rather than raw JSON.
     """
-    await ctx.info(f"Getting seller standards for program: {program}, cycle: {cycle}")
+    await ctx.info(f"📊 Getting seller standards for program: {program}, cycle: {cycle}")
     
     # Check credentials
     if not mcp.config.app_id or not mcp.config.cert_id:
-        await ctx.info("Using static seller standards - set credentials for live data")
+        await ctx.info("📋 Using static seller standards - set credentials for live data")
         
         # Return static seller standards from test_data.py
         test_data = TestDataGood.SELLER_STANDARDS_RESPONSE
@@ -133,7 +137,7 @@ async def get_seller_standards(
     rest_client._user_token = user_token
     
     try:
-        await ctx.report_progress(0.3, "Fetching seller standards from Analytics API...")
+        await ctx.report_progress(0.3, "🌐 Fetching seller standards from Analytics API...")
         
         # Define the API call function for retry logic
         async def make_seller_standards_request():
@@ -155,7 +159,7 @@ async def get_seller_standards(
             retry_config=retry_config
         )
         
-        await ctx.report_progress(0.8, "Processing seller standards...")
+        await ctx.report_progress(0.8, "📈 Processing seller standards...")
         
         # Parse response - Analytics API has different structure based on actual response
         # The API returns 'standardsLevel' not 'sellerLevel'
@@ -198,8 +202,8 @@ async def get_seller_standards(
             "data_source": "analytics_api"
         }
         
-        await ctx.report_progress(1.0, "Complete")
-        await ctx.info(f"Retrieved seller standards: {standards['seller_level']}")
+        await ctx.report_progress(1.0, "✅ Complete")
+        await ctx.info(f"🏆 Retrieved seller standards: {standards['seller_level']}")
         
         return success_response(
             data={
@@ -207,7 +211,7 @@ async def get_seller_standards(
                 "data_source": "analytics_api",
                 "sandbox_retry_enabled": True
             },
-            message="Seller standards retrieved successfully from Analytics API"
+            message="Seller standards retrieved successfully from Analytics API. Provide a clear summary of the seller's performance status and key metrics."
         ).to_json_string()
         
     except EbayApiError as e:

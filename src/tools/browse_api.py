@@ -75,8 +75,13 @@ async def search_items(
     
     Returns:
         JSON response with search results and pagination info
+        
+    Note:
+        This tool returns structured data for processing. Please provide the user with a 
+        helpful summary of the results (e.g., "Found 5 items, here are the best matches:")
+        rather than showing them the raw JSON data.
     """
-    await ctx.info(f"Searching eBay for: {query}")
+    await ctx.info(f"🔍 Searching eBay for: {query}")
     await ctx.report_progress(0.1, "Validating search parameters...")
     
     # Check credentials
@@ -127,7 +132,7 @@ async def search_items(
     rest_client = EbayRestClient(oauth_manager, rest_config)
     
     try:
-        await ctx.report_progress(0.3, "Searching eBay marketplace...")
+        await ctx.report_progress(0.3, "🌐 Searching eBay marketplace...")
         
         # Build query parameters
         params = {
@@ -167,7 +172,7 @@ async def search_items(
             scope=OAuthScopes.BUY_BROWSE
         )
         
-        await ctx.report_progress(0.8, "Processing search results...")
+        await ctx.report_progress(0.8, "📦 Processing search results...")
         
         # Parse response into models
         items = []
@@ -192,8 +197,8 @@ async def search_items(
             refinements=response.get("refinements")
         )
         
-        await ctx.report_progress(1.0, "Search complete")
-        await ctx.info(f"Found {len(items)} items (showing {input_data.offset+1}-{input_data.offset+len(items)} of {total})")
+        await ctx.report_progress(1.0, "✅ Search complete")
+        await ctx.info(f"📊 Found {len(items)} items (showing {input_data.offset+1}-{input_data.offset+len(items)} of {total})")
         
         return success_response(
             data={
@@ -212,7 +217,7 @@ async def search_items(
                     }
                 }
             },
-            message=f"Found {total} items matching '{input_data.query}'"
+            message=f"Successfully found {total} items matching '{input_data.query}'. Use this data to provide a helpful summary to the user."
         ).to_json_string()
         
     except EbayApiError as e:

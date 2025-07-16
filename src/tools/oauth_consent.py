@@ -168,7 +168,7 @@ async def check_user_consent_status(ctx: Context) -> str:
     Returns:
         JSON response with consent status
     """
-    await ctx.info("Checking user consent status...")
+    await ctx.info("🔍 Checking user consent status...")
     
     if not mcp.config.app_id:
         return error_response(
@@ -237,7 +237,7 @@ async def initiate_user_consent(ctx: Context) -> str:
     Returns:
         JSON response with authorization URL and instructions
     """
-    await ctx.info("Initiating user consent flow...")
+    await ctx.info("🚀 Initiating user consent flow...")
     
     # Check configuration
     if not mcp.config.app_id or not mcp.config.cert_id:
@@ -255,7 +255,7 @@ async def initiate_user_consent(ctx: Context) -> str:
     # Use redirect URI from environment or default to RuName
     # eBay uses RuName as redirect URI for some apps
     redirect_uri = os.getenv("EBAY_REDIRECT_URI", "Travis_Melhiser-TravisMe-Lootly-menhqo")
-    await ctx.info(f"Using redirect URI: {redirect_uri}")
+    await ctx.info(f"🔗 Using redirect URI: {redirect_uri}")
     
     # URL encode parameters
     from urllib.parse import urlencode
@@ -292,7 +292,7 @@ async def initiate_user_consent(ctx: Context) -> str:
         }
     ]
     
-    await ctx.info(f"Authorization URL generated. State: {state}")
+    await ctx.info(f"✅ Authorization URL generated. State: {state}")
     
     # Try to open browser automatically if running locally
     browser_opened = _open_browser(auth_url)
@@ -338,8 +338,8 @@ async def complete_user_consent(
     Returns:
         JSON response with consent completion status
     """
-    await ctx.info("Completing user consent flow...")
-    await ctx.report_progress(0.1, "Validating callback URL...")
+    await ctx.info("🔄 Completing user consent flow...")
+    await ctx.report_progress(0.1, "✅ Validating callback URL...")
     
     # Check configuration
     if not mcp.config.app_id or not mcp.config.cert_id:
@@ -396,12 +396,12 @@ async def complete_user_consent(
     oauth_manager = OAuthManager(oauth_config)
     
     try:
-        await ctx.report_progress(0.3, "Exchanging authorization code for tokens...")
+        await ctx.report_progress(0.3, "🔄 Exchanging authorization code for tokens...")
         
         # Exchange authorization code for tokens
         token_response = await oauth_manager.exchange_code_for_tokens(auth_code, redirect_uri)
         
-        await ctx.report_progress(0.8, "Storing user tokens...")
+        await ctx.report_progress(0.8, "💾 Storing user tokens...")
         
         # Create user token data
         expires_in = token_response.get("expires_in", 7200)
@@ -418,8 +418,8 @@ async def complete_user_consent(
         # Store token securely
         _token_storage.store_user_token(user_token, mcp.config.app_id)
         
-        await ctx.report_progress(1.0, "Complete")
-        await ctx.info("User consent completed successfully")
+        await ctx.report_progress(1.0, "✅ Complete")
+        await ctx.info("🎉 User consent completed successfully")
         
         return success_response(
             data={
@@ -455,7 +455,7 @@ async def revoke_user_consent(ctx: Context) -> str:
     Returns:
         JSON response with revocation status
     """
-    await ctx.info("Revoking user consent...")
+    await ctx.info("🚫 Revoking user consent...")
     
     if not mcp.config.app_id:
         return error_response(
@@ -467,7 +467,7 @@ async def revoke_user_consent(ctx: Context) -> str:
     deleted = _token_storage.delete_user_token(mcp.config.app_id)
     
     if deleted:
-        await ctx.info("User consent revoked successfully")
+        await ctx.info("✅ User consent revoked successfully")
         return success_response(
             data={
                 "consent_revoked": True,
