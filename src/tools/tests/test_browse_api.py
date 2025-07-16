@@ -237,7 +237,7 @@ class TestBrowseApi(BaseApiTest):
                     # Check filter string was built
                     if "filter" in call_params:
                         filter_str = call_params["filter"]
-                        assert "price:[500.0..2000.0]" in filter_str
+                        assert "price:[500..2000]" in filter_str
     
     @pytest.mark.asyncio
     async def test_search_items_empty_results(self, mock_context, mock_credentials):
@@ -555,7 +555,7 @@ class TestBrowseApi(BaseApiTest):
                     call_params = mock_client.get.call_args[1]["params"]
                     assert call_params["q"] == " "  # Should use space for wide range (200 spread)
                     assert "filter" in call_params
-                    assert "price:[200.0..400.0]" in call_params["filter"]
+                    assert "price:[200..400]" in call_params["filter"]
     
     @pytest.mark.asyncio
     async def test_get_items_by_category_narrow_price_filter(self, mock_context, mock_credentials):
@@ -600,7 +600,7 @@ class TestBrowseApi(BaseApiTest):
                     call_params = mock_client.get.call_args[1]["params"]
                     assert call_params["q"] == " "  # Always use space for category browsing
                     assert "filter" in call_params
-                    assert "price:[100.0..150.0]" in call_params["filter"]
+                    assert "price:[100..150]" in call_params["filter"]
     
     # ==============================================================================
     # Marketplace Analysis Tests  

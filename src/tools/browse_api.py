@@ -47,8 +47,8 @@ async def search_items(
     ctx: Context,
     query: str,
     category_ids: Optional[str] = None,
-    price_min: Optional[float] = None,
-    price_max: Optional[float] = None,
+    price_min: Optional[str] = None,
+    price_max: Optional[str] = None,
     conditions: Optional[str] = None,
     sellers: Optional[str] = None,
     sort: str = "relevance",
@@ -64,8 +64,8 @@ async def search_items(
     Args:
         query: Search terms (e.g., "vintage camera", "iPhone 15")
         category_ids: Comma-separated eBay category IDs
-        price_min: Minimum price filter
-        price_max: Maximum price filter
+        price_min: Minimum price filter (e.g., "100", "50.00")
+        price_max: Maximum price filter (e.g., "600", "999.99")
         conditions: Comma-separated condition IDs (NEW, USED, etc)
         sellers: Comma-separated seller usernames
         sort: Sort order (relevance, price, distance, newlyListed)
@@ -97,8 +97,8 @@ async def search_items(
         input_data = BrowseSearchInput(
             query=query,
             category_ids=category_ids,
-            price_min=Decimal(str(price_min)) if price_min else None,
-            price_max=Decimal(str(price_max)) if price_max else None,
+            price_min=Decimal(price_min) if price_min else None,
+            price_max=Decimal(price_max) if price_max else None,
             conditions=conditions,
             sellers=sellers,
             sort=sort,
