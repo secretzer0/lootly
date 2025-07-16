@@ -260,8 +260,8 @@ class TestMarketplaceInsightsApi(BaseApiTest):
                 ctx=mock_context,
                 q="smartphone",
                 category_ids="9355",  # Cell Phones & Smartphones
-                price_min=500,
-                price_max=1500,
+                price_min="500",
+                price_max="1500",
                 sort="-price",
                 limit=5
             )

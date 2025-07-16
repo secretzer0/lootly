@@ -163,7 +163,7 @@ class FilterBuilder:
     def __init__(self):
         self.filters = []
     
-    def add_price_range(self, min_price: Optional[float] = None, max_price: Optional[float] = None, currency: str = "USD") -> "FilterBuilder":
+    def add_price_range(self, min_price: Optional[str] = None, max_price: Optional[str] = None, currency: str = "USD") -> "FilterBuilder":
         """Add price range filter."""
         if min_price is not None or max_price is not None:
             price_filter = "price:["
@@ -227,7 +227,7 @@ class FilterBuilder:
             self.filters.append(f"deliveryCountry:{country}")
         return self
     
-    def add_max_delivery_cost(self, cost: float) -> "FilterBuilder":
+    def add_max_delivery_cost(self, cost: str) -> "FilterBuilder":
         """Add max delivery cost filter. Use 0 for free shipping."""
         if cost is not None:
             self.filters.append(f"maxDeliveryCost:{cost}")
@@ -390,8 +390,8 @@ def _convert_item_sale(sale: Dict[str, Any]) -> Dict[str, Any]:
 @mcp.tool
 async def build_marketplace_filter(
     ctx: Context,
-    price_min: Optional[float] = None,
-    price_max: Optional[float] = None,
+    price_min: Optional[str] = None,
+    price_max: Optional[str] = None,
     price_currency: Optional[Union[PriceCurrency, str]] = None,
     conditions: Optional[List[Union[ConditionID, str]]] = None,
     buying_options: Optional[List[Union[BuyingOption, str]]] = None,
@@ -419,7 +419,7 @@ async def build_marketplace_filter(
     
     USAGE: Call this tool first to build a filter, then pass the result to search_item_sales:
     
-    Step 1: filter_result = build_marketplace_filter(price_min=100, conditions=["New"])
+    Step 1: filter_result = build_marketplace_filter(price_min="100", conditions=["New"])
     Step 2: search_item_sales(q="phone", filter=filter_result["data"]["filter"])
     
     Use this tool when you need:
@@ -428,8 +428,8 @@ async def build_marketplace_filter(
     - Better type safety with enum values
     
     Args:
-        price_min: Minimum price
-        price_max: Maximum price  
+        price_min: Minimum price (e.g., "100", "50.00")
+        price_max: Maximum price (e.g., "500", "1000.00")  
         price_currency: Currency code (ISO 4217). Use PriceCurrency enum or string:
             - PriceCurrency.USD, PriceCurrency.EUR, PriceCurrency.GBP, etc.
             - Or string values: "USD", "EUR", "GBP", "CAD", "AUD", "JPY", "CNY", "INR"
@@ -456,8 +456,8 @@ async def build_marketplace_filter(
             - ItemLocationRegion.UK_AND_IRELAND - United Kingdom and Ireland
             - ItemLocationRegion.BORDER_COUNTRIES - Countries bordering the buyer's country
         delivery_country: Delivery destination country code
-        max_delivery_cost: Maximum delivery cost (use 0 for free shipping)
-        free_shipping: Shortcut for max_delivery_cost=0
+        max_delivery_cost: Maximum delivery cost (use "0" for free shipping)
+        free_shipping: Shortcut for max_delivery_cost="0"
         sellers: List of seller usernames (max 250)
         seller_account_types: List of seller account types. Use SellerAccountType enum or string:
             - SellerAccountType.INDIVIDUAL - Individual sellers
@@ -653,8 +653,8 @@ async def search_item_sales(
     limit: int = 50,
     offset: int = 0,
     # Helper parameters that build filter string:
-    price_min: Optional[float] = None,
-    price_max: Optional[float] = None,
+    price_min: Optional[str] = None,
+    price_max: Optional[str] = None,
     price_currency: str = "USD",
     condition: Optional[Union[str, List[str]]] = None,
     buying_options: Optional[List[str]] = None,
@@ -675,10 +675,10 @@ async def search_item_sales(
     TWO WAYS TO USE THIS TOOL:
     
     SIMPLE: Use built-in helper parameters for basic filtering:
-    search_item_sales(q="phone", price_min=100, condition=["New"])
+    search_item_sales(q="phone", price_min="100", condition=["New"])
     
     ADVANCED: Use build_marketplace_filter tool first for complex filters:
-    1. filter_result = build_marketplace_filter(price_min=100, conditions=["New"], buying_options=["FIXED_PRICE"])
+    1. filter_result = build_marketplace_filter(price_min="100", conditions=["New"], buying_options=["FIXED_PRICE"])
     2. search_item_sales(q="phone", filter=filter_result["data"]["filter"])
     
     Use ADVANCED approach when you need complex filters with many conditions or type safety.
@@ -694,8 +694,8 @@ async def search_item_sales(
         offset: Pagination offset (default: 0)
         
         Helper parameters (these build the filter string for you):
-        price_min: Minimum price filter
-        price_max: Maximum price filter
+        price_min: Minimum price filter (e.g., "100", "50.00")
+        price_max: Maximum price filter (e.g., "500", "1000.00")
         price_currency: Currency for price filter (default: "USD")
         condition: Condition filter - accepts names or IDs:
             - "New" or "1000"
