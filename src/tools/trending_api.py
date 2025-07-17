@@ -150,11 +150,14 @@ async def get_most_watched_items(
         ).to_json_string()
         
     except EbayApiError as e:
-        await ctx.error(f"eBay API error: {str(e)}")
+        # Log comprehensive error details
+        await ctx.error(f"eBay API error: {e.get_comprehensive_message()}")
+        
+        # Return full error details in response
         return error_response(
             ErrorCode.EXTERNAL_API_ERROR,
-            str(e),
-            {"status_code": e.status_code}
+            e.get_comprehensive_message(),
+            e.get_full_error_details()
         ).to_json_string()
     except Exception as e:
         await ctx.error(f"Failed to get trending items: {str(e)}")
@@ -232,8 +235,7 @@ async def _search_trending_items(
         # Make API request
         response = await rest_client.get(
             "/buy/browse/v1/item_summary/search",
-            params=params,
-            scope=OAuthScopes.BUY_BROWSE
+            params=params
         )
         
         # Parse response

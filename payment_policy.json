@@ -1,0 +1,14 @@
+{
+  "name": "minimal Payment Policy",
+  "marketplaceId": "EBAY_US",
+  "categoryTypes": [
+    {
+      "name": "ALL_EXCLUDING_MOTORS_VEHICLES"
+    }
+  ],
+  "paymentMethods": [
+    {
+      "paymentMethodType": "PERSONAL_CHECK"
+    }
+  ]
+}

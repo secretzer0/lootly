@@ -29,6 +29,37 @@ class TestMarketplaceInsightsApi(BaseApiTest):
     """Test Marketplace Insights API functions in both unit and integration modes."""
     
     # ==============================================================================
+    # Infrastructure Validation Tests (Integration mode only)
+    # ==============================================================================
+    
+    @pytest.mark.asyncio
+    async def test_infrastructure_validation(self, mock_context):
+        """CRITICAL: Validates integration infrastructure works before testing restricted APIs."""
+        if not self.is_integration_mode:
+            pytest.skip("Infrastructure validation only runs in integration mode")
+        
+        from tools.browse_api import search_items
+        print("Testing integration infrastructure with Browse API...")
+        print("This API uses basic scope (no user consent required)")
+        
+        result = await search_items.fn(ctx=mock_context, query="test", limit=1)
+        response = json.loads(result)
+        
+        if response["status"] == "error":
+            error_code = response["error_code"]
+            error_msg = response["error_message"]
+            
+            if error_code == "CONFIGURATION_ERROR":
+                pytest.fail(f"CREDENTIALS PROBLEM: {error_msg}")
+            elif error_code == "EXTERNAL_API_ERROR":
+                pytest.fail(f"eBay API CONNECTIVITY ISSUE: {error_msg}")
+            else:
+                pytest.fail(f"UNEXPECTED INFRASTRUCTURE ISSUE: {error_code} - {error_msg}")
+        
+        assert response["status"] == "success", "Infrastructure should be working"
+        print("Infrastructure validation PASSED - credentials and connectivity OK")
+    
+    # ==============================================================================
     # Data Conversion Tests (Unit tests only)
     # ==============================================================================
     
@@ -172,8 +203,10 @@ class TestMarketplaceInsightsApi(BaseApiTest):
     async def test_search_item_sales_by_epid(self, mock_context, mock_credentials):
         """Test searching item sales by EPID."""
         if self.is_integration_mode:
-            # Integration test - print raw response
-            # Try keyword search for better results
+            # Integration test - try keyword search for better results
+            print(f"\\nTesting real API call to eBay Marketplace Insights API...")
+            print(f"Query: phone, Category: 9355 (Cell Phones), Limit: 10")
+            
             result = await search_item_sales.fn(
                 ctx=mock_context,
                 q="phone",  # Simple keyword
@@ -181,23 +214,32 @@ class TestMarketplaceInsightsApi(BaseApiTest):
                 limit=10
             )
             
-            # Print raw response for debugging
-            print("\n=== RAW API RESPONSE ===")
-            print(result)
-            print("========================\n")
-            
             # Parse response
-            data = json.loads(result)
+            response = json.loads(result)
+            print(f"API Response status: {response['status']}")
             
-            if data["status"] == "success":
+            if response["status"] == "error":
+                error_code = response.get("error_code")
+                error_msg = response.get("error_message", "")
+                details = response.get("details", {})
+                
+                # May fail with sandbox limitations or no data
+                if error_code in ["VALIDATION_ERROR", "NOT_FOUND", "EXTERNAL_API_ERROR"]:
+                    print(f"Expected: Sandbox limitations or no data - {error_msg}")
+                else:
+                    pytest.fail(f"Unexpected error - {error_code}: {error_msg}\\nDetails: {details}")
+            else:
                 # Validate response structure
-                validate_field(data["data"], "item_sales", list)
-                validate_field(data["data"], "total", int)
-                validate_field(data["data"], "statistics", dict)
+                data = response["data"]
+                print(f"Found {data['total']} item sales")
+                
+                validate_field(data, "item_sales", list)
+                validate_field(data, "total", int)
+                validate_field(data, "statistics", dict)
                 
                 # Check sales if any exist
-                if data["data"]["item_sales"]:
-                    for sale in data["data"]["item_sales"]:
+                if data["item_sales"]:
+                    for sale in data["item_sales"]:
                         # Basic validation - not all fields may be present
                         if "item_id" in sale:
                             validate_field(sale, "item_id", str)
@@ -207,9 +249,7 @@ class TestMarketplaceInsightsApi(BaseApiTest):
                             validate_field(sale, "price", dict)
                             validate_field(sale["price"], "value", (int, float))
                             validate_field(sale["price"], "currency", str)
-            else:
-                # May fail with sandbox limitations or no data
-                assert data["error_code"] in ["VALIDATION_ERROR", "NOT_FOUND", "EXTERNAL_API_ERROR"]
+                    print(f"Successfully validated {len(data['item_sales'])} sales")
         else:
             # Unit test - mocked response
             with patch('tools.marketplace_insights_api.EbayRestClient') as MockClient:
@@ -269,7 +309,13 @@ class TestMarketplaceInsightsApi(BaseApiTest):
             # Parse response
             data = json.loads(result)
             
-            if data["status"] == "success":
+            if data["status"] == "error":
+                # May fail with sandbox limitations
+                if data["error_code"] not in ["VALIDATION_ERROR", "NOT_FOUND", "EXTERNAL_API_ERROR"]:
+                    error_msg = data.get("error_message", "")
+                    details = data.get("details", {})
+                    pytest.fail(f"Unexpected error - {data['error_code']}: {error_msg}\nDetails: {details}")
+            else:
                 # Validate search criteria was preserved
                 criteria = data["data"]["search_criteria"]
                 assert criteria["q"] == "smartphone"
@@ -400,8 +446,10 @@ class TestMarketplaceInsightsApi(BaseApiTest):
         
         # Should still work but condition will be passed as-is to the API
         data = json.loads(result)
-        # The API itself will handle the invalid condition
-        assert data["status"] in ["success", "error"]
+        # The API itself will handle the invalid condition - could succeed or fail
+        if data["status"] == "error":
+            # If error, should be validation or external API error
+            assert data["error_code"] in ["VALIDATION_ERROR", "EXTERNAL_API_ERROR"]
     
     @pytest.mark.asyncio
     async def test_search_item_sales_api_error(self, mock_context, mock_credentials):

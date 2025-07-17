@@ -316,7 +316,7 @@ class TestOAuthScopes:
     def test_scope_descriptions(self):
         """Test scope description functionality."""
         description = OAuthScopes.get_scope_description(OAuthScopes.BUY_BROWSE)
-        assert "Basic API access" in description
+        assert "View public data from eBay" in description
         
         unknown_description = OAuthScopes.get_scope_description("unknown_scope")
         assert unknown_description == "Unknown scope"

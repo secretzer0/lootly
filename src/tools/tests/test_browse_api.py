@@ -40,6 +40,36 @@ class TestBrowseApi(BaseApiTest):
     """Test Browse API functions in both unit and integration modes."""
     
     # ==============================================================================
+    # Infrastructure Validation Tests (Integration mode only)
+    # ==============================================================================
+    
+    @pytest.mark.asyncio
+    async def test_infrastructure_validation(self, mock_context):
+        """CRITICAL: Validates integration infrastructure works before testing restricted APIs."""
+        if not self.is_integration_mode:
+            pytest.skip("Infrastructure validation only runs in integration mode")
+        
+        print("Testing integration infrastructure with Browse API...")
+        print("This API uses basic scope (no user consent required)")
+        
+        result = await search_items.fn(ctx=mock_context, query="test", limit=1)
+        response = json.loads(result)
+        
+        if response["status"] == "error":
+            error_code = response["error_code"]
+            error_msg = response["error_message"]
+            
+            if error_code == "CONFIGURATION_ERROR":
+                pytest.fail(f"CREDENTIALS PROBLEM: {error_msg}")
+            elif error_code == "EXTERNAL_API_ERROR":
+                pytest.fail(f"eBay API CONNECTIVITY ISSUE: {error_msg}")
+            else:
+                pytest.fail(f"UNEXPECTED INFRASTRUCTURE ISSUE: {error_code} - {error_msg}")
+        
+        assert response["status"] == "success", "Infrastructure should be working"
+        print("Infrastructure validation PASSED - credentials and connectivity OK")
+    
+    # ==============================================================================
     # Data Conversion Tests (Unit tests only)
     # ==============================================================================
     
@@ -137,6 +167,9 @@ class TestBrowseApi(BaseApiTest):
         """Test basic item search."""
         if self.is_integration_mode:
             # Integration test - real API call
+            print(f"\\nTesting real API call to eBay Browse API...")
+            print(f"Query: iPhone 15, Limit: 10")
+            
             result = await search_items.fn(
                 ctx=mock_context,
                 query="iPhone 15",
@@ -144,18 +177,29 @@ class TestBrowseApi(BaseApiTest):
             )
             
             # Parse and validate response structure
-            data = assert_api_response_success(result)
+            response = json.loads(result)
+            print(f"API Response status: {response['status']}")
+            
+            if response["status"] == "error":
+                error_code = response.get("error_code")
+                error_msg = response.get("error_message", "")
+                details = response.get("details", {})
+                pytest.fail(f"API call failed - {error_code}: {error_msg}\\nDetails: {details}")
+            
+            data = response["data"]
+            print(f"Found {data['total']} items")
             
             # Validate response structure, not specific values
-            validate_field(data["data"], "total", int, validator=lambda x: x >= 0)
-            validate_field(data["data"], "offset", int, validator=lambda x: x >= 0)
-            validate_field(data["data"], "limit", int, validator=lambda x: x > 0)
-            validate_list_field(data["data"], "items")
+            validate_field(data, "total", int, validator=lambda x: x >= 0)
+            validate_field(data, "offset", int, validator=lambda x: x >= 0)
+            validate_field(data, "limit", int, validator=lambda x: x > 0)
+            validate_list_field(data, "items")
             
             # If items exist, validate their structure
-            if data["data"]["items"]:
-                for item in data["data"]["items"]:
+            if data["items"]:
+                for item in data["items"]:
                     validate_item_structure(item)
+                print(f"Successfully validated {len(data['items'])} items")
         else:
             # Unit test - mocked response
             with patch('tools.browse_api.EbayRestClient') as MockClient:
@@ -288,9 +332,17 @@ class TestBrowseApi(BaseApiTest):
                 limit=300  # Over max limit
             )
             
-            # Should handle gracefully
+            # Should handle gracefully with adjusted limit
             data = json.loads(result)
-            assert data["status"] in ["success", "error"]
+            if data["status"] == "error":
+                # If error, it should be validation error for limit
+                if data["error_code"] != "VALIDATION_ERROR":
+                    error_msg = data.get("error_message", "")
+                    details = data.get("details", {})
+                    pytest.fail(f"Unexpected error - {data['error_code']}: {error_msg}\nDetails: {details}")
+            else:
+                # Should have adjusted the limit to max allowed
+                assert data["data"]["limit"] <= 200
         else:
             # Unit test error handling
             with patch('tools.browse_api.EbayRestClient') as MockClient:
@@ -333,10 +385,12 @@ class TestBrowseApi(BaseApiTest):
                 )
                 
                 data = json.loads(result)
-                # Should handle error gracefully
-                assert data["status"] in ["error", "success"]
-                # If success, should have handled missing fields
-                if data["status"] == "success":
+                # With malformed data, expect an error
+                if data["status"] == "error":
+                    # Expected behavior - API returned malformed data
+                    assert data["error_code"] in ["EXTERNAL_API_ERROR", "DATA_ERROR"]
+                else:
+                    # If it somehow succeeded, should have handled missing fields
                     assert "items" in data["data"]
     
     # ==============================================================================
@@ -418,7 +472,10 @@ class TestBrowseApi(BaseApiTest):
             # The wildcard search in a category might return "response too large" error
             if data["status"] == "error":
                 # This is expected for category browsing with wildcard
-                assert "too large" in data.get("error_message", "").lower()
+                if "too large" not in data.get("error_message", "").lower():
+                    error_msg = data.get("error_message", "")
+                    details = data.get("details", {})
+                    pytest.fail(f"Unexpected error - {data['error_code']}: {error_msg}\nDetails: {details}")
                 assert data["error_code"] == "EXTERNAL_API_ERROR"
             else:
                 # If successful, validate structure

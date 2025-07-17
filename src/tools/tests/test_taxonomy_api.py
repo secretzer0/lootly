@@ -27,6 +27,36 @@ from tools.taxonomy_api import (
 class TestTaxonomyApi(BaseApiTest):
     """Test Taxonomy API functions in both unit and integration modes."""
     
+    # ==============================================================================
+    # Infrastructure Validation Tests (Integration mode only)
+    # ==============================================================================
+    
+    @pytest.mark.asyncio
+    async def test_infrastructure_validation(self, mock_context):
+        """CRITICAL: Validates integration infrastructure works before testing restricted APIs."""
+        if not self.is_integration_mode:
+            pytest.skip("Infrastructure validation only runs in integration mode")
+        
+        from tools.browse_api import search_items
+        print("Testing integration infrastructure with Browse API...")
+        print("This API uses basic scope (no user consent required)")
+        
+        result = await search_items.fn(ctx=mock_context, query="test", limit=1)
+        response = json.loads(result)
+        
+        if response["status"] == "error":
+            error_code = response["error_code"]
+            error_msg = response["error_message"]
+            
+            if error_code == "CONFIGURATION_ERROR":
+                pytest.fail(f"CREDENTIALS PROBLEM: {error_msg}")
+            elif error_code == "EXTERNAL_API_ERROR":
+                pytest.fail(f"eBay API CONNECTIVITY ISSUE: {error_msg}")
+            else:
+                pytest.fail(f"UNEXPECTED INFRASTRUCTURE ISSUE: {error_code} - {error_msg}")
+        
+        assert response["status"] == "success", "Infrastructure should be working"
+        print("Infrastructure validation PASSED - credentials and connectivity OK")
     
     # ==============================================================================
     # Get Default Category Tree ID Tests (Both unit and integration)
@@ -37,20 +67,32 @@ class TestTaxonomyApi(BaseApiTest):
         """Test getting default category tree ID for a marketplace."""
         if self.is_integration_mode:
             # Integration test - real API call
+            print(f"\\nTesting real API call to eBay Taxonomy API...")
+            print(f"Marketplace: EBAY_US")
+            
             result = await get_default_category_tree_id.fn(
                 ctx=mock_context,
                 marketplace_id="EBAY_US"
             )
             
             # Parse and validate response
-            data = assert_api_response_success(result)
+            response = json.loads(result)
+            print(f"API Response status: {response['status']}")
             
-            validate_field(data["data"], "category_tree_id", str)
-            validate_field(data["data"], "marketplace_id", str)
-            assert data["data"]["marketplace_id"] == "EBAY_US"
+            if response["status"] == "error":
+                error_code = response.get("error_code")
+                error_msg = response.get("error_message", "")
+                details = response.get("details", {})
+                pytest.fail(f"API call failed - {error_code}: {error_msg}\\nDetails: {details}")
+            
+            data = response["data"]
+            validate_field(data, "category_tree_id", str)
+            validate_field(data, "marketplace_id", str)
+            assert data["marketplace_id"] == "EBAY_US"
             
             # US marketplace should have tree ID "0"
-            assert data["data"]["category_tree_id"] == "0"
+            assert data["category_tree_id"] == "0"
+            print(f"Successfully retrieved category tree ID: {data['category_tree_id']}")
         else:
             # Unit test - mocked response
             with patch('tools.taxonomy_api.EbayRestClient') as MockClient:
@@ -282,18 +324,18 @@ class TestTaxonomyApi(BaseApiTest):
             # Parse response - may succeed with empty list or fail in sandbox
             result_data = json.loads(result)
             
-            if result_data["status"] == "success":
+            if result_data["status"] == "error":
+                # If error, check it's a reasonable error (API limitations in sandbox)
+                if result_data["error_code"] not in ["EXTERNAL_API_ERROR", "INTERNAL_ERROR"]:
+                    error_msg = result_data.get("error_message", "")
+                    details = result_data.get("details", {})
+                    pytest.fail(f"Unexpected error - {result_data['error_code']}: {error_msg}\nDetails: {details}")
+            else:
                 # If successful, should return empty list for non-automotive categories
                 validate_field(result_data["data"], "compatibility_properties", list)
                 validate_field(result_data["data"], "total_properties", int, validator=lambda x: x >= 0)
                 # For non-automotive categories, expect empty results
                 assert result_data["data"]["total_properties"] == 0
-            else:
-                # If error, check it's a reasonable error (API limitations in sandbox)
-                assert result_data["status"] == "error"
-                assert "error_code" in result_data
-                # Expected errors for compatibility properties API in sandbox
-                assert result_data["error_code"] in ["EXTERNAL_API_ERROR", "INTERNAL_ERROR"]
         else:
             # Unit test
             with patch('tools.taxonomy_api.EbayRestClient') as MockClient:

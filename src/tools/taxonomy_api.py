@@ -85,8 +85,7 @@ async def get_default_category_tree_id(
         # Get default category tree ID
         response = await rest_client.get(
             "/commerce/taxonomy/v1/get_default_category_tree_id",
-            params={"marketplace_id": marketplace_id},
-            scope=OAuthScopes.COMMERCE_TAXONOMY
+            params={"marketplace_id": marketplace_id}
         )
         
         category_tree_id = response.get("categoryTreeId")
@@ -103,11 +102,17 @@ async def get_default_category_tree_id(
         ).to_json_string()
         
     except EbayApiError as e:
-        await ctx.error(f"eBay API error: {str(e)}")
+        # Log comprehensive error details
+        await ctx.error(f"eBay API error: {e.get_comprehensive_message()}")
+        
+        # Return full error details in response
+        error_details = e.get_full_error_details()
+        error_details["marketplace_id"] = marketplace_id
+        
         return error_response(
             ErrorCode.EXTERNAL_API_ERROR,
-            str(e),
-            {"status_code": e.status_code, "marketplace_id": marketplace_id}
+            e.get_comprehensive_message(),
+            error_details
         ).to_json_string()
     except Exception as e:
         await ctx.error(f"Failed to get category tree ID: {str(e)}")
@@ -285,8 +290,7 @@ async def get_item_aspects_for_category(
         # Make API request
         response = await rest_client.get(
             f"/commerce/taxonomy/v1/category_tree/{input_data.category_tree_id}/get_item_aspects_for_category",
-            params={"category_id": input_data.category_id},
-            scope=OAuthScopes.COMMERCE_TAXONOMY
+            params={"category_id": input_data.category_id}
         )
         
         await ctx.report_progress(0.8, "📦 Processing aspects...")
@@ -328,11 +332,17 @@ async def get_item_aspects_for_category(
         ).to_json_string()
         
     except EbayApiError as e:
-        await ctx.error(f"eBay API error: {str(e)}")
+        # Log comprehensive error details
+        await ctx.error(f"eBay API error: {e.get_comprehensive_message()}")
+        
+        # Return full error details in response
+        error_details = e.get_full_error_details()
+        error_details["category_id"] = category_id
+        
         return error_response(
             ErrorCode.EXTERNAL_API_ERROR,
-            str(e),
-            {"status_code": e.status_code, "category_id": category_id}
+            e.get_comprehensive_message(),
+            error_details
         ).to_json_string()
     except Exception as e:
         await ctx.error(f"Failed to get item aspects: {str(e)}")
@@ -409,8 +419,7 @@ async def get_compatibility_properties(
         # Make API request
         response = await rest_client.get(
             f"/commerce/taxonomy/v1/category_tree/{input_data.category_tree_id}/get_compatibility_properties",
-            params={"category_id": input_data.category_id},
-            scope=OAuthScopes.COMMERCE_TAXONOMY
+            params={"category_id": input_data.category_id}
         )
         
         # Parse compatibility properties
@@ -431,11 +440,17 @@ async def get_compatibility_properties(
         ).to_json_string()
         
     except EbayApiError as e:
-        await ctx.error(f"eBay API error: {str(e)}")
+        # Log comprehensive error details
+        await ctx.error(f"eBay API error: {e.get_comprehensive_message()}")
+        
+        # Return full error details in response
+        error_details = e.get_full_error_details()
+        error_details["category_id"] = category_id
+        
         return error_response(
             ErrorCode.EXTERNAL_API_ERROR,
-            str(e),
-            {"status_code": e.status_code, "category_id": category_id}
+            e.get_comprehensive_message(),
+            error_details
         ).to_json_string()
     except Exception as e:
         await ctx.error(f"Failed to get compatibility properties: {str(e)}")

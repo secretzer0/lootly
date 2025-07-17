@@ -29,6 +29,37 @@ class TestMarketingApi(BaseApiTest):
     """Test Marketing API functions in both unit and integration modes."""
     
     # ==============================================================================
+    # Infrastructure Validation Tests (Integration mode only)
+    # ==============================================================================
+    
+    @pytest.mark.asyncio
+    async def test_infrastructure_validation(self, mock_context):
+        """CRITICAL: Validates integration infrastructure works before testing restricted APIs."""
+        if not self.is_integration_mode:
+            pytest.skip("Infrastructure validation only runs in integration mode")
+        
+        from tools.browse_api import search_items
+        print("Testing integration infrastructure with Browse API...")
+        print("This API uses basic scope (no user consent required)")
+        
+        result = await search_items.fn(ctx=mock_context, query="test", limit=1)
+        response = json.loads(result)
+        
+        if response["status"] == "error":
+            error_code = response["error_code"]
+            error_msg = response["error_message"]
+            
+            if error_code == "CONFIGURATION_ERROR":
+                pytest.fail(f"CREDENTIALS PROBLEM: {error_msg}")
+            elif error_code == "EXTERNAL_API_ERROR":
+                pytest.fail(f"eBay API CONNECTIVITY ISSUE: {error_msg}")
+            else:
+                pytest.fail(f"UNEXPECTED INFRASTRUCTURE ISSUE: {error_code} - {error_msg}")
+        
+        assert response["status"] == "success", "Infrastructure should be working"
+        print("Infrastructure validation PASSED - credentials and connectivity OK")
+    
+    # ==============================================================================
     # Data Conversion Tests (Unit tests only)
     # ==============================================================================
     
@@ -140,6 +171,9 @@ class TestMarketingApi(BaseApiTest):
         """Test getting merchandised products for a category."""
         if self.is_integration_mode:
             # Integration test - use sandbox test category
+            print(f"\\nTesting real API call to eBay Marketing API...")
+            print(f"Category: 9355 (Cell Phones), Limit: 10")
+            
             result = await get_merchandised_products.fn(
                 ctx=mock_context,
                 category_id="9355",  # Required test category for sandbox
@@ -147,26 +181,38 @@ class TestMarketingApi(BaseApiTest):
             )
             
             # Parse response
-            data = json.loads(result)
+            response = json.loads(result)
+            print(f"API Response status: {response['status']}")
             
-            if data["status"] == "success":
+            if response["status"] == "error":
+                error_code = response.get("error_code")
+                error_msg = response.get("error_message", "")
+                details = response.get("details", {})
+                
+                # May fail with sandbox limitations
+                if error_code in ["VALIDATION_ERROR", "NOT_FOUND", "EXTERNAL_API_ERROR"]:
+                    print(f"Expected: Sandbox limitations - {error_msg}")
+                else:
+                    pytest.fail(f"Unexpected error - {error_code}: {error_msg}\\nDetails: {details}")
+            else:
                 # Validate response structure
-                validate_field(data["data"], "merchandised_products", list)
-                validate_field(data["data"], "total", int)
-                validate_field(data["data"], "category_id", str)
-                validate_field(data["data"], "metric_name", str)
+                data = response["data"]
+                print(f"Found {data['total']} merchandised products")
+                
+                validate_field(data, "merchandised_products", list)
+                validate_field(data, "total", int)
+                validate_field(data, "category_id", str)
+                validate_field(data, "metric_name", str)
                 
                 # Check products if any exist
-                if data["data"]["merchandised_products"]:
-                    for product in data["data"]["merchandised_products"]:
+                if data["merchandised_products"]:
+                    for product in data["merchandised_products"]:
                         # Basic validation - not all fields may be present
                         if "epid" in product:
                             validate_field(product, "epid", str)
                         if "title" in product:
                             validate_field(product, "title", str)
-            else:
-                # May fail with sandbox limitations
-                assert data["error_code"] in ["VALIDATION_ERROR", "NOT_FOUND", "EXTERNAL_API_ERROR"]
+                    print(f"Successfully validated {len(data['merchandised_products'])} products")
         else:
             # Unit test - mocked response
             with patch('tools.marketing_api.EbayRestClient') as MockClient:

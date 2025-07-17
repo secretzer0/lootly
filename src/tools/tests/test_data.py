@@ -665,4 +665,190 @@ class TestDataHelpers:
             "offset": 0,
             "itemSummaries": items
         }
+
+
+class TestDataReturnPolicy:
+    """Test data for Return Policy API responses."""
+    
+    RETURN_POLICY_SIMPLE = {
+        "returnPolicyId": "6196932000",
+        "name": "30 Day Returns",
+        "marketplaceId": "EBAY_US",
+        "categoryTypes": [{
+            "name": "ALL_EXCLUDING_MOTORS_VEHICLES",
+            "default": True
+        }],
+        "returnsAccepted": True,
+        "returnPeriod": {
+            "value": 30,
+            "unit": "DAY"
+        },
+        "returnShippingCostPayer": "BUYER",
+        "refundMethod": "MONEY_BACK",
+        "description": "Standard 30 day return policy"
+    }
+    
+    RETURN_POLICY_WITH_INTL = {
+        "returnPolicyId": "6196933000",
+        "name": "Flexible Returns",
+        "marketplaceId": "EBAY_US",
+        "categoryTypes": [{
+            "name": "ALL_EXCLUDING_MOTORS_VEHICLES",
+            "default": True
+        }],
+        "returnsAccepted": True,
+        "returnPeriod": {
+            "value": 60,
+            "unit": "DAY"
+        },
+        "returnShippingCostPayer": "SELLER",
+        "refundMethod": "MONEY_BACK",
+        "returnMethod": "EXCHANGE",
+        "description": "Extended return period with free returns",
+        "internationalOverride": {
+            "returnsAccepted": True,
+            "returnPeriod": {
+                "value": 30,
+                "unit": "DAY"
+            },
+            "returnShippingCostPayer": "BUYER"
+        }
+    }
+    
+    RETURN_POLICY_NO_RETURNS = {
+        "returnPolicyId": "6196934000",
+        "name": "No Returns",
+        "marketplaceId": "EBAY_US",
+        "categoryTypes": [{
+            "name": "ALL_EXCLUDING_MOTORS_VEHICLES",
+            "default": True
+        }],
+        "returnsAccepted": False,
+        "description": "All sales final - no returns accepted"
+    }
+    
+    GET_POLICIES_RESPONSE = {
+        "returnPolicies": [
+            RETURN_POLICY_SIMPLE,
+            RETURN_POLICY_WITH_INTL,
+            RETURN_POLICY_NO_RETURNS
+        ],
+        "total": 3,
+        "limit": 20,
+        "offset": 0
+    }
+    
+    CREATE_POLICY_RESPONSE = {
+        **RETURN_POLICY_SIMPLE,
+        "returnPolicyId": "6196935000"
+    }
+    
+    UPDATE_POLICY_RESPONSE = {
+        **RETURN_POLICY_SIMPLE,
+        "name": "Updated 30 Day Returns",
+        "returnShippingCostPayer": "SELLER"
+    }
+    
+    GET_BY_NAME_RESPONSE = RETURN_POLICY_SIMPLE
+    
+
+class TestDataPaymentPolicy:
+    """Test data for Payment Policy API responses."""
+    
+    PAYMENT_POLICY_STANDARD = {
+        "paymentPolicyId": "6196940000",
+        "name": "Standard Payment",
+        "marketplaceId": "EBAY_US",
+        "categoryTypes": [{
+            "name": "ALL_EXCLUDING_MOTORS_VEHICLES",
+            "default": True
+        }],
+        "immediatePay": True,
+        "description": "Standard immediate payment policy",
+        "paymentInstrumentBrands": [
+            "VISA",
+            "MASTERCARD",
+            "AMERICAN_EXPRESS",
+            "DISCOVER"
+        ]
+    }
+    
+    PAYMENT_POLICY_MOTORS = {
+        "paymentPolicyId": "6196941000",
+        "name": "Motor Vehicle Payment",
+        "marketplaceId": "EBAY_US",
+        "categoryTypes": [{
+            "name": "MOTORS_VEHICLES",
+            "default": False
+        }],
+        "immediatePay": False,
+        "description": "Payment policy for motor vehicles with deposit",
+        "deposit": {
+            "dueIn": 3,
+            "amount": {
+                "value": "500.00",
+                "currency": "USD"
+            },
+            "paymentMethods": [{
+                "paymentMethodType": "CASHIER_CHECK"
+            }]
+        },
+        "fullPaymentDueIn": {
+            "value": 7,
+            "unit": "DAY"
+        },
+        "paymentMethods": [{
+            "paymentMethodType": "CASH_ON_PICKUP"
+        }, {
+            "paymentMethodType": "CASHIER_CHECK"
+        }]
+    }
+    
+    PAYMENT_POLICY_WITH_OFFLINE = {
+        "paymentPolicyId": "6196942000",
+        "name": "Mixed Payment Methods",
+        "marketplaceId": "EBAY_US",
+        "categoryTypes": [{
+            "name": "ALL_EXCLUDING_MOTORS_VEHICLES",
+            "default": True
+        }],
+        "immediatePay": False,
+        "description": "Policy allowing both online and offline payments",
+        "paymentMethods": [{
+            "paymentMethodType": "CASH_ON_PICKUP"
+        }, {
+            "paymentMethodType": "MONEY_ORDER"
+        }],
+        "paymentInstrumentBrands": [
+            "VISA",
+            "MASTERCARD"
+        ]
+    }
+    
+    GET_POLICIES_RESPONSE = {
+        "paymentPolicies": [
+            PAYMENT_POLICY_STANDARD,
+            PAYMENT_POLICY_MOTORS,
+            PAYMENT_POLICY_WITH_OFFLINE
+        ],
+        "total": 3,
+        "limit": 20,
+        "offset": 0
+    }
+    
+    CREATE_POLICY_RESPONSE = {
+        **PAYMENT_POLICY_STANDARD,
+        "paymentPolicyId": "6196943000",
+        "name": "New Payment Policy",
+        "createdAt": "2025-01-17T10:00:00.000Z"
+    }
+    
+    UPDATE_POLICY_RESPONSE = {
+        **PAYMENT_POLICY_STANDARD,
+        "name": "Updated Payment Policy",
+        "immediatePay": False,
+        "updatedAt": "2025-01-17T11:00:00.000Z"
+    }
+    
+    GET_BY_NAME_RESPONSE = PAYMENT_POLICY_STANDARD
     

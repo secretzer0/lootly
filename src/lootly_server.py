@@ -61,6 +61,8 @@ def create_lootly_server():
     import tools.marketing_api  # New Marketing API for merchandising
     import tools.marketplace_insights_api  # Marketplace Insights API for sales data
     import tools.trending_api  # Trending items using Browse API
+    import tools.return_policy_api  # Return Policy API for managing return policies
+    import tools.payment_policy_api  # Payment Policy API for managing payment policies
     
     # Resources
     import resources.categories

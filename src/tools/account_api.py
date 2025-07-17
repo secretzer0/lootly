@@ -7,13 +7,12 @@ rate tables, and seller standards.
 from typing import Optional
 from fastmcp import Context
 
-from api.oauth import OAuthManager, OAuthConfig, OAuthScopes
+from api.oauth import OAuthManager, OAuthConfig, OAuthScopes, ConsentRequiredException
 from api.rest_client import EbayRestClient, RestConfig
 from api.errors import EbayApiError
 from api.sandbox_retry import with_sandbox_retry, RetryConfig
 from data_types import success_response, error_response, ErrorCode
 from lootly_server import mcp
-from tools.oauth_consent import get_user_access_token
 from tools.tests.test_data import TestDataGood
 
 
@@ -22,12 +21,20 @@ async def _check_user_consent(ctx: Context) -> Optional[str]:
     if not mcp.config.app_id:
         return None
     
-    user_token = await get_user_access_token(mcp.config.app_id)
-    if not user_token:
+    # Initialize OAuth manager to check for user token
+    oauth_config = OAuthConfig(
+        client_id=mcp.config.app_id,
+        client_secret=mcp.config.cert_id,
+        sandbox=mcp.config.sandbox_mode
+    )
+    oauth_manager = OAuthManager(oauth_config)
+    
+    try:
+        user_token = await oauth_manager.get_token()
+        return user_token
+    except ConsentRequiredException:
         await ctx.info("⚠️  User consent required for Account API. Use check_user_consent_status and initiate_user_consent tools.")
         return None
-    
-    return user_token
 
 
 @mcp.tool
@@ -133,17 +140,13 @@ async def get_seller_standards(
     )
     rest_client = EbayRestClient(oauth_manager, rest_config)
     
-    # Override with user token
-    rest_client._user_token = user_token
-    
     try:
         await ctx.report_progress(0.3, "🌐 Fetching seller standards from Analytics API...")
         
         # Define the API call function for retry logic
         async def make_seller_standards_request():
             return await rest_client.get(
-                f"/sell/analytics/v1/seller_standards_profile/{program}/{cycle}",
-                scope=OAuthScopes.SELL_ANALYTICS
+                f"/sell/analytics/v1/seller_standards_profile/{program}/{cycle}"
             )
         
         # Execute with sandbox retry logic
@@ -215,29 +218,33 @@ async def get_seller_standards(
         ).to_json_string()
         
     except EbayApiError as e:
-        await ctx.error(f"Analytics API error (after retries): {str(e)}")
+        # Log comprehensive error details
+        await ctx.error(f"Analytics API error (after retries): {e.get_comprehensive_message()}")
         
         # Provide helpful guidance for common permission errors
-        error_message = str(e)
+        error_message = e.get_comprehensive_message()
         if "Access denied" in error_message or "Unauthorized" in error_message:
             error_message = (
-                f"Access denied to seller account data. {str(e)}. "
+                f"Access denied to seller account data.\n{error_message}\n"
                 "To access real seller standards data, the seller must authorize this app. "
                 "Use check_user_consent_status() and initiate_user_consent() tools to get seller authorization."
             )
         
+        # Include full error details in response
+        error_details = e.get_full_error_details()
+        error_details.update({
+            "program": program,
+            "cycle": cycle,
+            "retry_attempted": True,
+            "error_type": "analytics_api_error",
+            "requires_user_consent": "Access denied" in str(e) or "Unauthorized" in str(e),
+            "consent_tools": ["check_user_consent_status", "initiate_user_consent", "complete_user_consent"]
+        })
+        
         return error_response(
             ErrorCode.EXTERNAL_API_ERROR,
             error_message,
-            {
-                "status_code": e.status_code,
-                "program": program,
-                "cycle": cycle,
-                "retry_attempted": True,
-                "error_type": "analytics_api_error",
-                "requires_user_consent": "Access denied" in str(e) or "Unauthorized" in str(e),
-                "consent_tools": ["check_user_consent_status", "initiate_user_consent", "complete_user_consent"]
-            }
+            error_details
         ).to_json_string()
     except Exception as e:
         await ctx.error(f"Failed to get seller standards (after retries): {str(e)}")

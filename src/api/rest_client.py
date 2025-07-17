@@ -12,8 +12,9 @@ import aiohttp
 from pydantic import BaseModel, Field
 import logging
 from contextlib import asynccontextmanager
+import json as jsonpkg
 
-from .oauth import OAuthManager
+from .oauth import OAuthManager, ConsentRequiredException
 
 logger = logging.getLogger(__name__)
 
@@ -106,11 +107,17 @@ class EbayRestClient:
     """
     
     def __init__(self, oauth_manager: OAuthManager, config: Optional[RestConfig] = None):
+        """
+        Initialize eBay REST API client.
+        
+        Args:
+            oauth_manager: OAuth manager for token management
+            config: REST API configuration
+        """
         self.oauth = oauth_manager
         self.config = config or RestConfig()
         self.rate_limiter = RateLimiter(self.config.rate_limit_per_day)
         self._session: Optional[aiohttp.ClientSession] = None
-        self._user_token: Optional[str] = None  # User access token override
         
     @asynccontextmanager
     async def _get_session(self):
@@ -163,13 +170,19 @@ class EbayRestClient:
         # Acquire rate limit token
         await self.rate_limiter.acquire()
         
-        # Get OAuth token (use user token if available, otherwise client credentials)
-        if self._user_token:
-            token = self._user_token
-            logger.debug("Using user access token for API request")
-        else:
-            token = await self.oauth.get_client_credentials_token(scope or "https://api.ebay.com/oauth/api_scope")
+        # Get OAuth token from manager
+        # For user-required APIs, use get_token() which returns user token or raises ConsentRequiredException
+        # For client-only APIs, use get_client_credentials_token() with specific scope
+        if scope:
+            # Client credentials token with specific scope
+            token = await self.oauth.get_client_credentials_token(scope)
             logger.debug("Using client credentials token for API request")
+        else:
+            # User token for user-authorized APIs
+            token = await self.oauth.get_token()
+            logger.debug("Using user access token for API request")
+            logger.debug(f"Token first 50 chars: {token[:50]}...")
+            logger.debug(f"Token length: {len(token)}")
         
         # Build headers
         default_headers = {
@@ -224,6 +237,10 @@ class EbayRestClient:
                             error_data = await response.json()
                         except:
                             error_data = {"message": response_text}
+                        
+                        # Debug log error response
+                        logger.debug(f"Error response text: {response_text[:500]}")
+                        logger.debug(f"Error response headers: {dict(response.headers)}")
                         
                         # Handle specific error cases
                         if response.status == 401:

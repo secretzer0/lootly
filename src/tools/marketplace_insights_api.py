@@ -848,19 +848,16 @@ async def search_item_sales(
             "eBay App ID not configured. Please set EBAY_APP_ID environment variable."
         ).to_json_string()
     
-    # Initialize OAuth manager
+    # Initialize API clients
     oauth_config = OAuthConfig(
         client_id=mcp.config.app_id,
-        client_secret=mcp.config.cert_id or "",
+        client_secret=mcp.config.cert_id,
         sandbox=mcp.config.sandbox_mode
     )
     oauth_manager = OAuthManager(oauth_config)
     
-    # Initialize REST client
     rest_config = RestConfig(
         sandbox=mcp.config.sandbox_mode,
-        timeout=mcp.config.timeout,
-        max_retries=mcp.config.max_retries,
         rate_limit_per_day=mcp.config.rate_limit_per_day
     )
     rest_client = EbayRestClient(oauth_manager, rest_config)
@@ -887,8 +884,7 @@ async def search_item_sales(
         # Make API request
         response = await rest_client.get(
             "/buy/marketplace_insights/v1_beta/item_sales/search",
-            params=params,
-            scope=OAuthScopes.BUY_MARKETPLACE_INSIGHTS
+            params=params
         )
         
         await ctx.report_progress(0.8, "📊 Processing response...")
@@ -937,30 +933,36 @@ async def search_item_sales(
         ).to_json_string()
         
     except EbayApiError as e:
-        await ctx.error(f"eBay API error: {str(e)}")
+        # Log comprehensive error details
+        await ctx.error(f"eBay API error: {e.get_comprehensive_message()}")
         
         # Handle specific errors
         if e.status_code == 400:
-            error_msg = str(e)
+            error_msg = e.get_comprehensive_message()
             # Check for sandbox limitations
             if "9355" in error_msg and mcp.config.sandbox_mode:
                 return error_response(
                     ErrorCode.VALIDATION_ERROR,
-                    "In sandbox mode, try using category ID 9355 for testing"
+                    "In sandbox mode, try using category ID 9355 for testing",
+                    e.get_full_error_details()
                 ).to_json_string()
             return error_response(
                 ErrorCode.VALIDATION_ERROR,
-                f"Invalid request: {error_msg}"
+                f"Invalid request: {error_msg}",
+                e.get_full_error_details()
             ).to_json_string()
         elif e.status_code == 404:
             return error_response(
                 ErrorCode.RESOURCE_NOT_FOUND,
-                "No sales data found for the specified criteria"
+                "No sales data found for the specified criteria",
+                e.get_full_error_details()
             ).to_json_string()
         else:
+            # Return full error details in response
             return error_response(
                 ErrorCode.EXTERNAL_API_ERROR,
-                f"eBay API error: {str(e)}"
+                e.get_comprehensive_message(),
+                e.get_full_error_details()
             ).to_json_string()
             
     except Exception as e:

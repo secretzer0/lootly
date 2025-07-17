@@ -5,7 +5,7 @@ Provides comprehensive error handling with structured exceptions
 for different API error scenarios.
 """
 from typing import Optional, Dict, Any, List
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from enum import Enum
 
 
@@ -31,15 +31,17 @@ class ErrorCategory(str, Enum):
 
 class ErrorDetail(BaseModel):
     """Detailed error information from eBay API."""
-    error_id: Optional[int] = Field(None, description="eBay error ID")
+    error_id: Optional[int] = Field(None, alias="errorId", description="eBay error ID")
     domain: Optional[str] = Field(None, description="Error domain")
-    subdomain: Optional[str] = Field(None, description="Error subdomain")
+    subdomain: Optional[str] = Field(None, alias="subDomain", description="Error subdomain")
     category: Optional[str] = Field(None, description="eBay error category")
     message: str = Field(..., description="Error message")
-    long_message: Optional[str] = Field(None, description="Detailed error message")
-    input_ref_ids: Optional[List[str]] = Field(None, description="Input fields that caused error")
-    output_ref_ids: Optional[List[str]] = Field(None, description="Output fields affected")
+    long_message: Optional[str] = Field(None, alias="longMessage", description="Detailed error message")
+    input_ref_ids: Optional[List[str]] = Field(None, alias="inputRefIds", description="Input fields that caused error")
+    output_ref_ids: Optional[List[str]] = Field(None, alias="outputRefIds", description="Output fields affected")
     parameters: Optional[List[Dict[str, Any]]] = Field(None, description="Error parameters")
+    
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class EbayApiException(Exception):
@@ -69,6 +71,15 @@ class EbayApiException(Exception):
                 "details": self.details
             }
         }
+    
+    def get_full_error_details(self) -> Dict[str, Any]:
+        """Get complete error details for MCP responses."""
+        return {
+            "type": self.__class__.__name__,
+            "category": self.category.value,
+            "severity": self.severity.value,
+            **self.details
+        }
 
 
 class EbayApiError(EbayApiException):
@@ -94,6 +105,13 @@ class EbayApiError(EbayApiException):
                 "domain": error_response.get("domain")
             }]
         
+        # Clean up null values in arrays
+        for error in errors:
+            if isinstance(error, dict):
+                # Convert [null] to [] for inputRefIds
+                if "inputRefIds" in error and error["inputRefIds"] == [None]:
+                    error["inputRefIds"] = []
+        
         # Get primary error message
         primary_error = errors[0] if errors else {}
         message = primary_error.get("message", f"HTTP {status_code} error")
@@ -113,6 +131,7 @@ class EbayApiError(EbayApiException):
         self.status_code = status_code
         self.request_id = request_id
         self.errors = [ErrorDetail(**err) for err in errors if isinstance(err, dict)]
+        self.raw_error_response = error_response  # Keep the original response for debugging
     
     def _determine_category(self, status_code: int, error: Dict[str, Any]) -> ErrorCategory:
         """Determine error category from status code and error details."""
@@ -162,6 +181,29 @@ class EbayApiError(EbayApiException):
                 if param.get("name") == "retry_after":
                     return int(param.get("value", 60))
         return None
+    
+    def get_comprehensive_message(self) -> str:
+        """Get a comprehensive error message including all eBay error details."""
+        messages = []
+        
+        # Primary message
+        messages.append(f"HTTP {self.status_code}: {self.message}")
+        
+        # Add all error details
+        for error in self.errors:
+            if error.long_message and error.long_message != error.message:
+                messages.append(f"  - {error.long_message}")
+            if error.error_id:
+                messages.append(f"    Error ID: {error.error_id}")
+            if error.domain:
+                messages.append(f"    Domain: {error.domain}")
+            if error.input_ref_ids and any(error.input_ref_ids):
+                messages.append(f"    Input fields: {', '.join(str(f) for f in error.input_ref_ids if f)}")
+        
+        if self.request_id:
+            messages.append(f"  Request ID: {self.request_id}")
+        
+        return "\n".join(messages)
 
 
 class AuthenticationError(EbayApiException):
