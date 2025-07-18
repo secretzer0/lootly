@@ -63,6 +63,8 @@ def create_lootly_server():
     import tools.trending_api  # Trending items using Browse API
     import tools.return_policy_api  # Return Policy API for managing return policies
     import tools.payment_policy_api  # Payment Policy API for managing payment policies
+    import tools.fulfillment_policy_api  # Fulfillment Policy API for managing shipping policies
+    import tools.inventory_item_api  # Inventory Item API for managing product inventory
     
     # Resources
     import resources.categories

@@ -913,10 +913,6 @@ class OAuthScopes:
         COMMERCE_VERO
     ])
     
-    # USER_CONSENT_SCOPES = " ".join([
-    #     SELL_ACCOUNT, SELL_ANALYTICS, SELL_FULFILLMENT, SELL_INVENTORY, SELL_MARKETING
-    # ])
-    
     @classmethod
     def get_scope_description(cls, scope: str) -> str:
         """Get human-readable description of OAuth scope."""

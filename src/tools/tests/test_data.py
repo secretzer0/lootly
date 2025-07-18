@@ -886,4 +886,268 @@ class TestDataPaymentPolicy:
     }
     
     GET_BY_NAME_RESPONSE = PAYMENT_POLICY_STANDARD
+
+
+class TestDataFulfillmentPolicy:
+    """Test data for Fulfillment Policy API responses."""
+    
+    FULFILLMENT_POLICY_SIMPLE = {
+        "fulfillmentPolicyId": "6197932000",
+        "name": "Standard Shipping",
+        "marketplaceId": "EBAY_US",
+        "categoryTypes": [{
+            "name": "ALL_EXCLUDING_MOTORS_VEHICLES",
+            "default": True
+        }],
+        "handlingTime": {
+            "value": 1,
+            "unit": "DAY"
+        },
+        "localPickup": False,
+        "freightShipping": False,
+        "globalShipping": False,
+        "description": "Standard shipping policy with 1-day handling"
+    }
+    
+    FULFILLMENT_POLICY_COMPLEX = {
+        "fulfillmentPolicyId": "6197942000",
+        "name": "Premium Shipping",
+        "marketplaceId": "EBAY_US",
+        "categoryTypes": [{
+            "name": "ALL_EXCLUDING_MOTORS_VEHICLES",
+            "default": True
+        }],
+        "handlingTime": {
+            "value": 2,
+            "unit": "DAY"
+        },
+        "description": "Premium shipping with multiple options",
+        "shippingOptions": [{
+            "costType": "FLAT_RATE",
+            "optionType": "DOMESTIC",
+            "shippingServices": [{
+                "shippingServiceCode": "StandardShipping",
+                "shippingCarrierCode": "USPS",
+                "shippingCost": {
+                    "currency": "USD",
+                    "value": "5.99"
+                },
+                "additionalShippingCost": {
+                    "currency": "USD",
+                    "value": "2.99"
+                },
+                "freeShipping": False,
+                "sortOrder": 1
+            }, {
+                "shippingServiceCode": "ExpeditedShipping",
+                "shippingCarrierCode": "UPS",
+                "shippingCost": {
+                    "currency": "USD",
+                    "value": "12.99"
+                },
+                "freeShipping": False,
+                "sortOrder": 2
+            }]
+        }, {
+            "costType": "FLAT_RATE",
+            "optionType": "INTERNATIONAL",
+            "shippingServices": [{
+                "shippingServiceCode": "InternationalStandardShipping",
+                "shippingCarrierCode": "USPS",
+                "shippingCost": {
+                    "currency": "USD",
+                    "value": "19.99"
+                },
+                "freeShipping": False,
+                "sortOrder": 1
+            }]
+        }],
+        "localPickup": True,
+        "pickupDropOff": False,
+        "freightShipping": False,
+        "globalShipping": True
+    }
+    
+    FULFILLMENT_POLICY_LOCAL_PICKUP = {
+        "fulfillmentPolicyId": "6197952000",
+        "name": "Local Pickup Only",
+        "marketplaceId": "EBAY_US",
+        "categoryTypes": [{
+            "name": "ALL_EXCLUDING_MOTORS_VEHICLES",
+            "default": True
+        }],
+        "localPickup": True,
+        "pickupDropOff": True,
+        "freightShipping": False,
+        "globalShipping": False,
+        "description": "Local pickup and drop-off only policy"
+    }
+    
+    GET_POLICIES_RESPONSE = {
+        "fulfillmentPolicies": [
+            FULFILLMENT_POLICY_SIMPLE,
+            FULFILLMENT_POLICY_COMPLEX,
+            FULFILLMENT_POLICY_LOCAL_PICKUP
+        ],
+        "total": 3,
+        "limit": 20,
+        "offset": 0
+    }
+    
+    CREATE_POLICY_RESPONSE = {
+        **FULFILLMENT_POLICY_SIMPLE,
+        "fulfillmentPolicyId": "6197962000",
+        "name": "New Fulfillment Policy",
+        "createdAt": "2025-01-17T10:00:00.000Z"
+    }
+    
+    UPDATE_POLICY_RESPONSE = {
+        **FULFILLMENT_POLICY_SIMPLE,
+        "name": "Updated Fulfillment Policy",
+        "description": "Updated shipping policy description",
+        "updatedAt": "2025-01-17T11:00:00.000Z"
+    }
+    
+    GET_BY_NAME_RESPONSE = FULFILLMENT_POLICY_SIMPLE
+
+
+class TestDataInventoryItem:
+    """Test data for Inventory Item API responses."""
+    
+    INVENTORY_ITEM_SIMPLE = {
+        "sku": "TEST-SKU-001",
+        "locale": "en_US",
+        "condition": "NEW",
+        "availability": {
+            "shipToLocationAvailability": {
+                "quantity": 10
+            }
+        },
+        "product": {
+            "title": "Test Product",
+            "description": "A test product for unit testing",
+            "brand": "TestBrand",
+            "mpn": "TEST-MPN-001",
+            "imageUrls": [
+                "https://example.com/image1.jpg",
+                "https://example.com/image2.jpg"
+            ]
+        }
+    }
+    
+    INVENTORY_ITEM_COMPLEX = {
+        "sku": "TEST-SKU-002",
+        "locale": "en_US",
+        "condition": "LIKE_NEW",
+        "conditionDescription": "Barely used, excellent condition",
+        "availability": {
+            "shipToLocationAvailability": {
+                "quantity": 5,
+                "allocationByFormat": {
+                    "AUCTION": 2,
+                    "FIXED_PRICE": 3
+                }
+            },
+            "pickupAtLocationAvailability": [{
+                "availabilityType": "IN_STOCK",
+                "merchantLocationKey": "store_001"
+            }]
+        },
+        "product": {
+            "title": "Premium Test Product",
+            "subtitle": "High-quality testing item",
+            "description": "A premium test product with enhanced features for comprehensive testing",
+            "brand": "PremiumBrand",
+            "mpn": "PREM-MPN-002",
+            "upc": ["123456789012"],
+            "ean": ["1234567890123"],
+            "imageUrls": [
+                "https://example.com/premium1.jpg",
+                "https://example.com/premium2.jpg",
+                "https://example.com/premium3.jpg"
+            ],
+            "aspects": {
+                "Color": ["Blue", "Green"],
+                "Size": ["Medium"],
+                "Material": ["Cotton"]
+            }
+        },
+        "packageWeightAndSize": {
+            "weight": {
+                "value": "2.5",
+                "unit": "POUND"
+            },
+            "dimensions": {
+                "length": {
+                    "value": "12.0",
+                    "unit": "INCH"
+                },
+                "width": {
+                    "value": "8.0",
+                    "unit": "INCH"
+                },
+                "height": {
+                    "value": "4.0",
+                    "unit": "INCH"
+                }
+            },
+            "packageType": "PACKAGE"
+        }
+    }
+    
+    GET_INVENTORY_ITEMS_RESPONSE = {
+        "inventoryItems": [
+            INVENTORY_ITEM_SIMPLE,
+            INVENTORY_ITEM_COMPLEX
+        ],
+        "total": 2,
+        "size": 1,
+        "limit": 25,
+        "offset": 0
+    }
+    
+    BULK_CREATE_RESPONSE = {
+        "responses": [
+            {
+                "sku": "TEST-SKU-001",
+                "statusCode": 204,
+                "locale": "en_US"
+            },
+            {
+                "sku": "TEST-SKU-002", 
+                "statusCode": 204,
+                "locale": "en_US"
+            }
+        ]
+    }
+    
+    BULK_GET_RESPONSE = {
+        "responses": [
+            {
+                "sku": "TEST-SKU-001",
+                "statusCode": 200,
+                "inventoryItem": INVENTORY_ITEM_SIMPLE
+            },
+            {
+                "sku": "TEST-SKU-002",
+                "statusCode": 200,
+                "inventoryItem": INVENTORY_ITEM_COMPLEX
+            }
+        ]
+    }
+    
+    BULK_UPDATE_PRICE_QUANTITY_RESPONSE = {
+        "responses": [
+            {
+                "sku": "TEST-SKU-001",
+                "statusCode": 200,
+                "locale": "en_US"
+            },
+            {
+                "sku": "TEST-SKU-002",
+                "statusCode": 200,
+                "locale": "en_US"
+            }
+        ]
+    }
     
