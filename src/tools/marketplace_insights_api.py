@@ -5,6 +5,7 @@ Provides access to eBay's Buy Marketplace Insights API to retrieve
 historical sales data and market trends for specific items.
 """
 from typing import Dict, Any, Optional, List, Union, Literal
+import json
 from fastmcp import Context
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 import json
@@ -492,6 +493,42 @@ async def build_marketplace_filter(
         Returns: "itemLocationCountry:US,maxDeliveryCost:0,returnsAccepted:true"
     """
     await ctx.info("🛠️ Building marketplace filter string...")
+    
+    # Parse JSON strings for list parameters (Claude sends these as JSON strings)
+    if isinstance(conditions, str) and conditions.startswith('['):
+        try:
+            conditions = json.loads(conditions)
+            await ctx.info(f"📝 Parsed conditions JSON: {conditions}")
+        except json.JSONDecodeError as e:
+            await ctx.warning(f"Failed to parse conditions JSON: {conditions}, error: {e}")
+    
+    if isinstance(buying_options, str) and buying_options.startswith('['):
+        try:
+            buying_options = json.loads(buying_options)
+            await ctx.info(f"📝 Parsed buying_options JSON: {buying_options}")
+        except json.JSONDecodeError as e:
+            await ctx.warning(f"Failed to parse buying_options JSON: {buying_options}, error: {e}")
+    
+    if isinstance(delivery_options, str) and delivery_options.startswith('['):
+        try:
+            delivery_options = json.loads(delivery_options)
+            await ctx.info(f"📝 Parsed delivery_options JSON: {delivery_options}")
+        except json.JSONDecodeError as e:
+            await ctx.warning(f"Failed to parse delivery_options JSON: {delivery_options}, error: {e}")
+    
+    if isinstance(sellers, str) and sellers.startswith('['):
+        try:
+            sellers = json.loads(sellers)
+            await ctx.info(f"📝 Parsed sellers JSON: {sellers}")
+        except json.JSONDecodeError as e:
+            await ctx.warning(f"Failed to parse sellers JSON: {sellers}, error: {e}")
+    
+    if isinstance(seller_account_types, str) and seller_account_types.startswith('['):
+        try:
+            seller_account_types = json.loads(seller_account_types)
+            await ctx.info(f"📝 Parsed seller_account_types JSON: {seller_account_types}")
+        except json.JSONDecodeError as e:
+            await ctx.warning(f"Failed to parse seller_account_types JSON: {seller_account_types}, error: {e}")
     
     fb = FilterBuilder()
     
