@@ -15,6 +15,9 @@ from typing import Optional, Dict, Any, Union
 from decimal import Decimal
 import decimal
 import json
+import logging
+import os
+from datetime import datetime
 from fastmcp import Context
 from pydantic import BaseModel, Field, field_validator, ConfigDict, ValidationError
 
@@ -267,7 +270,21 @@ async def search_items(
     Returns:
         JSON response with search results and pagination info
     """
+    # Setup file logging for debugging
+    log_file = "/tmp/ebay_mcp_debug.log"
+    logging.basicConfig(
+        filename=log_file,
+        level=logging.DEBUG,
+        format='%(asctime)s - %(levelname)s - %(message)s',
+        filemode='a'
+    )
+    logger = logging.getLogger(__name__)
+    
     # Parse input - handles both JSON strings (from Claude) and Pydantic objects (from tests)
+    logger.info(f"=== search_items CALLED at {datetime.now()} ===")
+    logger.info(f"🔍 Input type: {type(search_input)}")
+    logger.info(f"🔍 Input value: {str(search_input)[:500]}")
+    
     await ctx.info(f"🔍 DEBUG: search_items called with input type: {type(search_input)}")
     await ctx.info(f"🔍 DEBUG: search_input value: {str(search_input)[:200]}...")
     
@@ -346,16 +363,21 @@ async def search_items(
         await ctx.report_progress(0.3, "Searching eBay marketplace...")
         
         # Convert Pydantic model to API parameters
+        logger.info(f"🔍 About to build search params")
         await ctx.info(f"🔍 DEBUG: About to build search params")
         params = _build_search_params(parsed_input)
+        logger.info(f"🔍 Search params built: {params}")
         await ctx.info(f"🔍 DEBUG: Search params built: {params}")
         
         # Make API request - Browse API uses client credentials with api_scope
+        logger.info(f"🔍 About to make eBay API call")
         response = await rest_client.get(
             "/buy/browse/v1/item_summary/search",
             params=params
         )
+        logger.info(f"🔍 eBay API call completed")
         response_body = response["body"]
+        logger.info(f"🔍 Response body extracted, has {len(response_body.get('itemSummaries', []))} items")
         
         await ctx.report_progress(0.8, "Processing search results...")
         
