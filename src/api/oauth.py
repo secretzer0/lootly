@@ -192,10 +192,10 @@ class TokenStorage:
 
 def _can_open_browser() -> bool:
     """Check if we can open a browser (running in stdio mode)."""
-    # Check if we're running in a terminal/stdio environment
-    # This is a simple heuristic - in practice, MCP servers running locally
-    # through stdio can often open browsers
-    return sys.stdin.isatty() and sys.stdout.isatty()
+    # In MCP environments, we should always attempt to open the browser
+    # The MCP server runs locally and can usually access the default browser
+    # Even if stdio is not a TTY (which is normal for MCP)
+    return True
 
 
 def _open_browser(url: str) -> bool:
@@ -212,7 +212,18 @@ def _open_browser(url: str) -> bool:
 class ConsentRequiredException(Exception):
     """Exception raised when user consent is required but not available."""
     
-    def __init__(self, message: str = "User consent required. Use initiate_user_consent tool to authorize eBay API access."):
+    def __init__(self, message: str = None):
+        if message is None:
+            message = (
+                "User consent required for eBay API access.\n\n"
+                "IMPORTANT: You MUST complete the OAuth flow:\n"
+                "1. Use the 'initiate_user_consent' tool to get an authorization URL\n"
+                "2. A browser will open (or you'll get a URL to open manually)\n"
+                "3. Log in to eBay and grant permissions\n"
+                "4. Copy the ENTIRE callback URL from your browser\n"
+                "5. Use the 'complete_user_consent' tool with that URL\n\n"
+                "This is required to access eBay APIs."
+            )
         self.message = message
         super().__init__(self.message)
 
@@ -480,12 +491,21 @@ class OAuthManager:
         user_token = self._token_storage.get_user_token(self.config.client_id)
         
         if not user_token:
-            raise ConsentRequiredException("User consent required. Use initiate_user_consent tool to authorize eBay API access.")
+            raise ConsentRequiredException()
         
         # Check if token is expired
         if user_token.expires_at <= datetime.now(timezone.utc):
             # TODO: Implement token refresh logic
-            raise ConsentRequiredException("User consent expired. Use initiate_user_consent tool to re-authorize eBay API access.")
+            raise ConsentRequiredException(
+                "User consent has expired.\n\n"
+                "IMPORTANT: You MUST complete the OAuth flow again:\n"
+                "1. Use the 'initiate_user_consent' tool to get a new authorization URL\n"
+                "2. A browser will open (or you'll get a URL to open manually)\n"
+                "3. Log in to eBay and grant permissions\n"
+                "4. Copy the ENTIRE callback URL from your browser\n"
+                "5. Use the 'complete_user_consent' tool with that URL\n\n"
+                "This is required to continue using eBay APIs."
+            )
         
         return user_token.access_token
     

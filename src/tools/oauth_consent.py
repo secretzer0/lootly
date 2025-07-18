@@ -90,16 +90,21 @@ async def check_user_consent_status(ctx: Context) -> str:
 @mcp.tool
 async def initiate_user_consent(ctx: Context) -> str:
     """
-    Initiate the user consent flow for eBay APIs.
+    REQUIRED: Initiate the user consent flow for eBay APIs.
     
-    Generates authorization URL and opens browser if possible.
-    This is the first step in the OAuth authorization code flow.
+    When ANY eBay API returns a consent error, you MUST:
+    1. Call this tool IMMEDIATELY to get the authorization URL
+    2. Wait for the browser to open or show the URL to the user
+    3. PROMPT the user to complete authorization and paste the callback URL
+    4. Use complete_user_consent with the callback URL
+    
+    DO NOT try alternative approaches - OAuth is REQUIRED.
     
     Args:
         ctx: MCP context
     
     Returns:
-        JSON response with authorization URL and instructions
+        JSON response with authorization URL and URGENT instructions
     """
     await ctx.info("🚀 Initiating user consent flow...")
     
@@ -137,6 +142,20 @@ async def initiate_user_consent(ctx: Context) -> str:
         await ctx.info("  4. Copy the ENTIRE URL from your browser's address bar")
         await ctx.info("  5. Use complete_user_consent tool with that URL")
         
+        # Create urgent action message for Claude
+        urgent_message = (
+            "🚨 ACTION REQUIRED: OAuth Authorization Needed\n\n"
+            f"{'✅ Browser opened! Please check your browser window.' if result['browser_opened'] else '❌ Could not open browser automatically.'}\n\n"
+            "YOU MUST NOW:\n"
+            "1. Open this URL in your browser (if not already open):\n"
+            f"   {result['auth_url']}\n\n"
+            "2. Log in to your eBay account\n"
+            "3. Grant the requested permissions\n"
+            "4. After granting permissions, copy the ENTIRE URL from your browser's address bar\n"
+            "5. IMMEDIATELY use the 'complete_user_consent' tool with that URL\n\n"
+            "⏰ This authorization expires in 5 minutes!"
+        )
+        
         return success_response(
             data={
                 "authorization_url": result["auth_url"],
@@ -144,11 +163,12 @@ async def initiate_user_consent(ctx: Context) -> str:
                 "state": result["state"],
                 "redirect_uri": result["redirect_uri"],
                 "required_scopes": OAuthScopes.USER_CONSENT_SCOPES.split(),
-                "expires_in": 300,  # URL expires in 10 minutes
+                "expires_in": 300,  # URL expires in 5 minutes
                 "environment": "sandbox" if mcp.config.sandbox_mode else "production",
-                "next_step": "Copy callback URL and use complete_user_consent"
+                "next_step": "IMMEDIATELY copy the callback URL from your browser and use complete_user_consent tool",
+                "urgent_action": urgent_message
             },
-            message="Authorization URL generated. Complete consent in browser, then paste callback URL."
+            message=urgent_message
         ).to_json_string()
         
     except Exception as e:
@@ -162,16 +182,24 @@ async def initiate_user_consent(ctx: Context) -> str:
 @mcp.tool
 async def complete_user_consent(ctx: Context, callback_url: str) -> str:
     """
-    Complete the user consent flow using the callback URL.
+    REQUIRED STEP 2: Complete the user consent flow using the callback URL.
     
-    Exchanges the authorization code for user tokens and stores them securely.
+    After calling initiate_user_consent and authorizing in the browser,
+    you MUST call this tool with the full callback URL.
+    
+    The callback URL looks like:
+    http://localhost/?code=C10...&state=cd6a...
+    or
+    https://localhost/?code=C10...&state=cd6a...
+    
+    COPY THE ENTIRE URL INCLUDING ALL PARAMETERS.
     
     Args:
-        callback_url: The full URL copied from browser after consent
+        callback_url: The FULL URL copied from browser after granting consent
         ctx: MCP context
     
     Returns:
-        JSON response with consent completion status
+        JSON response confirming successful authorization
     """
     await ctx.info("🔄 Completing user consent flow...")
     
