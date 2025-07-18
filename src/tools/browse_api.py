@@ -268,15 +268,22 @@ async def search_items(
         JSON response with search results and pagination info
     """
     # Parse input - handles both JSON strings (from Claude) and Pydantic objects (from tests)
+    await ctx.info(f"🔍 DEBUG: search_items called with input type: {type(search_input)}")
+    await ctx.info(f"🔍 DEBUG: search_input value: {str(search_input)[:200]}...")
+    
     parsed_input = None
     try:
         if isinstance(search_input, str):
-            await ctx.info("Parsing JSON search parameters...")
+            await ctx.info("📝 Parsing JSON search parameters...")
             data = json.loads(search_input)
+            await ctx.info(f"🔍 DEBUG: JSON parsed successfully: {data}")
             parsed_input = BrowseSearchInput(**data)
+            await ctx.info(f"🔍 DEBUG: BrowseSearchInput created successfully")
         elif isinstance(search_input, BrowseSearchInput):
+            await ctx.info("📝 Using existing BrowseSearchInput object")
             parsed_input = search_input
         else:
+            await ctx.error(f"❌ Invalid input type: {type(search_input)}")
             raise ValueError(f"Expected JSON string or BrowseSearchInput object, got {type(search_input)}")
     except json.JSONDecodeError as e:
         await ctx.error(f"Invalid JSON in search_input: {str(e)}")
@@ -308,7 +315,8 @@ async def search_items(
     
     # Store query as string to avoid serialization issues with Decimal fields
     query_string = parsed_input.query
-    await ctx.info(f"Searching eBay for: {query_string}")
+    await ctx.info(f"🔍 DEBUG: About to search eBay for: {query_string}")
+    await ctx.info(f"🔍 DEBUG: parsed_input.price_max = {parsed_input.price_max} (type: {type(parsed_input.price_max)})")
     await ctx.report_progress(0.1, "Validating search parameters...")
     
     # Pydantic validation already handled - no manual validation needed!
@@ -338,7 +346,9 @@ async def search_items(
         await ctx.report_progress(0.3, "Searching eBay marketplace...")
         
         # Convert Pydantic model to API parameters
+        await ctx.info(f"🔍 DEBUG: About to build search params")
         params = _build_search_params(parsed_input)
+        await ctx.info(f"🔍 DEBUG: Search params built: {params}")
         
         # Make API request - Browse API uses client credentials with api_scope
         response = await rest_client.get(
@@ -355,10 +365,15 @@ async def search_items(
         await ctx.report_progress(1.0, "Complete")
         await ctx.info(f"Found {formatted_response['total']} items, returning {len(formatted_response['items'])}")
         
-        return success_response(
+        await ctx.info(f"🔍 DEBUG: About to create success response")
+        response_obj = success_response(
             data=formatted_response,
             message=f"Successfully searched for '{query_string}'"
-        ).to_json_string()
+        )
+        await ctx.info(f"🔍 DEBUG: Success response object created")
+        json_result = response_obj.to_json_string()
+        await ctx.info(f"🔍 DEBUG: JSON serialization successful, length: {len(json_result)}")
+        return json_result
         
     except EbayApiError as e:
         # Log comprehensive error details
