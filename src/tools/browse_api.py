@@ -268,12 +268,15 @@ async def search_items(
         JSON response with search results and pagination info
     """
     # Parse input - handles both JSON strings (from Claude) and Pydantic objects (from tests)
+    parsed_input = None
     try:
         if isinstance(search_input, str):
             await ctx.info("Parsing JSON search parameters...")
             data = json.loads(search_input)
-            search_input = BrowseSearchInput(**data)
-        elif not isinstance(search_input, BrowseSearchInput):
+            parsed_input = BrowseSearchInput(**data)
+        elif isinstance(search_input, BrowseSearchInput):
+            parsed_input = search_input
+        else:
             raise ValueError(f"Expected JSON string or BrowseSearchInput object, got {type(search_input)}")
     except json.JSONDecodeError as e:
         await ctx.error(f"Invalid JSON in search_input: {str(e)}")
@@ -303,7 +306,9 @@ async def search_items(
             {"validation_errors": serializable_errors, "required_fields": ["query"]}
         ).to_json_string()
     
-    await ctx.info(f"Searching eBay for: {search_input.query}")
+    # Store query as string to avoid serialization issues with Decimal fields
+    query_string = parsed_input.query
+    await ctx.info(f"Searching eBay for: {query_string}")
     await ctx.report_progress(0.1, "Validating search parameters...")
     
     # Pydantic validation already handled - no manual validation needed!
@@ -333,7 +338,7 @@ async def search_items(
         await ctx.report_progress(0.3, "Searching eBay marketplace...")
         
         # Convert Pydantic model to API parameters
-        params = _build_search_params(search_input)
+        params = _build_search_params(parsed_input)
         
         # Make API request - Browse API uses client credentials with api_scope
         response = await rest_client.get(
@@ -352,7 +357,7 @@ async def search_items(
         
         return success_response(
             data=formatted_response,
-            message=f"Successfully searched for '{search_input.query}'"
+            message=f"Successfully searched for '{query_string}'"
         ).to_json_string()
         
     except EbayApiError as e:
