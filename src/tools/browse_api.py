@@ -40,7 +40,7 @@ class BrowseSearchInput(BaseModel):
     price_max: Optional[Decimal] = Field(None, ge=0, description="Maximum price filter")
     conditions: Optional[str] = Field(None, description="Comma-separated condition IDs")
     sellers: Optional[str] = Field(None, description="Comma-separated seller usernames")
-    sort: str = Field("relevance", description="Sort order")
+    sort: str = Field("relevance", description="Sort order: relevance, price, -price, distance, -distance, newlyListed, -newlyListed")
     limit: int = Field(50, ge=1, le=200, description="Results per page")
     offset: int = Field(0, ge=0, description="Result offset for pagination")
     
@@ -58,7 +58,9 @@ class BrowseSearchInput(BaseModel):
     @classmethod
     def validate_sort_values(cls, v):
         """Validate sort parameter values."""
-        valid_sorts = ["relevance", "price", "distance", "newlyListed"]
+        # eBay Browse API supports ascending and descending sort
+        # Descending is indicated with a minus prefix (e.g., -price)
+        valid_sorts = ["relevance", "price", "-price", "distance", "-distance", "newlyListed", "-newlyListed"]
         if v not in valid_sorts:
             raise ValueError(f"sort must be one of: {', '.join(valid_sorts)}")
         return v
@@ -85,7 +87,7 @@ class CategoryBrowseInput(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
     
     category_id: str = Field(..., min_length=1, description="eBay category ID")
-    sort: str = Field("relevance", description="Sort order")
+    sort: str = Field("relevance", description="Sort order: relevance, price, -price, distance, -distance, newlyListed, -newlyListed")
     limit: int = Field(50, ge=1, le=200, description="Results per page")
     offset: int = Field(0, ge=0, description="Result offset")
     price_min: Optional[Decimal] = Field(None, ge=0, description="Minimum price filter")
