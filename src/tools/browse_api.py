@@ -13,6 +13,7 @@ IMPLEMENTATION FOLLOWS: PYDANTIC-FIRST DEVELOPMENT METHODOLOGY
 """
 from typing import Optional, Dict, Any, Union
 from decimal import Decimal
+import decimal
 import json
 from fastmcp import Context
 from pydantic import BaseModel, Field, field_validator, ConfigDict, ValidationError
@@ -43,6 +44,19 @@ class BrowseSearchInput(BaseModel):
     sort: str = Field("relevance", description="Sort order: relevance, price, -price, distance, -distance, newlyListed, -newlyListed")
     limit: int = Field(50, ge=1, le=200, description="Results per page")
     offset: int = Field(0, ge=0, description="Result offset for pagination")
+    
+    @field_validator('price_min', 'price_max', mode='before')
+    @classmethod
+    def coerce_decimal(cls, v):
+        """Convert string values to Decimal."""
+        if v is None:
+            return v
+        if isinstance(v, str):
+            try:
+                return Decimal(v)
+            except (ValueError, decimal.InvalidOperation) as e:
+                raise ValueError(f"Invalid decimal value: {v}")
+        return v
     
     @field_validator('price_max')
     @classmethod
@@ -92,6 +106,19 @@ class CategoryBrowseInput(BaseModel):
     offset: int = Field(0, ge=0, description="Result offset")
     price_min: Optional[Decimal] = Field(None, ge=0, description="Minimum price filter")
     price_max: Optional[Decimal] = Field(None, ge=0, description="Maximum price filter")
+    
+    @field_validator('price_min', 'price_max', mode='before')
+    @classmethod
+    def coerce_decimal(cls, v):
+        """Convert string values to Decimal."""
+        if v is None:
+            return v
+        if isinstance(v, str):
+            try:
+                return Decimal(v)
+            except (ValueError, decimal.InvalidOperation) as e:
+                raise ValueError(f"Invalid decimal value: {v}")
+        return v
     
     @field_validator('price_max')
     @classmethod

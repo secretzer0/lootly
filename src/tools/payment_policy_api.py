@@ -11,10 +11,12 @@ IMPLEMENTATION FOLLOWS: PYDANTIC-FIRST DEVELOPMENT METHODOLOGY
 - Validation through Pydantic models only
 - Zero manual validation code
 """
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Union
 from decimal import Decimal
+import decimal
+import json
 from fastmcp import Context
-from pydantic import BaseModel, Field, model_validator, ConfigDict
+from pydantic import BaseModel, Field, model_validator, ConfigDict, field_validator, ValidationError
 from datetime import datetime, timezone
 
 from api.oauth import OAuthManager, OAuthConfig, ConsentRequiredException
@@ -94,6 +96,19 @@ class Deposit(BaseModel):
         None,
         description="Accepted payment methods for deposit"
     )
+    
+    @field_validator('amount', mode='before')
+    @classmethod
+    def coerce_decimal(cls, v):
+        """Convert string values to Decimal."""
+        if v is None:
+            return v
+        if isinstance(v, str):
+            try:
+                return Decimal(v)
+            except (ValueError, decimal.InvalidOperation) as e:
+                raise ValueError(f"Invalid decimal value: {v}")
+        return v
     
     @model_validator(mode='after')
     def validate_deposit_amount(self):
@@ -306,7 +321,7 @@ def _format_policy_response(policy: Dict[str, Any]) -> Dict[str, Any]:
 @mcp.tool
 async def create_payment_policy(
     ctx: Context,
-    policy_input: PaymentPolicyInput
+    policy_input: Union[str, PaymentPolicyInput]
 ) -> str:
     """
     Create a new payment policy for your eBay seller account.
@@ -322,10 +337,44 @@ async def create_payment_policy(
     Returns:
         JSON response with created policy details including policy_id
     """
+    # Parse input - handles both JSON strings (from Claude) and Pydantic objects (from tests)
+    try:
+        if isinstance(policy_input, str):
+            await ctx.info("Parsing JSON payment policy parameters...")
+            data = json.loads(policy_input)
+            policy_input = PaymentPolicyInput(**data)
+        elif not isinstance(policy_input, PaymentPolicyInput):
+            raise ValueError(f"Expected JSON string or PaymentPolicyInput object, got {type(policy_input)}")
+    except json.JSONDecodeError as e:
+        await ctx.error(f"Invalid JSON in policy_input: {str(e)}")
+        return error_response(
+            ErrorCode.VALIDATION_ERROR,
+            f"Invalid JSON in policy_input: {str(e)}. Please provide valid JSON with payment policy data."
+        ).to_json_string()
+    except ValidationError as e:
+        await ctx.error(f"Invalid payment policy parameters: {str(e)}")
+        error_details = []
+        # Create a serializable version of validation errors
+        # IMPORTANT: Exclude 'ctx' field which contains non-serializable ValueError objects
+        serializable_errors = []
+        for error in e.errors():
+            field = " -> ".join(str(x) for x in error["loc"])
+            error_details.append(f"{field}: {error['msg']}")
+            # Only include serializable fields, excluding 'ctx' which has ValueError object
+            serializable_errors.append({
+                "field": field,
+                "message": error["msg"],
+                "type": error.get("type", "validation_error"),
+                "input": error.get("input", "")
+            })
+        return error_response(
+            ErrorCode.VALIDATION_ERROR,
+            f"Invalid payment policy parameters: {'; '.join(error_details)}",
+            {"validation_errors": serializable_errors, "required_fields": ["name", "marketplace_id"]}
+        ).to_json_string()
+    
     await ctx.info(f"Creating payment policy: {policy_input.name}")
     await ctx.report_progress(0.1, "Validating input parameters...")
-    
-    # Pydantic validation already handled - no manual validation needed!
     
     # Check credentials
     if not mcp.config.app_id or not mcp.config.cert_id:
@@ -731,7 +780,7 @@ UpdatePaymentPolicyInput = PaymentPolicyInput
 async def update_payment_policy(
     ctx: Context,
     payment_policy_id: str,
-    policy_input: UpdatePaymentPolicyInput
+    policy_input: Union[str, UpdatePaymentPolicyInput]
 ) -> str:
     """
     Update an existing payment policy.
@@ -747,6 +796,42 @@ async def update_payment_policy(
     Returns:
         JSON response with updated policy details
     """
+    # Parse input - handles both JSON strings (from Claude) and Pydantic objects (from tests)
+    try:
+        if isinstance(policy_input, str):
+            await ctx.info("Parsing JSON payment policy update parameters...")
+            data = json.loads(policy_input)
+            policy_input = UpdatePaymentPolicyInput(**data)
+        elif not isinstance(policy_input, UpdatePaymentPolicyInput):
+            raise ValueError(f"Expected JSON string or UpdatePaymentPolicyInput object, got {type(policy_input)}")
+    except json.JSONDecodeError as e:
+        await ctx.error(f"Invalid JSON in policy_input: {str(e)}")
+        return error_response(
+            ErrorCode.VALIDATION_ERROR,
+            f"Invalid JSON in policy_input: {str(e)}. Please provide valid JSON with payment policy update data."
+        ).to_json_string()
+    except ValidationError as e:
+        await ctx.error(f"Invalid payment policy update parameters: {str(e)}")
+        error_details = []
+        # Create a serializable version of validation errors
+        # IMPORTANT: Exclude 'ctx' field which contains non-serializable ValueError objects
+        serializable_errors = []
+        for error in e.errors():
+            field = " -> ".join(str(x) for x in error["loc"])
+            error_details.append(f"{field}: {error['msg']}")
+            # Only include serializable fields, excluding 'ctx' which has ValueError object
+            serializable_errors.append({
+                "field": field,
+                "message": error["msg"],
+                "type": error.get("type", "validation_error"),
+                "input": error.get("input", "")
+            })
+        return error_response(
+            ErrorCode.VALIDATION_ERROR,
+            f"Invalid payment policy update parameters: {'; '.join(error_details)}",
+            {"validation_errors": serializable_errors, "required_fields": []}
+        ).to_json_string()
+    
     await ctx.info(f"Updating payment policy: {payment_policy_id}")
     await ctx.report_progress(0.1, "Validating input parameters...")
     
