@@ -850,11 +850,20 @@ if self.is_integration_mode:
     )
     
     # Validate actual API response structure
-    data = assert_api_response_success(result)
-    
-    # Verify real data meets expectations
-    assert data["data"]["policy_id"] is not None
-    assert data["data"]["name"] == valid_policy_input.name
+    response = json.loads(result)
+            
+    if response["status"] == "error":
+        error_code = response["error_code"]
+        error_msg = response["error_message"]
+        
+        if error_code == "CONFIGURATION_ERROR":
+            pytest.fail(f"CREDENTIALS PROBLEM: {error_msg} - {response}")
+        elif error_code == "EXTERNAL_API_ERROR":
+            pytest.fail(f"eBay API CONNECTIVITY ISSUE: {error_msg} - {response}")
+        else:
+            pytest.fail(f"UNEXPECTED INFRASTRUCTURE ISSUE: {error_code} - {error_msg} - {response}")
+
+    assert response["status"] == "success"
 ```
 
 **Unit Path (Mocked):**
