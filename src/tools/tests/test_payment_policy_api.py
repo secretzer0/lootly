@@ -42,6 +42,7 @@ from tools.payment_policy_api import (
     CategoryType,
     PaymentMethod,
     Deposit,
+    DepositDueIn,
     FullPaymentDueIn
 )
 from api.ebay_enums import (
@@ -219,7 +220,7 @@ class TestPaymentPolicyAPI:
             ],
             immediate_pay=False,
             deposit=Deposit(
-                due_in=3,
+                due_in=DepositDueIn(value=48, unit=TimeDurationUnitEnum.HOUR),  # Fixed: Use valid 48 hours
                 amount=Decimal("500.00"),
                 payment_methods=[
                     PaymentMethod(payment_method_type=PaymentMethodTypeEnum.CASHIER_CHECK)
@@ -262,10 +263,8 @@ class TestPaymentPolicyAPI:
                     if any(e.get("error_id") in [20403, 20001] for e in errors):
                         if "not eligible for Business Policy" in error_msg or "not opted in to business policies" in error_msg:
                             pytest.skip(f"Known eBay sandbox limitation: Business Policy eligibility - {error_msg}")
-                    # API serialization error for deposit field
-                    elif any(e.get("error_id") == 2004 for e in errors):
-                        if "Could not serialize field" in error_msg:
-                            pytest.skip(f"Known eBay sandbox limitation: API serialization error - {error_msg}")
+                    # Note: Error 2004 was a real bug in our code (wrong deposit.dueIn format)
+                    # No longer skipping - should be fixed now
                 
                 # For production or unexpected sandbox errors - fail the test
                 pytest.fail(f"API call failed - {error_code}: {error_msg}\nDetails: {details}")

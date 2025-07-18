@@ -327,7 +327,6 @@ class TestReturnPolicyApi(BaseApiTest):
                 MockConfig.cert_id = "test_cert"
                 MockConfig.sandbox_mode = True
                 MockConfig.rate_limit_per_day = 1000
-                MockUserToken.return_value = "mock_token"
                 
                 result = await create_return_policy.fn(
                     ctx=mock_context,
@@ -382,7 +381,6 @@ class TestReturnPolicyApi(BaseApiTest):
                 MockConfig.cert_id = "test_cert"
                 MockConfig.sandbox_mode = True
                 MockConfig.rate_limit_per_day = 1000
-                MockUserToken.return_value = "mock_token"
                 
                 result = await create_return_policy.fn(
                     ctx=mock_context,
@@ -441,7 +439,6 @@ class TestReturnPolicyApi(BaseApiTest):
                 MockConfig.cert_id = "test_cert"
                 MockConfig.sandbox_mode = True
                 MockConfig.rate_limit_per_day = 1000
-                MockUserToken.return_value = "mock_token"
                 
                 result = await get_return_policies.fn(
                     ctx=mock_context,
@@ -574,7 +571,6 @@ class TestReturnPolicyApi(BaseApiTest):
                 MockConfig.cert_id = "test_cert"
                 MockConfig.sandbox_mode = True
                 MockConfig.rate_limit_per_day = 1000
-                MockUserToken.return_value = "mock_token"
                 
                 result = await create_return_policy.fn(
                     ctx=mock_context,
@@ -662,15 +658,32 @@ class TestReturnPolicyApi(BaseApiTest):
             response = json.loads(result)
             
             if response["status"] == "error":
-                assert response["error_code"] in ["AUTHENTICATION_ERROR", "EXTERNAL_API_ERROR", "RESOURCE_NOT_FOUND"]
-                print(f"Integration test validated: {response['error_code']}")
-                return
-            else:
-                # Validate successful response
-                assert response["status"] == "success"
-                assert "data" in response
-                assert "policy_id" in response["data"]
-                print(f"Retrieved policy: {response['data'].get('name', 'Unknown')}")
+                error_code = response.get("error_code")
+                error_msg = response.get("error_message", "")
+                details = response.get("details", {})
+                errors = details.get("errors", [])
+                
+                # Check if we're in sandbox mode
+                is_sandbox = mcp.config.sandbox_mode
+                
+                # Only skip for known sandbox limitations when actually in sandbox mode
+                if is_sandbox:
+                    # Business Policy eligibility issues
+                    if any(e.get("error_id") in [20403, 20001] for e in errors):
+                        if "not eligible for Business Policy" in error_msg or "not opted in to business policies" in error_msg:
+                            pytest.skip(f"Known eBay sandbox limitation: Business Policy eligibility - {error_msg}")
+                    # Resource not found (policy doesn't exist in sandbox)
+                    elif "not found" in error_msg.lower():
+                        pytest.skip(f"Known eBay sandbox limitation: Policy not found - {error_msg}")
+                
+                # For production or unexpected sandbox errors - fail the test
+                pytest.fail(f"API call failed - {error_code}: {error_msg}")
+            
+            # Validate successful response
+            assert response["status"] == "success"
+            assert "data" in response
+            assert "policy_id" in response["data"]
+            print(f"Retrieved policy: {response['data'].get('name', 'Unknown')}")
         
         else:
             # Unit test
@@ -689,7 +702,6 @@ class TestReturnPolicyApi(BaseApiTest):
                 MockConfig.cert_id = "test_cert"
                 MockConfig.sandbox_mode = True
                 MockConfig.rate_limit_per_day = 1000
-                MockUserToken.return_value = "mock_token"
                 
                 result = await get_return_policy.fn(
                     ctx=mock_context,
@@ -722,11 +734,28 @@ class TestReturnPolicyApi(BaseApiTest):
             response = json.loads(result)
             
             if response["status"] == "error":
-                assert response["error_code"] in ["AUTHENTICATION_ERROR", "EXTERNAL_API_ERROR", "RESOURCE_NOT_FOUND"]
-                print(f"Integration test validated: {response['error_code']}")
-                return
-            else:
-                # Validate successful response
+                error_code = response.get("error_code")
+                error_msg = response.get("error_message", "")
+                details = response.get("details", {})
+                errors = details.get("errors", [])
+                
+                # Check if we're in sandbox mode
+                is_sandbox = mcp.config.sandbox_mode
+                
+                # Only skip for known sandbox limitations when actually in sandbox mode
+                if is_sandbox:
+                    # Business Policy eligibility issues
+                    if any(e.get("error_id") in [20403, 20001] for e in errors):
+                        if "not eligible for Business Policy" in error_msg or "not opted in to business policies" in error_msg:
+                            pytest.skip(f"Known eBay sandbox limitation: Business Policy eligibility - {error_msg}")
+                    # Resource not found (policy doesn't exist in sandbox)
+                    elif "not found" in error_msg.lower():
+                        pytest.skip(f"Known eBay sandbox limitation: Policy not found - {error_msg}")
+                
+                # For production or unexpected sandbox errors - fail the test
+                pytest.fail(f"API call failed - {error_code}: {error_msg}")
+            
+            # Validate successful response
                 assert response["status"] == "success"
                 assert "data" in response
                 assert response["data"]["name"] == policy_name
@@ -748,7 +777,6 @@ class TestReturnPolicyApi(BaseApiTest):
                 MockConfig.cert_id = "test_cert"
                 MockConfig.sandbox_mode = True
                 MockConfig.rate_limit_per_day = 1000
-                MockUserToken.return_value = "mock_token"
                 
                 result = await get_return_policy_by_name.fn(
                     ctx=mock_context,
@@ -786,7 +814,6 @@ class TestReturnPolicyApi(BaseApiTest):
             MockConfig.cert_id = "test_cert"
             MockConfig.sandbox_mode = True
             MockConfig.rate_limit_per_day = 1000
-            MockUserToken.return_value = "mock_token"
             
             result = await get_return_policy_by_name.fn(
                 ctx=mock_context,
@@ -872,7 +899,6 @@ class TestReturnPolicyApi(BaseApiTest):
                 MockConfig.cert_id = "test_cert"
                 MockConfig.sandbox_mode = True
                 MockConfig.rate_limit_per_day = 1000
-                MockUserToken.return_value = "mock_token"
                 
                 result = await update_return_policy.fn(
                     ctx=mock_context,
@@ -951,7 +977,6 @@ class TestReturnPolicyApi(BaseApiTest):
                 MockConfig.cert_id = "test_cert"
                 MockConfig.sandbox_mode = True
                 MockConfig.rate_limit_per_day = 1000
-                MockUserToken.return_value = "mock_token"
                 
                 result = await delete_return_policy.fn(
                     ctx=mock_context,
@@ -988,7 +1013,6 @@ class TestReturnPolicyApi(BaseApiTest):
             MockConfig.cert_id = "test_cert"
             MockConfig.sandbox_mode = True
             MockConfig.rate_limit_per_day = 1000
-            MockUserToken.return_value = "mock_token"
             
             result = await delete_return_policy.fn(
                 ctx=mock_context,

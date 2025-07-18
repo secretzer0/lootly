@@ -64,12 +64,29 @@ class PaymentMethod(BaseModel):
         return self
 
 
+class DepositDueIn(BaseModel):
+    """When deposit payment is due for motor vehicles."""
+    model_config = ConfigDict(str_strip_whitespace=True)
+    
+    value: int = Field(..., description="Number of hours (24, 48, or 72)")
+    unit: TimeDurationUnitEnum = Field(default=TimeDurationUnitEnum.HOUR, description="Time unit (must be HOUR)")
+    
+    @model_validator(mode='after')
+    def validate_deposit_due_in(self):
+        """Validate deposit due_in requirements per eBay API."""
+        if self.unit != TimeDurationUnitEnum.HOUR:
+            raise ValueError("Deposit due_in unit must be HOUR")
+        if self.value not in [24, 48, 72]:
+            raise ValueError("Deposit due_in value must be 24, 48, or 72 hours")
+        return self
+
+
 class Deposit(BaseModel):
     """Deposit configuration for motor vehicle listings."""
     model_config = ConfigDict(str_strip_whitespace=True)
     
     # Required fields
-    due_in: int = Field(..., ge=0, le=999, description="Number of days for deposit payment")
+    due_in: DepositDueIn = Field(..., description="When deposit payment is due (24, 48, or 72 hours)")
     amount: Decimal = Field(..., ge=0, decimal_places=2, description="Deposit amount")
     
     # Optional payment methods for deposit
@@ -214,7 +231,10 @@ def _convert_to_api_format(input_data: PaymentPolicyInput) -> Dict[str, Any]:
     # Add deposit configuration if specified
     if input_data.deposit:
         policy_data["deposit"] = {
-            "dueIn": input_data.deposit.due_in,
+            "dueIn": {
+                "value": input_data.deposit.due_in.value,
+                "unit": input_data.deposit.due_in.unit.value
+            },
             "amount": {
                 "value": str(input_data.deposit.amount),
                 "currency": "USD"  # Currency is marketplace-specific

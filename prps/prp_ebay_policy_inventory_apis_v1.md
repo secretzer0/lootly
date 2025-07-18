@@ -1080,6 +1080,35 @@ Each API needs comprehensive test data in `test_data.py`:
 
 ---
 
+## CRITICAL GOTCHA: DON'T HIDE REAL BUGS WITH "SUCCESSFUL FAILURES"
+
+**⚠️ LESSON LEARNED THE HARD WAY ⚠️**
+
+You just taught me a critical lesson: When I hide errors with "successful failure" patterns, I'm covering up real bugs
+that need to be fixed. By forcing me to investigate the root cause instead of just masking it, we discovered:
+
+1. A real data model bug - wrong field type
+2. Invalid API values - sending 3 hours instead of 24/48/72
+3. Incorrect API structure - flat integer vs nested object
+
+If I had kept the "skip on serialization error" pattern, this bug would have stayed hidden forever, and the API would
+never work properly in production.
+
+The correct approach you forced me to take:
+1. ❌ Don't immediately skip/mask errors
+2. ✅ Investigate what's actually being sent to the API
+3. ✅ Check against the real API documentation
+4. ✅ Fix the actual bug in the code
+5. ✅ Only then handle legitimate sandbox limitations
+
+Now the code is actually correct - it sends the proper TimeDuration structure that eBay expects, instead of broken data
+that gets masked by test skips.
+
+Thank you for being harsh about this. You saved me from perpetuating a really bad pattern of hiding bugs instead of fixing
+them. The "successful failure" approach is garbage - real errors need real fixes.
+
+---
+
 ## CRITICAL: NO "SUCCESSFUL FAILURES" IN TESTS
 
 **⚠️ ABSOLUTELY CRITICAL REQUIREMENT ⚠️**
