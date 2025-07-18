@@ -11,10 +11,11 @@ IMPLEMENTATION FOLLOWS: PYDANTIC-FIRST DEVELOPMENT METHODOLOGY
 - Validation through Pydantic models only
 - Zero manual validation code
 """
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Union
 from decimal import Decimal
+import json
 from fastmcp import Context
-from pydantic import BaseModel, Field, field_validator, ConfigDict
+from pydantic import BaseModel, Field, field_validator, ConfigDict, ValidationError
 
 from api.oauth import OAuthManager, OAuthConfig
 from api.rest_client import EbayRestClient, RestConfig
@@ -222,7 +223,7 @@ def _format_item_details_response(item_data: Dict[str, Any]) -> Dict[str, Any]:
 @mcp.tool
 async def search_items(
     ctx: Context,
-    search_input: BrowseSearchInput
+    search_input: Union[str, BrowseSearchInput]
 ) -> str:
     """
     Search for items on eBay using the Browse API.
@@ -231,12 +232,38 @@ async def search_items(
     and sorting capabilities for item search.
     
     Args:
-        search_input: Complete search configuration with query and filters
+        search_input: Either a JSON string or BrowseSearchInput object with search parameters
         ctx: MCP context
     
     Returns:
         JSON response with search results and pagination info
     """
+    # Parse input - handles both JSON strings (from Claude) and Pydantic objects (from tests)
+    try:
+        if isinstance(search_input, str):
+            await ctx.info("Parsing JSON search parameters...")
+            data = json.loads(search_input)
+            search_input = BrowseSearchInput(**data)
+        elif not isinstance(search_input, BrowseSearchInput):
+            raise ValueError(f"Expected JSON string or BrowseSearchInput object, got {type(search_input)}")
+    except json.JSONDecodeError as e:
+        await ctx.error(f"Invalid JSON in search_input: {str(e)}")
+        return error_response(
+            ErrorCode.VALIDATION_ERROR,
+            f"Invalid JSON in search_input: {str(e)}. Please provide valid JSON with search parameters."
+        ).to_json_string()
+    except ValidationError as e:
+        await ctx.error(f"Invalid search parameters: {str(e)}")
+        error_details = []
+        for error in e.errors():
+            field = " -> ".join(str(x) for x in error["loc"])
+            error_details.append(f"{field}: {error['msg']}")
+        return error_response(
+            ErrorCode.VALIDATION_ERROR,
+            f"Invalid search parameters: {'; '.join(error_details)}",
+            {"validation_errors": e.errors(), "required_fields": ["query"]}
+        ).to_json_string()
+    
     await ctx.info(f"Searching eBay for: {search_input.query}")
     await ctx.report_progress(0.1, "Validating search parameters...")
     
