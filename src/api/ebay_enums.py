@@ -626,6 +626,24 @@ class WeightUnitOfMeasureEnum(BaseEbayEnum):
         }
 
 
+class ProgramTypeEnum(BaseEbayEnum):
+    """
+    Types of eBay seller programs.
+    Docs: https://developer.ebay.com/api-docs/sell/account/types/api:ProgramTypeEnum
+    """
+    OUT_OF_STOCK_CONTROL = "OUT_OF_STOCK_CONTROL"
+    PARTNER_MOTORS_DEALER = "PARTNER_MOTORS_DEALER"
+    SELLING_POLICY_MANAGEMENT = "SELLING_POLICY_MANAGEMENT"
+    
+    @classmethod
+    def _get_descriptions(cls) -> Dict[str, str]:
+        return {
+            "OUT_OF_STOCK_CONTROL": "Keep fixed-price listings active when out of stock",
+            "PARTNER_MOTORS_DEALER": "Partner Motors Program for registered business users",
+            "SELLING_POLICY_MANAGEMENT": "Associate business policies with listings"
+        }
+
+
 # Helper functions for enum usage
 def validate_enum_value(enum_class: type[BaseEbayEnum], value: str) -> bool:
     """Validate if a value is valid for a given enum class."""

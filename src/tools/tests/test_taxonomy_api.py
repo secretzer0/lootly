@@ -8,7 +8,6 @@ Environment Variables:
 import pytest
 from unittest.mock import patch, AsyncMock
 import json
-from typing import Dict, Any, List
 
 from tools.tests.base_test import BaseApiTest, TestMode
 from tools.tests.test_data import TestDataGood
@@ -19,9 +18,11 @@ from tools.tests.test_helpers import (
 from tools.taxonomy_api import (
     get_default_category_tree_id,
     get_category_tree,
-    get_item_aspects_for_category,
-    get_compatibility_properties
+    get_category_subtree,
+    get_category_suggestions,
+    get_expired_categories
 )
+from api.ebay_enums import MarketplaceIdEnum
 
 
 class TestTaxonomyApi(BaseApiTest):
@@ -37,11 +38,12 @@ class TestTaxonomyApi(BaseApiTest):
         if not self.is_integration_mode:
             pytest.skip("Infrastructure validation only runs in integration mode")
         
-        from tools.browse_api import search_items
+        from tools.browse_api import search_items, BrowseSearchInput
         print("Testing integration infrastructure with Browse API...")
         print("This API uses basic scope (no user consent required)")
         
-        result = await search_items.fn(ctx=mock_context, query="test", limit=1)
+        search_input = BrowseSearchInput(query="test", limit=1)
+        result = await search_items.fn(ctx=mock_context, search_input=search_input)
         response = json.loads(result)
         
         if response["status"] == "error":
@@ -72,7 +74,7 @@ class TestTaxonomyApi(BaseApiTest):
             
             result = await get_default_category_tree_id.fn(
                 ctx=mock_context,
-                marketplace_id="EBAY_US"
+                marketplace_id=MarketplaceIdEnum.EBAY_US
             )
             
             # Parse and validate response
@@ -107,7 +109,7 @@ class TestTaxonomyApi(BaseApiTest):
                     
                     result = await get_default_category_tree_id.fn(
                         ctx=mock_context,
-                        marketplace_id="EBAY_US"
+                        marketplace_id=MarketplaceIdEnum.EBAY_US
                     )
                     
                     data = assert_api_response_success(result)
@@ -144,7 +146,6 @@ class TestTaxonomyApi(BaseApiTest):
             
             # Check that we got the raw eBay structure
             assert data["data"]["categoryTreeId"] == "0"
-            # applicableMarketplaceIds might be empty in sandbox, that's fine
             
             # Validate root category node structure
             root_node = data["data"]["rootCategoryNode"]
@@ -183,12 +184,16 @@ class TestTaxonomyApi(BaseApiTest):
                     assert data["data"]["applicableMarketplaceIds"] == ["EBAY_US"]
                     assert data["data"]["rootCategoryNode"] == TestDataGood.CATEGORY_NODE_ELECTRONICS
     
+    # ==============================================================================
+    # Get Category Subtree Tests (Both unit and integration)
+    # ==============================================================================
+    
     @pytest.mark.asyncio
-    async def test_get_category_tree_subtree(self, mock_context, mock_credentials):
+    async def test_get_category_subtree(self, mock_context, mock_credentials):
         """Test getting category subtree."""
         if self.is_integration_mode:
             # Integration test - get electronics subtree
-            result = await get_category_tree.fn(
+            result = await get_category_subtree.fn(
                 ctx=mock_context,
                 category_tree_id="0",
                 category_id="58058"  # Consumer Electronics
@@ -221,7 +226,7 @@ class TestTaxonomyApi(BaseApiTest):
                 with patch('tools.taxonomy_api.mcp.config.app_id', mock_credentials["app_id"]), \
                      patch('tools.taxonomy_api.mcp.config.cert_id', mock_credentials["cert_id"]):
                     
-                    result = await get_category_tree.fn(
+                    result = await get_category_subtree.fn(
                         ctx=mock_context,
                         category_tree_id="0",
                         category_id="58058"
@@ -236,51 +241,109 @@ class TestTaxonomyApi(BaseApiTest):
                     mock_find_subtree.assert_called_once_with(mock_tree_response, "58058")
     
     # ==============================================================================
-    # Get Item Aspects Tests (Both unit and integration)
+    # Get Category Suggestions Tests (Both unit and integration)
     # ==============================================================================
     
     @pytest.mark.asyncio
-    async def test_get_item_aspects_for_category(self, mock_context, mock_credentials):
-        """Test getting item aspects for a category."""
+    async def test_get_category_suggestions(self, mock_context, mock_credentials):
+        """Test getting category suggestions."""
         if self.is_integration_mode:
-            # Integration test - use cell phones category
-            result = await get_item_aspects_for_category.fn(
+            # Integration test - search for "phone" categories
+            result = await get_category_suggestions.fn(
                 ctx=mock_context,
-                category_id="9355",  # Cell Phones & Smartphones
-                category_tree_id="0"
+                category_tree_id="0",
+                q="phone"
+            )
+            
+            # Check for known eBay sandbox issues
+            result_data = json.loads(result)
+            if result_data["status"] == "error":
+                # HTTP 500 with error ID 62000 is a known issue in eBay sandbox
+                if result_data.get("details", {}).get("status_code") == 500 and \
+                   any(e.get("error_id") == 62000 for e in result_data.get("details", {}).get("errors", [])):
+                    pytest.skip("Known eBay sandbox issue: Category suggestions endpoint returns HTTP 500")
+                print(f"Error response: {json.dumps(result_data, indent=2)}")
+            
+            data = assert_api_response_success(result)
+            
+            # Should have categorySuggestions array
+            validate_field(data["data"], "categorySuggestions", list)
+            
+            # If we have suggestions, validate their structure
+            if data["data"]["categorySuggestions"]:
+                for suggestion in data["data"]["categorySuggestions"][:3]:  # Check first 3
+                    validate_field(suggestion, "categoryId", str)
+                    validate_field(suggestion, "categoryName", str)
+                    validate_field(suggestion, "categoryTreeNodeLevel", int)
+        else:
+            # Unit test
+            with patch('tools.taxonomy_api.EbayRestClient') as MockClient:
+                mock_client = MockClient.return_value
+                mock_client.get = AsyncMock(return_value={
+                    "categorySuggestions": [
+                        {
+                            "categoryId": "9355",
+                            "categoryName": "Cell Phones & Smartphones",
+                            "categoryTreeNodeLevel": 3
+                        },
+                        {
+                            "categoryId": "15032",
+                            "categoryName": "Cell Phone Accessories",
+                            "categoryTreeNodeLevel": 3
+                        }
+                    ]
+                })
+                mock_client.close = AsyncMock()
+                
+                with patch('tools.taxonomy_api.mcp.config.app_id', mock_credentials["app_id"]), \
+                     patch('tools.taxonomy_api.mcp.config.cert_id', mock_credentials["cert_id"]):
+                    
+                    result = await get_category_suggestions.fn(
+                        ctx=mock_context,
+                        category_tree_id="0",
+                        q="phone"
+                    )
+                    
+                    data = assert_api_response_success(result)
+                    
+                    assert len(data["data"]["categorySuggestions"]) == 2
+                    assert data["data"]["categorySuggestions"][0]["categoryId"] == "9355"
+                    assert data["data"]["categorySuggestions"][0]["categoryName"] == "Cell Phones & Smartphones"
+    
+    # ==============================================================================
+    # Get Expired Categories Tests (Both unit and integration)
+    # ==============================================================================
+    
+    @pytest.mark.asyncio
+    async def test_get_expired_categories(self, mock_context, mock_credentials):
+        """Test getting expired categories."""
+        if self.is_integration_mode:
+            # Integration test
+            result = await get_expired_categories.fn(
+                ctx=mock_context,
+                category_tree_id="0",
+                marketplace_id=MarketplaceIdEnum.EBAY_US
             )
             
             data = assert_api_response_success(result)
             
-            validate_field(data["data"], "aspects", list)
-            validate_field(data["data"], "total_aspects", int, validator=lambda x: x >= 0)
+            # Should have expiredCategories array (may be empty)
+            validate_field(data["data"], "expiredCategories", list)
             
-            # Cell phones should have aspects like Brand, Model, etc.
-            if data["data"]["aspects"]:
-                for aspect in data["data"]["aspects"][:5]:  # Check first 5
-                    validate_field(aspect, "localizedAspectName", str)
-                    validate_field(aspect, "aspectConstraint", dict, required=False)
-                    validate_field(aspect, "aspectRequired", bool, required=False)
+            # If we have expired categories, validate their structure
+            if data["data"]["expiredCategories"]:
+                for expired in data["data"]["expiredCategories"][:3]:  # Check first 3
+                    validate_field(expired, "fromCategoryId", str)
+                    validate_field(expired, "toCategoryId", str)
         else:
             # Unit test
             with patch('tools.taxonomy_api.EbayRestClient') as MockClient:
                 mock_client = MockClient.return_value
                 mock_client.get = AsyncMock(return_value={
-                    "aspects": [
+                    "expiredCategories": [
                         {
-                            "localizedAspectName": "Brand",
-                            "aspectRequired": True,
-                            "aspectDataType": "STRING",
-                            "aspectValues": [
-                                {"localizedValue": "Apple"},
-                                {"localizedValue": "Samsung"},
-                                {"localizedValue": "Google"}
-                            ]
-                        },
-                        {
-                            "localizedAspectName": "Model",
-                            "aspectRequired": True,
-                            "aspectDataType": "STRING"
+                            "fromCategoryId": "12345",
+                            "toCategoryId": "67890"
                         }
                     ]
                 })
@@ -289,93 +352,17 @@ class TestTaxonomyApi(BaseApiTest):
                 with patch('tools.taxonomy_api.mcp.config.app_id', mock_credentials["app_id"]), \
                      patch('tools.taxonomy_api.mcp.config.cert_id', mock_credentials["cert_id"]):
                     
-                    result = await get_item_aspects_for_category.fn(
+                    result = await get_expired_categories.fn(
                         ctx=mock_context,
-                        category_id="9355",
-                        category_tree_id="0"
+                        category_tree_id="0",
+                        marketplace_id=MarketplaceIdEnum.EBAY_US
                     )
                     
                     data = assert_api_response_success(result)
                     
-                    assert len(data["data"]["aspects"]) == 2
-                    assert data["data"]["total_aspects"] == 2
-                    
-                    # Check first aspect
-                    brand_aspect = data["data"]["aspects"][0]
-                    assert brand_aspect["localizedAspectName"] == "Brand"
-                    assert brand_aspect["aspectRequired"] is True
-                    assert len(brand_aspect["aspectValues"]) == 3
-    
-    # ==============================================================================
-    # Get Compatibility Properties Tests (Both unit and integration)
-    # ==============================================================================
-    
-    @pytest.mark.asyncio
-    async def test_get_compatibility_properties(self, mock_context, mock_credentials):
-        """Test getting compatibility properties for automotive categories."""
-        if self.is_integration_mode:
-            # Integration test - use a category that may or may not have compatibility properties
-            result = await get_compatibility_properties.fn(
-                ctx=mock_context,
-                category_id="9355",  # Cell Phones - should have no compatibility properties
-                category_tree_id="0"
-            )
-            
-            # Parse response - may succeed with empty list or fail in sandbox
-            result_data = json.loads(result)
-            
-            if result_data["status"] == "error":
-                # If error, check it's a reasonable error (API limitations in sandbox)
-                if result_data["error_code"] not in ["EXTERNAL_API_ERROR", "INTERNAL_ERROR"]:
-                    error_msg = result_data.get("error_message", "")
-                    details = result_data.get("details", {})
-                    pytest.fail(f"Unexpected error - {result_data['error_code']}: {error_msg}\nDetails: {details}")
-            else:
-                # If successful, should return empty list for non-automotive categories
-                validate_field(result_data["data"], "compatibility_properties", list)
-                validate_field(result_data["data"], "total_properties", int, validator=lambda x: x >= 0)
-                # For non-automotive categories, expect empty results
-                assert result_data["data"]["total_properties"] == 0
-        else:
-            # Unit test
-            with patch('tools.taxonomy_api.EbayRestClient') as MockClient:
-                mock_client = MockClient.return_value
-                mock_client.get = AsyncMock(return_value={
-                    "compatibilityProperties": [
-                        {
-                            "localizedName": "Year",
-                            "propertyConstraint": {
-                                "selectionMode": "SINGLE_SELECT"
-                            }
-                        },
-                        {
-                            "localizedName": "Make",
-                            "propertyConstraint": {
-                                "selectionMode": "SINGLE_SELECT"
-                            }
-                        }
-                    ]
-                })
-                mock_client.close = AsyncMock()
-                
-                with patch('tools.taxonomy_api.mcp.config.app_id', mock_credentials["app_id"]), \
-                     patch('tools.taxonomy_api.mcp.config.cert_id', mock_credentials["cert_id"]):
-                    
-                    result = await get_compatibility_properties.fn(
-                        ctx=mock_context,
-                        category_id="6028",
-                        category_tree_id="0"
-                    )
-                    
-                    data = assert_api_response_success(result)
-                    
-                    assert len(data["data"]["compatibility_properties"]) == 2
-                    assert data["data"]["total_properties"] == 2
-                    
-                    # Check first property
-                    year_prop = data["data"]["compatibility_properties"][0]
-                    assert year_prop["localizedName"] == "Year"
-                    assert year_prop["propertyConstraint"]["selectionMode"] == "SINGLE_SELECT"
+                    assert len(data["data"]["expiredCategories"]) == 1
+                    assert data["data"]["expiredCategories"][0]["fromCategoryId"] == "12345"
+                    assert data["data"]["expiredCategories"][0]["toCategoryId"] == "67890"
     
     # ==============================================================================
     # Error Handling Tests
@@ -412,6 +399,24 @@ class TestTaxonomyApi(BaseApiTest):
     # ==============================================================================
     # Static Fallback Tests
     # ==============================================================================
+    
+    @pytest.mark.asyncio
+    async def test_get_default_category_tree_id_no_credentials(self, mock_context):
+        """Test category tree ID with no credentials returns error."""
+        with patch('tools.taxonomy_api.mcp.config.app_id', ''), \
+             patch('tools.taxonomy_api.mcp.config.cert_id', ''):
+            
+            result = await get_default_category_tree_id.fn(
+                ctx=mock_context,
+                marketplace_id=MarketplaceIdEnum.EBAY_US
+            )
+            
+            # Should return configuration error
+            data = json.loads(result)
+            assert data["status"] == "error"
+            assert data["error_code"] == "CONFIGURATION_ERROR"
+            assert "eBay API credentials required" in data["error_message"]
+            assert "developer.ebay.com" in data["error_message"]
     
     @pytest.mark.asyncio
     async def test_get_category_tree_no_credentials(self, mock_context):

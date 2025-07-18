@@ -49,7 +49,7 @@ class EbayConfig(BaseModel):
             app_id=os.environ.get("EBAY_APP_ID", ""),
             cert_id=os.environ.get("EBAY_CERT_ID"),
             dev_id=os.environ.get("EBAY_DEV_ID"),
-            log_level=os.environ.get("EBAY_LOG_LEVEL", "INFO"),
+            log_level=os.environ.get("LOOTLY_LOG_LEVEL", "INFO"),
             transport=os.environ.get("LOOTLY_TRANSPORT", "stdio"),
             host=os.environ.get("LOOTLY_HOST", "127.0.0.1"),
             port=int(os.environ.get("LOOTLY_PORT", "8000")),

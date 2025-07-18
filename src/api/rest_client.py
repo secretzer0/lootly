@@ -146,8 +146,7 @@ class EbayRestClient:
         endpoint: str,
         params: Optional[Dict[str, Any]] = None,
         json: Optional[Dict[str, Any]] = None,
-        headers: Optional[Dict[str, str]] = None,
-        scope: Optional[str] = None
+        headers: Optional[Dict[str, str]] = None
     ) -> Dict[str, Any]:
         """
         Make authenticated API request with retries.
@@ -158,7 +157,6 @@ class EbayRestClient:
             params: Query parameters
             json: JSON body for POST/PUT requests
             headers: Additional headers
-            scope: OAuth scope for the request (uses default if not specified)
             
         Returns:
             Response data as dictionary
@@ -349,8 +347,7 @@ class MockEbayRestClient:
         endpoint: str,
         params: Optional[Dict[str, Any]] = None,
         json: Optional[Dict[str, Any]] = None,
-        headers: Optional[Dict[str, str]] = None,
-        scope: Optional[str] = None
+        headers: Optional[Dict[str, str]] = None
     ) -> Dict[str, Any]:
         """Record request and return mock response."""
         # Record the call
@@ -360,7 +357,6 @@ class MockEbayRestClient:
             "params": params,
             "json": json,
             "headers": headers,
-            "scope": scope,
             "timestamp": datetime.now(timezone.utc)
         })
         

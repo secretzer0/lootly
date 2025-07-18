@@ -11,6 +11,7 @@ import time
 from contextlib import contextmanager
 from functools import wraps
 from typing import Optional, Union
+from __version__ import __version__
 
 try:
     import structlog
@@ -50,7 +51,7 @@ def setup_logging(
     level: str = "INFO",
     use_structured: bool = True,
     service_name: str = "mcp-server",
-    version: str = "1.0.0",
+    version: str = __version__,
 ) -> logging.Logger:
     """
     Setup standardized logging for MCP servers.
@@ -411,7 +412,7 @@ def log_context(**context_vars):
 def get_mcp_logger(
     service_name: str = "mcp-server",
     level: str = "INFO",
-    version: str = "1.0.0",
+    version: str = __version__,
     context: Optional[LogContext] = None,
 ) -> MCPLogger:
     """
@@ -444,5 +445,5 @@ def setup_mcp_logging(config) -> MCPLogger:
     return get_mcp_logger(
         service_name=config.server_name,
         level=config.log_level,
-        version=getattr(config, "version", "1.0.0"),
+        version=getattr(config, "version", __version__),
     )
