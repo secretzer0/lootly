@@ -171,18 +171,10 @@ class EbayRestClient:
         await self.rate_limiter.acquire()
         
         # Get OAuth token from manager
-        # For user-required APIs, use get_token() which returns user token or raises ConsentRequiredException
-        # For client-only APIs, use get_client_credentials_token() with specific scope
-        if scope:
-            # Client credentials token with specific scope
-            token = await self.oauth.get_client_credentials_token(scope)
-            logger.debug("Using client credentials token for API request")
-        else:
-            # User token for user-authorized APIs
-            token = await self.oauth.get_token()
-            logger.debug("Using user access token for API request")
-            logger.debug(f"Token first 50 chars: {token[:50]}...")
-            logger.debug(f"Token length: {len(token)}")
+        token = await self.oauth.get_token()
+        logger.debug("Using user access token for API request")
+        logger.debug(f"Token first 50 chars: {token[:50]}...")
+        logger.debug(f"Token length: {len(token)}")
         
         # Build headers
         default_headers = {
@@ -196,6 +188,8 @@ class EbayRestClient:
         if headers:
             default_headers.update(headers)
         
+        logger.debug(f'Headers: {default_headers}')
+
         # Build full URL
         url = f"{self.config.base_url}{endpoint}"
         

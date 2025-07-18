@@ -144,7 +144,7 @@ async def initiate_user_consent(ctx: Context) -> str:
                 "state": result["state"],
                 "redirect_uri": result["redirect_uri"],
                 "required_scopes": OAuthScopes.USER_CONSENT_SCOPES.split(),
-                "expires_in": 600,  # URL expires in 10 minutes
+                "expires_in": 300,  # URL expires in 10 minutes
                 "environment": "sandbox" if mcp.config.sandbox_mode else "production",
                 "next_step": "Copy callback URL and use complete_user_consent"
             },

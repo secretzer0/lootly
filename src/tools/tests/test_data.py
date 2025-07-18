@@ -449,6 +449,41 @@ class TestDataGood:
     }
 
 
+class TestDataBrowse:
+    """Test data specifically for Browse API tests."""
+    
+    # Use existing good test data
+    SEARCH_RESPONSE = TestDataGood.BROWSE_SEARCH_RESPONSE
+    SEARCH_RESPONSE_FILTERED = {
+        **TestDataGood.BROWSE_SEARCH_RESPONSE,
+        "total": 50,
+        "itemSummaries": [TestDataGood.BROWSE_ITEM_LAPTOP]
+    }
+    SEARCH_RESPONSE_EMPTY = {
+        "href": "https://api.sandbox.ebay.com/buy/browse/v1/item_summary/search?q=xyzabc123notexist&limit=10&offset=0",
+        "total": 0,
+        "limit": 10,
+        "offset": 0,
+        "itemSummaries": []
+    }
+    
+    ITEM_DETAILS_RESPONSE = TestDataGood.BROWSE_ITEM_DETAILS
+    ITEM_DETAILS_RESPONSE_COMPACT = {
+        "itemId": "v1|123456789|0",
+        "title": "Test Item Compact",
+        "price": {"value": "99.99", "currency": "USD"},
+        "condition": "New",
+        "itemWebUrl": "https://www.ebay.com/itm/123456789"
+    }
+    
+    CATEGORY_RESPONSE = TestDataGood.BROWSE_SEARCH_RESPONSE
+    CATEGORY_RESPONSE_FILTERED = {
+        **TestDataGood.BROWSE_SEARCH_RESPONSE,
+        "total": 25,
+        "itemSummaries": [TestDataGood.BROWSE_ITEM_IPHONE]
+    }
+
+
 class TestDataBad:
     """Invalid/edge case test data for resilience testing."""
     
