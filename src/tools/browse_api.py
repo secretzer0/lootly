@@ -23,7 +23,7 @@ from api.rest_client import EbayRestClient, RestConfig
 from api.errors import EbayApiError, extract_ebay_error_details
 from data_types import success_response, error_response, ErrorCode
 from lootly_server import mcp
-from utils.claude_input_converter import preprocess_claude_json, COMMON_FIELD_SPECS, ConversionError
+from utils.input_converter import preprocess_claude_json, COMMON_FIELD_SPECS, ConversionError
 
 
 # PYDANTIC MODELS - API Documentation → Pydantic Models → MCP Tools
