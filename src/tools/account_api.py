@@ -9,7 +9,7 @@ from fastmcp import Context
 
 from api.oauth import OAuthManager, OAuthConfig, OAuthScopes, ConsentRequiredException
 from api.rest_client import EbayRestClient, RestConfig
-from api.errors import EbayApiError
+from api.errors import EbayApiError, extract_ebay_error_details
 from api.sandbox_retry import with_sandbox_retry, RetryConfig
 from data_types import success_response, error_response, ErrorCode
 from lootly_server import mcp
@@ -161,21 +161,22 @@ async def get_seller_standards(
             ctx=ctx,
             retry_config=retry_config
         )
+        response_body = response["body"]
         
         await ctx.report_progress(0.8, "📈 Processing seller standards...")
         
         # Parse response - Analytics API has different structure based on actual response
         # The API returns 'standardsLevel' not 'sellerLevel'
-        seller_level = response.get("standardsLevel")
-        if not seller_level and response.get("metrics"):
+        seller_level = response_body.get("standardsLevel")
+        if not seller_level and response_body.get("metrics"):
             # Fallback: Check metrics for level information
-            for metric in response.get("metrics", []):
+            for metric in response_body.get("metrics", []):
                 if metric.get("level"):
                     seller_level = metric.get("level")
                     break
         
         # Extract cycle info - it's an object in the real response
-        cycle_info = response.get("cycle", {})
+        cycle_info = response_body.get("cycle", {})
         cycle_type = cycle_info.get("cycleType", cycle) if isinstance(cycle_info, dict) else cycle
         evaluation_date = cycle_info.get("evaluationDate") if isinstance(cycle_info, dict) else None
         
@@ -184,7 +185,7 @@ async def get_seller_standards(
         late_shipment_rate = {}
         cases_not_resolved = {}
         
-        for metric in response.get("metrics", []):
+        for metric in response_body.get("metrics", []):
             if metric.get("metricKey") == "DEFECTIVE_TRANSACTION_RATE":
                 defect_rate = metric.get("value", {})
             elif metric.get("metricKey") == "SHIPPING_MISS_RATE":
@@ -193,15 +194,15 @@ async def get_seller_standards(
                 cases_not_resolved = metric.get("value", {})
         
         standards = {
-            "program": response.get("program", program),
+            "program": response_body.get("program", program),
             "cycle": cycle_type,
             "seller_level": seller_level,
             "defect_rate": defect_rate,
             "late_shipment_rate": late_shipment_rate,
             "cases_not_resolved": cases_not_resolved,
             "evaluation_date": evaluation_date,
-            "next_evaluation_date": response.get("nextEvaluationDate"),
-            "metrics": response.get("metrics", []),
+            "next_evaluation_date": response_body.get("nextEvaluationDate"),
+            "metrics": response_body.get("metrics", []),
             "data_source": "analytics_api"
         }
         
@@ -231,7 +232,7 @@ async def get_seller_standards(
             )
         
         # Include full error details in response
-        error_details = e.get_full_error_details()
+        error_details = extract_ebay_error_details(e)
         error_details.update({
             "program": program,
             "cycle": cycle,

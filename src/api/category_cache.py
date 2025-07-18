@@ -48,10 +48,11 @@ async def get_category_tree_json(
     logger.info(f"Fetching fresh category tree from eBay API for tree ID {category_tree_id}")
     
     # Get complete tree - this is the raw JSON we want
-    category_tree_json = await rest_client.get(
+    response = await rest_client.get(
         f"/commerce/taxonomy/v1/category_tree/{category_tree_id}",
         params={}
     )
+    category_tree_json = response["body"]
     
     # Cache the raw JSON for 24 hours
     if cache_manager:

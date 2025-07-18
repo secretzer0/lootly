@@ -355,6 +355,30 @@ def handle_api_error(func):
     return wrapper
 
 
+def extract_ebay_error_details(e: EbayApiError) -> Dict[str, Any]:
+    """
+    Extract comprehensive error details from EbayApiError for MCP responses.
+    
+    This ensures all eBay API error information is surfaced to the LLM/user,
+    including parameters, error IDs, and actionable details.
+    
+    Args:
+        e: EbayApiError exception
+        
+    Returns:
+        Dictionary with all error details for MCP error response
+    """
+    return {
+        "status_code": e.status_code,
+        "request_id": e.request_id,
+        "errors": [error.model_dump(exclude_none=True) for error in e.errors],
+        "raw_response": e.raw_error_response,
+        "is_retryable": e.is_retryable(),
+        "retry_after": e.get_retry_after(),
+        "comprehensive_message": e.get_comprehensive_message()
+    }
+
+
 class ErrorResponse(BaseModel):
     """Standard error response format."""
     success: bool = Field(default=False)

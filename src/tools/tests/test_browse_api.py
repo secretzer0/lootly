@@ -24,36 +24,6 @@ import pytest
 import os
 from decimal import Decimal
 from unittest.mock import AsyncMock, patch
-import logging
-import sys
-
-# Enable detailed aiohttp debugging for integration tests
-if "--test-mode=integration" in sys.argv:
-    # Set root logger to DEBUG
-    logging.basicConfig(
-        level=logging.DEBUG, 
-        format='%(asctime)s - %(name)s:%(filename)s:%(lineno)d - %(levelname)s - %(message)s',
-        force=True  # Override any existing configuration
-    )
-    
-    # Enable ALL aiohttp loggers
-    logging.getLogger('aiohttp').setLevel(logging.DEBUG)
-    logging.getLogger('aiohttp.client').setLevel(logging.DEBUG)
-    logging.getLogger('aiohttp.connector').setLevel(logging.DEBUG)
-    logging.getLogger('aiohttp.internal').setLevel(logging.DEBUG)
-    logging.getLogger('aiohttp.access').setLevel(logging.DEBUG)
-    logging.getLogger('aiohttp.client_reqrep').setLevel(logging.DEBUG)
-    logging.getLogger('aiohttp.streams').setLevel(logging.DEBUG)
-    logging.getLogger('aiohttp.worker').setLevel(logging.DEBUG)
-    
-    # Also enable asyncio debugging
-    logging.getLogger('asyncio').setLevel(logging.DEBUG)
-    
-    # Enable our own module's logging
-    logging.getLogger('api.oauth').setLevel(logging.DEBUG)
-    logging.getLogger('api.rest_client').setLevel(logging.DEBUG)
-    
-    print("=== AIOHTTP DEBUG LOGGING ENABLED ===")
 
 from tools.browse_api import (
     search_items,
@@ -179,11 +149,11 @@ class TestBrowseAPI:
         assert valid_input.include_description is True
         
         # Invalid item_id - empty
-        with pytest.raises(ValueError, match="item_id cannot be empty"):
+        with pytest.raises(ValueError, match="String should have at least 1 character"):
             ItemDetailsInput(item_id="")
         
         # Invalid item_id - just whitespace
-        with pytest.raises(ValueError, match="item_id cannot be empty"):
+        with pytest.raises(ValueError, match="String should have at least 1 character"):
             ItemDetailsInput(item_id="   ")
     
     def test_category_browse_input_validation(self):
@@ -235,8 +205,8 @@ class TestBrowseAPI:
                 ctx=mock_context,
                 search_input=search_input
             )
-            
             response = json.loads(result)
+
             print(f"API Response status: {response['status']}")
             
             if response["status"] == "error":
@@ -260,7 +230,10 @@ class TestBrowseAPI:
                 
                 # Setup all mocks
                 mock_client = MockClient.return_value
-                mock_client.get = AsyncMock(return_value=TestDataBrowse.SEARCH_RESPONSE)
+                mock_client.get = AsyncMock(return_value={
+                    "body": TestDataBrowse.SEARCH_RESPONSE,
+                    "headers": {}
+                })
                 mock_client.close = AsyncMock()
                 
                 MockConfig.app_id = "test_app"
@@ -305,8 +278,8 @@ class TestBrowseAPI:
                 ctx=mock_context,
                 search_input=search_input
             )
-            
             response = json.loads(result)
+
             if response["status"] == "error":
                 error_code = response.get("error_code")
                 error_msg = response.get("error_message", "")
@@ -324,7 +297,10 @@ class TestBrowseAPI:
                 
                 # Setup all mocks
                 mock_client = MockClient.return_value
-                mock_client.get = AsyncMock(return_value=TestDataBrowse.SEARCH_RESPONSE_FILTERED)
+                mock_client.get = AsyncMock(return_value={
+                    "body": TestDataBrowse.SEARCH_RESPONSE_FILTERED,
+                    "headers": {}
+                })
                 mock_client.close = AsyncMock()
                 
                 MockConfig.app_id = "test_app"
@@ -368,8 +344,8 @@ class TestBrowseAPI:
                 ctx=mock_context,
                 search_input=search_input
             )
-            
             response = json.loads(result)
+            
             if response["status"] == "error":
                 error_code = response.get("error_code")
                 error_msg = response.get("error_message", "")
@@ -389,7 +365,10 @@ class TestBrowseAPI:
                 
                 # Setup all mocks
                 mock_client = MockClient.return_value
-                mock_client.get = AsyncMock(return_value=TestDataBrowse.SEARCH_RESPONSE_EMPTY)
+                mock_client.get = AsyncMock(return_value={
+                    "body": TestDataBrowse.SEARCH_RESPONSE_EMPTY,
+                    "headers": {}
+                })
                 mock_client.close = AsyncMock()
                 
                 MockConfig.app_id = "test_app"
@@ -459,7 +438,10 @@ class TestBrowseAPI:
                 
                 # Setup all mocks
                 mock_client = MockClient.return_value
-                mock_client.get = AsyncMock(return_value=TestDataBrowse.ITEM_DETAILS_RESPONSE)
+                mock_client.get = AsyncMock(return_value={
+                    "body": TestDataBrowse.ITEM_DETAILS_RESPONSE,
+                    "headers": {}
+                })
                 mock_client.close = AsyncMock()
                 
                 MockConfig.app_id = "test_app"
@@ -502,7 +484,10 @@ class TestBrowseAPI:
                 
                 # Setup all mocks
                 mock_client = MockClient.return_value
-                mock_client.get = AsyncMock(return_value=TestDataBrowse.ITEM_DETAILS_RESPONSE_COMPACT)
+                mock_client.get = AsyncMock(return_value={
+                    "body": TestDataBrowse.ITEM_DETAILS_RESPONSE_COMPACT,
+                    "headers": {}
+                })
                 mock_client.close = AsyncMock()
                 
                 MockConfig.app_id = "test_app"
@@ -544,8 +529,8 @@ class TestBrowseAPI:
                 ctx=mock_context,
                 category_input=category_input
             )
-            
             response = json.loads(result)
+
             if response["status"] == "error":
                 error_code = response.get("error_code")
                 error_msg = response.get("error_message", "")
@@ -564,7 +549,10 @@ class TestBrowseAPI:
                 
                 # Setup all mocks
                 mock_client = MockClient.return_value
-                mock_client.get = AsyncMock(return_value=TestDataBrowse.CATEGORY_RESPONSE)
+                mock_client.get = AsyncMock(return_value={
+                    "body": TestDataBrowse.CATEGORY_RESPONSE,
+                    "headers": {}
+                })
                 mock_client.close = AsyncMock()
                 
                 MockConfig.app_id = "test_app"
@@ -585,7 +573,7 @@ class TestBrowseAPI:
                 mock_client.get.assert_called_once()
                 call_args = mock_client.get.call_args
                 params = call_args[1]["params"]
-                assert params["q"] == " "  # Minimal query for category browsing
+                assert params["q"] == "item"  # Generic query for category browsing
                 assert "categoryIds:{9355}" in params["filter"]
     
     @pytest.mark.asyncio
@@ -605,8 +593,8 @@ class TestBrowseAPI:
                 ctx=mock_context,
                 category_input=category_input
             )
-            
             response = json.loads(result)
+
             if response["status"] == "error":
                 error_code = response.get("error_code")
                 error_msg = response.get("error_message", "")
@@ -623,7 +611,10 @@ class TestBrowseAPI:
                 
                 # Setup all mocks
                 mock_client = MockClient.return_value
-                mock_client.get = AsyncMock(return_value=TestDataBrowse.CATEGORY_RESPONSE_FILTERED)
+                mock_client.get = AsyncMock(return_value={
+                    "body": TestDataBrowse.CATEGORY_RESPONSE_FILTERED,
+                    "headers": {}
+                })
                 mock_client.close = AsyncMock()
                 
                 MockConfig.app_id = "test_app"
@@ -666,8 +657,8 @@ class TestBrowseAPI:
                 ctx=mock_context,
                 search_input=search_input
             )
-            
             response = json.loads(result)
+
             if response["status"] == "error":
                 # This is expected for invalid category
                 assert response["error_code"] == "EXTERNAL_API_ERROR"
@@ -716,8 +707,8 @@ class TestBrowseAPI:
                 ctx=mock_context,
                 details_input=details_input
             )
-            
             response = json.loads(result)
+            
             if response["status"] == "error":
                 # This is expected for non-existent item
                 assert response["error_code"] == "RESOURCE_NOT_FOUND"
@@ -736,7 +727,7 @@ class TestBrowseAPI:
                 mock_client = MockClient.return_value
                 mock_client.get = AsyncMock(side_effect=EbayApiError(
                     status_code=404,
-                    error_response=TestDataError.ERROR_ITEM_NOT_FOUND
+                    error_response=TestDataError.ERROR_NOT_FOUND
                 ))
                 mock_client.close = AsyncMock()
                 

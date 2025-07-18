@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 
 from api.oauth import OAuthManager, OAuthConfig, ConsentRequiredException
 from api.rest_client import EbayRestClient, RestConfig
-from api.errors import EbayApiError
+from api.errors import EbayApiError, extract_ebay_error_details
 from api.ebay_enums import (
     MarketplaceIdEnum,
     CategoryTypeEnum,
@@ -267,11 +267,12 @@ async def create_return_policy(
             "/sell/account/v1/return_policy",
             json=policy_data
         )
+        response_body = response["body"]
         
         await ctx.report_progress(0.8, "Processing response...")
         
         # Format response
-        formatted_response = _format_policy_response(response)
+        formatted_response = _format_policy_response(response_body)
         
         await ctx.report_progress(1.0, "Complete")
         await ctx.info(f"Return policy created successfully with ID: {formatted_response['policy_id']}")
@@ -378,20 +379,21 @@ async def get_return_policies(
             "/sell/account/v1/return_policy",
             params=params
         )
+        response_body = response["body"]
         
         await ctx.report_progress(0.8, "Processing policies...")
         
         # Format response
         policies = []
-        for policy in response.get("returnPolicies", []):
+        for policy in response_body.get("returnPolicies", []):
             policies.append(_format_policy_response(policy))
         
         result = {
             "policies": policies,
-            "total": response.get("total", 0),
+            "total": response_body.get("total", 0),
             "limit": limit,
             "offset": offset,
-            "has_more": offset + len(policies) < response.get("total", 0)
+            "has_more": offset + len(policies) < response_body.get("total", 0)
         }
         
         await ctx.report_progress(1.0, "Complete")
@@ -482,11 +484,12 @@ async def get_return_policy(
         response = await rest_client.get(
             f"/sell/account/v1/return_policy/{return_policy_id}"
         )
+        response_body = response["body"]
         
         await ctx.report_progress(0.8, "Processing policy...")
         
         # Format response
-        formatted_response = _format_policy_response(response)
+        formatted_response = _format_policy_response(response_body)
         
         await ctx.report_progress(1.0, "Complete")
         await ctx.info(f"Retrieved return policy: {formatted_response.get('name', 'Unknown')}")
@@ -584,11 +587,12 @@ async def get_return_policy_by_name(
             "/sell/account/v1/return_policy/get_by_policy_name",
             params=params
         )
+        response_body = response["body"]
         
         await ctx.report_progress(0.8, "Processing policy...")
         
         # Format response
-        formatted_response = _format_policy_response(response)
+        formatted_response = _format_policy_response(response_body)
         
         await ctx.report_progress(1.0, "Complete")
         await ctx.info(f"Found return policy: {name}")
@@ -694,11 +698,12 @@ async def update_return_policy(
             f"/sell/account/v1/return_policy/{return_policy_id}",
             json=policy_data
         )
+        response_body = response["body"]
         
         await ctx.report_progress(0.8, "Processing response...")
         
         # Format response
-        formatted_response = _format_policy_response(response)
+        formatted_response = _format_policy_response(response_body)
         
         await ctx.report_progress(1.0, "Complete")
         await ctx.info(f"Return policy updated successfully: {policy_input.name}")

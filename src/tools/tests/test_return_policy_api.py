@@ -16,6 +16,7 @@ from pydantic import ValidationError
 
 from tools.tests.base_test import BaseApiTest
 from tools.tests.test_data import TestDataReturnPolicy
+from lootly_server import mcp
 from tools.return_policy_api import (
     create_return_policy,
     get_return_policies,
@@ -200,66 +201,49 @@ class TestReturnPolicyApi(BaseApiTest):
         
         if self.is_integration_mode:
             # Integration test - real API call
-            print(f"Testing real API call to eBay sandbox...")
-            print(f"Policy name: {policy_input.name}")
-            print(f"Marketplace: {policy_input.marketplace_id.value}")
-            
             result = await create_return_policy.fn(
                 ctx=mock_context,
                 policy_input=policy_input
             )
-            
-            # Parse response
             response = json.loads(result)
-            print(f"API Response status: {response['status']}")
-            
-            # Handle OAuth scope requirements per PRP
+
             if response["status"] == "error":
-                print(f"Auth check: {response['error_code']} - {response['error_message']}")
+                error_code = response.get("error_code")
+                error_msg = response.get("error_message", "")
+                details = response.get("details", {})
+                status_code = details.get("status_code")
+                errors = details.get("errors", [])
                 
-                # ONLY accept expected auth errors - anything else is a real problem
-                if response["error_code"] == "AUTHENTICATION_ERROR" and "User consent required" in response["error_message"]:
-                    print("Expected: User consent required for sell.account scope")
-                    print("This proves OAuth validation is working correctly")
-                    return
-                elif response["error_code"] == "CONFIGURATION_ERROR":
-                    pytest.fail(f"CONFIGURATION PROBLEM: {response['error_message']}")
-                elif response["error_code"] == "EXTERNAL_API_ERROR":
-                    print(f"eBay API Error: {response['error_message']}")
-                    # Check if it's a real API error vs network issue
-                    if "details" in response and "status_code" in response["details"]:
-                        status_code = response["details"]["status_code"]
-                        if status_code == 401:
-                            print("Expected: eBay returned 401 Unauthorized (user consent required)")
-                            return
-                        elif status_code == 403:
-                            print("Expected: eBay returned 403 Forbidden (scope issue)")
-                            return
-                        else:
-                            pytest.fail(f"UNEXPECTED eBay API ERROR: Status {status_code}")
-                    else:
-                        pytest.fail(f"NETWORK OR API CONNECTION ISSUE: {response['error_message']}")
-                else:
-                    pytest.fail(f"UNEXPECTED ERROR TYPE: {response['error_code']} - {response['error_message']}")
-            else:
-                # If successful, validate response structure
-                assert response["status"] == "success"
-                assert "data" in response
-                assert "policy_id" in response["data"]
-                assert response["data"]["name"] == policy_input.name
-                print("Integration test successful - real policy created")
-                print(f"Created policy ID: {response['data']['policy_id']}")
+                # Check if we're in sandbox mode
+                is_sandbox = mcp.config.sandbox_mode
+                
+                # Only skip for known sandbox limitations when actually in sandbox mode
+                if is_sandbox:
+                    # Business Policy Eligibility Issues
+                    if any(e.get("error_id") in [20403, 20001] for e in errors):
+                        if "not eligible for Business Policy" in error_msg or "not opted in to business policies" in error_msg:
+                            pytest.skip(f"Known eBay sandbox limitation: Business Policy eligibility - {error_msg}")
+                
+                # For production or unexpected sandbox errors - fail the test
+                pytest.fail(f"API call failed - {error_code}: {error_msg}")
+
+            assert response["status"] == "success"
+            assert "data" in response
+            assert "policy_id" in response["data"]
+            assert response["data"]["name"] == policy_input.name
         
         else:
             # Unit test - mocked dependencies
             with patch('tools.return_policy_api.EbayRestClient') as MockClient, \
                  patch('tools.return_policy_api.OAuthManager') as MockOAuth, \
-                 patch('tools.return_policy_api.mcp.config') as MockConfig, \
-                 patch('tools.return_policy_api.get_user_access_token') as MockUserToken:
+                 patch('tools.return_policy_api.mcp.config') as MockConfig:
                 
                 # Setup all mocks
                 mock_client = MockClient.return_value
-                mock_client.post = AsyncMock(return_value=TestDataReturnPolicy.CREATE_POLICY_RESPONSE)
+                mock_client.post = AsyncMock(return_value={
+                    "body": TestDataReturnPolicy.CREATE_POLICY_RESPONSE,
+                    "headers": {}
+                })
                 mock_client.close = AsyncMock()
                 
                 MockConfig.app_id = "test_app"
@@ -267,7 +251,6 @@ class TestReturnPolicyApi(BaseApiTest):
                 MockConfig.sandbox_mode = True
                 MockConfig.rate_limit_per_day = 1000
                 
-                MockUserToken.return_value = "mock_user_token"
                 
                 # Test interface contracts and Pydantic validation
                 result = await create_return_policy.fn(
@@ -319,8 +302,8 @@ class TestReturnPolicyApi(BaseApiTest):
                 ctx=mock_context,
                 policy_input=policy_input
             )
-            
             response = json.loads(result)
+            
             if response["status"] == "error":
                 # Expected auth error in sandbox
                 assert response["error_code"] in ["AUTHENTICATION_ERROR", "EXTERNAL_API_ERROR"]
@@ -331,11 +314,13 @@ class TestReturnPolicyApi(BaseApiTest):
             # Unit test
             with patch('tools.return_policy_api.EbayRestClient') as MockClient, \
                  patch('tools.return_policy_api.OAuthManager'), \
-                 patch('tools.return_policy_api.mcp.config') as MockConfig, \
-                 patch('tools.return_policy_api.get_user_access_token') as MockUserToken:
+                 patch('tools.return_policy_api.mcp.config') as MockConfig:
                 
                 mock_client = MockClient.return_value
-                mock_client.post = AsyncMock(return_value=TestDataReturnPolicy.RETURN_POLICY_WITH_INTL)
+                mock_client.post = AsyncMock(return_value={
+                    "body": TestDataReturnPolicy.RETURN_POLICY_WITH_INTL,
+                    "headers": {}
+                })
                 mock_client.close = AsyncMock()
                 
                 MockConfig.app_id = "test_app"
@@ -373,8 +358,8 @@ class TestReturnPolicyApi(BaseApiTest):
                 ctx=mock_context,
                 policy_input=policy_input
             )
-            
             response = json.loads(result)
+            
             if response["status"] == "error":
                 assert response["error_code"] in ["AUTHENTICATION_ERROR", "EXTERNAL_API_ERROR"]
                 print("Integration test for no-returns policy validated")
@@ -384,11 +369,13 @@ class TestReturnPolicyApi(BaseApiTest):
             # Unit test
             with patch('tools.return_policy_api.EbayRestClient') as MockClient, \
                  patch('tools.return_policy_api.OAuthManager'), \
-                 patch('tools.return_policy_api.mcp.config') as MockConfig, \
-                 patch('tools.return_policy_api.get_user_access_token') as MockUserToken:
+                 patch('tools.return_policy_api.mcp.config') as MockConfig:
                 
                 mock_client = MockClient.return_value
-                mock_client.post = AsyncMock(return_value=TestDataReturnPolicy.RETURN_POLICY_NO_RETURNS)
+                mock_client.post = AsyncMock(return_value={
+                    "body": TestDataReturnPolicy.RETURN_POLICY_NO_RETURNS,
+                    "headers": {}
+                })
                 mock_client.close = AsyncMock()
                 
                 MockConfig.app_id = "test_app"
@@ -424,8 +411,8 @@ class TestReturnPolicyApi(BaseApiTest):
                 limit=limit,
                 offset=offset
             )
-            
             response = json.loads(result)
+            
             if response["status"] == "error":
                 assert response["error_code"] in ["AUTHENTICATION_ERROR", "EXTERNAL_API_ERROR"]
                 print("Integration test for get policies validated")
@@ -441,11 +428,13 @@ class TestReturnPolicyApi(BaseApiTest):
             # Unit test
             with patch('tools.return_policy_api.EbayRestClient') as MockClient, \
                  patch('tools.return_policy_api.OAuthManager'), \
-                 patch('tools.return_policy_api.mcp.config') as MockConfig, \
-                 patch('tools.return_policy_api.get_user_access_token') as MockUserToken:
+                 patch('tools.return_policy_api.mcp.config') as MockConfig:
                 
                 mock_client = MockClient.return_value
-                mock_client.get = AsyncMock(return_value=TestDataReturnPolicy.GET_POLICIES_RESPONSE)
+                mock_client.get = AsyncMock(return_value={
+                    "body": TestDataReturnPolicy.GET_POLICIES_RESPONSE,
+                    "headers": {}
+                })
                 mock_client.close = AsyncMock()
                 
                 MockConfig.app_id = "test_app"
@@ -545,12 +534,11 @@ class TestReturnPolicyApi(BaseApiTest):
         
         if not self.is_integration_mode:
             # Unit test only
-            with patch('tools.return_policy_api.mcp.config') as MockConfig, \
-                 patch('tools.return_policy_api.get_user_access_token') as MockUserToken:
+            with patch('tools.return_policy_api.mcp.config') as MockConfig:
                 
                 MockConfig.app_id = "test_app"
                 MockConfig.cert_id = "test_cert"
-                MockUserToken.return_value = None  # No user token
+                # No user token needed for this test
                 
                 result = await create_return_policy.fn(
                     ctx=mock_context,
@@ -576,8 +564,7 @@ class TestReturnPolicyApi(BaseApiTest):
             # Unit test only - simulate API error
             with patch('tools.return_policy_api.EbayRestClient') as MockClient, \
                  patch('tools.return_policy_api.OAuthManager'), \
-                 patch('tools.return_policy_api.mcp.config') as MockConfig, \
-                 patch('tools.return_policy_api.get_user_access_token') as MockUserToken:
+                 patch('tools.return_policy_api.mcp.config') as MockConfig:
                 
                 mock_client = MockClient.return_value
                 mock_client.post = AsyncMock(side_effect=EbayApiError(429, {"message": "Rate limit exceeded"}))
@@ -618,17 +605,17 @@ class TestReturnPolicyApi(BaseApiTest):
             pytest.skip("Infrastructure validation only runs in integration mode")
         
         # Import a working API that doesn't need user consent
-        from tools.browse_api import search_items
+        from tools.browse_api import search_items, BrowseSearchInput
         
         print("Testing integration infrastructure with Browse API...")
         print("This API uses basic scope (no user consent required)")
         
         try:
             # Make a simple search that should work
+            search_input = BrowseSearchInput(query="iPhone", limit=1)
             result = await search_items.fn(
                 ctx=mock_context,
-                query="iPhone",
-                limit=1
+                search_input=search_input
             )
             
             response = json.loads(result)
@@ -672,8 +659,8 @@ class TestReturnPolicyApi(BaseApiTest):
                 ctx=mock_context,
                 return_policy_id=policy_id
             )
-            
             response = json.loads(result)
+            
             if response["status"] == "error":
                 assert response["error_code"] in ["AUTHENTICATION_ERROR", "EXTERNAL_API_ERROR", "RESOURCE_NOT_FOUND"]
                 print(f"Integration test validated: {response['error_code']}")
@@ -689,11 +676,13 @@ class TestReturnPolicyApi(BaseApiTest):
             # Unit test
             with patch('tools.return_policy_api.EbayRestClient') as MockClient, \
                  patch('tools.return_policy_api.OAuthManager'), \
-                 patch('tools.return_policy_api.mcp.config') as MockConfig, \
-                 patch('tools.return_policy_api.get_user_access_token') as MockUserToken:
+                 patch('tools.return_policy_api.mcp.config') as MockConfig:
                 
                 mock_client = MockClient.return_value
-                mock_client.get = AsyncMock(return_value=TestDataReturnPolicy.RETURN_POLICY_SIMPLE)
+                mock_client.get = AsyncMock(return_value={
+                    "body": TestDataReturnPolicy.RETURN_POLICY_SIMPLE,
+                    "headers": {}
+                })
                 mock_client.close = AsyncMock()
                 
                 MockConfig.app_id = "test_app"
@@ -730,8 +719,8 @@ class TestReturnPolicyApi(BaseApiTest):
                 marketplace_id=marketplace_id,
                 name=policy_name
             )
-            
             response = json.loads(result)
+            
             if response["status"] == "error":
                 assert response["error_code"] in ["AUTHENTICATION_ERROR", "EXTERNAL_API_ERROR", "RESOURCE_NOT_FOUND"]
                 print(f"Integration test validated: {response['error_code']}")
@@ -746,11 +735,13 @@ class TestReturnPolicyApi(BaseApiTest):
             # Unit test
             with patch('tools.return_policy_api.EbayRestClient') as MockClient, \
                  patch('tools.return_policy_api.OAuthManager'), \
-                 patch('tools.return_policy_api.mcp.config') as MockConfig, \
-                 patch('tools.return_policy_api.get_user_access_token') as MockUserToken:
+                 patch('tools.return_policy_api.mcp.config') as MockConfig:
                 
                 mock_client = MockClient.return_value
-                mock_client.get = AsyncMock(return_value=TestDataReturnPolicy.RETURN_POLICY_SIMPLE)
+                mock_client.get = AsyncMock(return_value={
+                    "body": TestDataReturnPolicy.RETURN_POLICY_SIMPLE,
+                    "headers": {}
+                })
                 mock_client.close = AsyncMock()
                 
                 MockConfig.app_id = "test_app"
@@ -785,8 +776,7 @@ class TestReturnPolicyApi(BaseApiTest):
         
         with patch('tools.return_policy_api.EbayRestClient') as MockClient, \
              patch('tools.return_policy_api.OAuthManager'), \
-             patch('tools.return_policy_api.mcp.config') as MockConfig, \
-             patch('tools.return_policy_api.get_user_access_token') as MockUserToken:
+             patch('tools.return_policy_api.mcp.config') as MockConfig:
             
             mock_client = MockClient.return_value
             mock_client.get = AsyncMock(side_effect=EbayApiError(404, {"message": "Policy not found"}))
@@ -832,28 +822,50 @@ class TestReturnPolicyApi(BaseApiTest):
                 return_policy_id=policy_id,
                 policy_input=policy_input
             )
-            
             response = json.loads(result)
+
             if response["status"] == "error":
-                assert response["error_code"] in ["AUTHENTICATION_ERROR", "EXTERNAL_API_ERROR", "RESOURCE_NOT_FOUND"]
-                print(f"Integration test validated: {response['error_code']}")
-                return
-            else:
-                # Validate successful response
-                assert response["status"] == "success"
-                assert "data" in response
-                assert response["data"]["name"] == "Updated 30 Day Returns"
-                assert response["data"]["return_shipping_cost_payer"] == "SELLER"
+                error_code = response.get("error_code")
+                error_msg = response.get("error_message", "")
+                details = response.get("details", {})
+                status_code = details.get("status_code")
+                errors = details.get("errors", [])
+                
+                # Check if we're in sandbox mode
+                is_sandbox = mcp.config.sandbox_mode
+                
+                # Only skip for known sandbox limitations when actually in sandbox mode
+                if is_sandbox:
+                    # Business Policy Eligibility Issues
+                    if any(e.get("error_id") in [20403, 20001] for e in errors):
+                        if "not eligible for Business Policy" in error_msg or "not opted in to business policies" in error_msg:
+                            pytest.skip(f"Known eBay sandbox limitation: Business Policy eligibility - {error_msg}")
+                    # Policy not found
+                    elif any(e.get("error_id") == 20404 for e in errors):
+                        pytest.skip(f"Known eBay sandbox limitation: Policy not found - {error_msg}")
+                    # General policy not found error
+                    elif "policyID not found" in error_msg:
+                        pytest.skip(f"Known eBay sandbox limitation: Policy not found - {error_msg}")
+                
+                # For production or unexpected sandbox errors - fail the test
+                pytest.fail(f"API call failed - {error_code}: {error_msg}")
+
+            assert response["status"] == "success"
+            assert "data" in response
+            assert response["data"]["name"] == "Updated 30 Day Returns"
+            assert response["data"]["return_shipping_cost_payer"] == "SELLER"
         
         else:
             # Unit test
             with patch('tools.return_policy_api.EbayRestClient') as MockClient, \
                  patch('tools.return_policy_api.OAuthManager'), \
-                 patch('tools.return_policy_api.mcp.config') as MockConfig, \
-                 patch('tools.return_policy_api.get_user_access_token') as MockUserToken:
+                 patch('tools.return_policy_api.mcp.config') as MockConfig:
                 
                 mock_client = MockClient.return_value
-                mock_client.put = AsyncMock(return_value=TestDataReturnPolicy.UPDATE_POLICY_RESPONSE)
+                mock_client.put = AsyncMock(return_value={
+                    "body": TestDataReturnPolicy.UPDATE_POLICY_RESPONSE,
+                    "headers": {}
+                })
                 mock_client.close = AsyncMock()
                 
                 MockConfig.app_id = "test_app"
@@ -893,27 +905,46 @@ class TestReturnPolicyApi(BaseApiTest):
                 ctx=mock_context,
                 return_policy_id=policy_id
             )
-            
             response = json.loads(result)
+            
             if response["status"] == "error":
-                assert response["error_code"] in ["AUTHENTICATION_ERROR", "EXTERNAL_API_ERROR", "RESOURCE_NOT_FOUND", "PERMISSION_DENIED"]
-                print(f"Integration test validated: {response['error_code']}")
-                return
-            else:
-                # Validate successful response
-                assert response["status"] == "success"
-                assert response["data"]["deleted"] is True
-                assert response["data"]["policy_id"] == policy_id
+                error_code = response.get("error_code")
+                error_msg = response.get("error_message", "")
+                details = response.get("details", {})
+                status_code = details.get("status_code")
+                errors = details.get("errors", [])
+                
+                # Check if we're in sandbox mode
+                is_sandbox = mcp.config.sandbox_mode
+                
+                # Only skip for known sandbox limitations when actually in sandbox mode
+                if is_sandbox:
+                    # Policy not found (sandbox limitation)
+                    if any(e.get("error_id") == 20404 for e in errors):
+                        pytest.skip(f"Known eBay sandbox limitation: Policy not found - {error_msg}")
+                    # General policy not found error
+                    elif "policyID not found" in error_msg:
+                        pytest.skip(f"Known eBay sandbox limitation: Policy not found - {error_msg}")
+                
+                # For production or unexpected sandbox errors - fail the test
+                pytest.fail(f"API call failed - {error_code}: {error_msg}")
+            
+            # Validate successful response
+            assert response["status"] == "success"
+            assert response["data"]["deleted"] is True
+            assert response["data"]["policy_id"] == policy_id
         
         else:
             # Unit test
             with patch('tools.return_policy_api.EbayRestClient') as MockClient, \
                  patch('tools.return_policy_api.OAuthManager'), \
-                 patch('tools.return_policy_api.mcp.config') as MockConfig, \
-                 patch('tools.return_policy_api.get_user_access_token') as MockUserToken:
+                 patch('tools.return_policy_api.mcp.config') as MockConfig:
                 
                 mock_client = MockClient.return_value
-                mock_client.delete = AsyncMock(return_value=None)  # 204 No Content
+                mock_client.delete = AsyncMock(return_value={
+                    "body": None,
+                    "headers": {}
+                })  # 204 No Content
                 mock_client.close = AsyncMock()
                 
                 MockConfig.app_id = "test_app"
@@ -945,8 +976,7 @@ class TestReturnPolicyApi(BaseApiTest):
         
         with patch('tools.return_policy_api.EbayRestClient') as MockClient, \
              patch('tools.return_policy_api.OAuthManager'), \
-             patch('tools.return_policy_api.mcp.config') as MockConfig, \
-             patch('tools.return_policy_api.get_user_access_token') as MockUserToken:
+             patch('tools.return_policy_api.mcp.config') as MockConfig:
             
             mock_client = MockClient.return_value
             mock_client.delete = AsyncMock(

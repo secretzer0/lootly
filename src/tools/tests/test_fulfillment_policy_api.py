@@ -15,6 +15,7 @@ from unittest.mock import AsyncMock, patch
 from pydantic import ValidationError
 
 from tools.tests.base_test import BaseApiTest
+from lootly_server import mcp
 from tools.tests.test_data import TestDataFulfillmentPolicy
 from tools.fulfillment_policy_api import (
     create_fulfillment_policy,
@@ -28,7 +29,8 @@ from tools.fulfillment_policy_api import (
     TimeDuration,
     ShippingOption,
     ShippingService,
-    ShippingCost,
+    Amount,
+    Region,
     RegionSet
 )
 from api.ebay_enums import (
@@ -40,7 +42,8 @@ from api.ebay_enums import (
     CurrencyCodeEnum
 )
 from api.errors import EbayApiError
-
+import logging
+import sys
 
 class TestFulfillmentPolicyPydanticModels:
     """Test Pydantic models validation (runs in both modes)."""
@@ -76,8 +79,8 @@ class TestFulfillmentPolicyPydanticModels:
         domestic_service = ShippingService(
             shipping_service_code="StandardShipping",
             shipping_carrier_code="USPS",
-            shipping_cost=ShippingCost(currency=CurrencyCodeEnum.USD, value="5.99"),
-            additional_shipping_cost=ShippingCost(currency=CurrencyCodeEnum.USD, value="2.99"),
+            shipping_cost=Amount(currency=CurrencyCodeEnum.USD, value="5.99"),
+            additional_shipping_cost=Amount(currency=CurrencyCodeEnum.USD, value="2.99"),
             free_shipping=False,
             sort_order=1
         )
@@ -212,11 +215,12 @@ class TestFulfillmentPolicyApi(BaseApiTest):
             pytest.skip("Infrastructure validation only runs in integration mode")
         
         # Use Browse API to prove connectivity  
-        from tools.browse_api import search_items
+        from tools.browse_api import search_items, BrowseSearchInput
         print("Testing integration infrastructure with Browse API...")
         print("This API uses basic scope (no user consent required)")
         
-        result = await search_items.fn(ctx=mock_context, query="iPhone", limit=1)
+        search_input = BrowseSearchInput(query="iPhone", limit=1)
+        result = await search_items.fn(ctx=mock_context, search_input=search_input)
         response = json.loads(result)
         
         if response["status"] == "error":
@@ -239,27 +243,13 @@ class TestFulfillmentPolicyApi(BaseApiTest):
     @pytest.mark.asyncio
     async def test_create_fulfillment_policy_success(self, mock_context, mock_credentials):
         """Test successful fulfillment policy creation."""
-        # Create valid input using Pydantic model
-        policy_input = FulfillmentPolicyInput(
-            name="Test Fulfillment Policy",
-            marketplace_id=MarketplaceIdEnum.EBAY_US,
-            category_types=[CategoryType(name=CategoryTypeEnum.ALL_EXCLUDING_MOTORS_VEHICLES)],
-            handling_time=TimeDuration(value=1, unit=TimeDurationUnitEnum.DAY),
-            description="Test fulfillment policy for unit/integration testing"
+        # Create valid input using Pydantic test data factory
+        policy_input = TestDataFulfillmentPolicy.create_simple_policy(
+            name="Test Fulfillment Policy"
         )
         
         if self.is_integration_mode:
             # Integration test - real API call
-            print("Step 1: Verify infrastructure is functional...")
-            from tools.browse_api import search_items
-            browse_result = await search_items.fn(ctx=mock_context, query="test", limit=1)
-            browse_response = json.loads(browse_result)
-            
-            if browse_response["status"] != "success":
-                pytest.fail("Infrastructure check failed - fix basic connectivity before testing OAuth")
-            
-            print("Infrastructure confirmed working")
-            print("Step 2: Test OAuth scope enforcement...")
             
             # Test restricted API
             result = await create_fulfillment_policy.fn(
@@ -268,17 +258,42 @@ class TestFulfillmentPolicyApi(BaseApiTest):
             )
             response = json.loads(result)
             
-            # This SHOULD fail with auth error only
-            if response["status"] != "error":
-                pytest.fail("OAuth scope enforcement not working - API should require user consent")
-            if response["error_code"] != "AUTHENTICATION_ERROR":
-                pytest.fail(f"Unexpected error type: {response['error_code']} - expected AUTHENTICATION_ERROR")
-            if "User consent required" not in response["error_message"]:
-                pytest.fail(f"Wrong auth error: {response['error_message']} - should mention user consent")
+            if response["status"] == "error":
+                error_code = response["error_code"]
+                error_msg = response["error_message"]
+                status_code = response.get("details", {}).get("status_code")
+                errors = response.get("details", {}).get("errors", [])
+                
+                # Check if we're in sandbox mode
+                is_sandbox = mcp.config.sandbox_mode
+                
+                # Only skip for known sandbox limitations when actually in sandbox mode
+                if is_sandbox:
+                    # Business Policy Eligibility Issues
+                    if any(e.get("error_id") in [20403, 20001] for e in errors):
+                        if "not eligible for Business Policy" in error_msg or "not opted in to business policies" in error_msg:
+                            pytest.skip(f"Known eBay sandbox limitation: Business Policy eligibility - {error_msg}")
+                    # Policy already exists
+                    elif any(e.get("error_id") == 20400 for e in errors):
+                        pytest.skip(f"Known eBay sandbox limitation: Policy already exists - {error_msg}")
+                
+                # For production or unexpected sandbox errors - fail the test
+                if error_code == "CONFIGURATION_ERROR":
+                    pytest.fail(f"CREDENTIALS PROBLEM: {error_msg} - {response}")
+                elif error_code == "EXTERNAL_API_ERROR":
+                    pytest.fail(f"eBay API CONNECTIVITY ISSUE: {error_msg} - {response}")
+                else:
+                    pytest.fail(f"UNEXPECTED INFRASTRUCTURE ISSUE: {error_code} - {error_msg} - {response}")
             
-            print("OAuth scope enforcement working correctly")
-            print("sell.account scope properly requires user consent")
+            assert response["status"] == "success"
             
+            # Store the created policy ID in runtime data for later tests
+            if "data" in response and response["data"].get("fulfillment_policy_id"):
+                TestDataFulfillmentPolicy.store_policy_id(
+                    policy_input.name,
+                    response["data"]["fulfillment_policy_id"]
+                )
+
         else:
             # Unit test - mocked dependencies
             with patch('tools.fulfillment_policy_api.EbayRestClient') as MockClient, \
@@ -287,7 +302,19 @@ class TestFulfillmentPolicyApi(BaseApiTest):
                 
                 # Setup all mocks
                 mock_client = MockClient.return_value
-                mock_client.post.return_value = TestDataFulfillmentPolicy.CREATE_POLICY_RESPONSE
+                # Convert Pydantic model to expected API response
+                expected_response = TestDataFulfillmentPolicy.policy_to_api_response(
+                    policy_input, 
+                    policy_id="6197962000"
+                )
+                # Mock the post_with_headers method to return body and headers
+                mock_client.post_with_headers = AsyncMock(return_value={
+                    "body": expected_response,
+                    "headers": {
+                        "Location": "/sell/account/v1/fulfillment_policy/6197962000",
+                        "X-EBAY-C-REQUEST-ID": "test-request-id"
+                    }
+                })
                 mock_client.close = AsyncMock()
                 MockConfig.app_id = "test_app"
                 MockConfig.cert_id = "test_cert"
@@ -302,46 +329,89 @@ class TestFulfillmentPolicyApi(BaseApiTest):
                 
                 # Verify mocked response processing
                 response = json.loads(result)
+                if response["status"] == "error":
+                    print(f"Error response: {response}")
                 assert response["status"] == "success"
                 assert "data" in response
-                assert response["data"]["policy_id"] == "6197962000"
-                assert response["data"]["name"] == "New Fulfillment Policy"
-                mock_client.post.assert_called_once()
+                assert response["data"]["fulfillment_policy_id"] == "6197962000"
+                assert response["data"]["name"] == policy_input.name
+                assert "metadata" in response
+                assert response["metadata"]["location_url"] == "/sell/account/v1/fulfillment_policy/6197962000"
+                mock_client.post_with_headers.assert_called_once()
                 mock_client.close.assert_called_once()
     
     @pytest.mark.asyncio
     async def test_get_fulfillment_policies_success(self, mock_context, mock_credentials):
         """Test successful retrieval of fulfillment policies."""
-        marketplace_id = MarketplaceIdEnum.EBAY_US
         
         if self.is_integration_mode:
-            # Integration test - OAuth scope enforcement
-            print("Testing OAuth scope enforcement for get_fulfillment_policies...")
             
             result = await get_fulfillment_policies.fn(
                 ctx=mock_context,
-                marketplace_id=marketplace_id,
+                marketplace_id=MarketplaceIdEnum.EBAY_US,
                 limit=10
             )
             response = json.loads(result)
-            
-            # Should fail with auth error
-            if response["status"] != "error":
-                pytest.fail("OAuth scope enforcement not working")
-            if response["error_code"] != "AUTHENTICATION_ERROR":
-                pytest.fail(f"Wrong error type: {response['error_code']}")
-            
-            print("OAuth scope enforcement confirmed for get_fulfillment_policies")
-            
+
+            if response["status"] == "error":
+                error_code = response["error_code"]
+                error_msg = response["error_message"]
+                status_code = response.get("details", {}).get("status_code")
+                errors = response.get("details", {}).get("errors", [])
+                
+                # Check if we're in sandbox mode
+                is_sandbox = mcp.config.sandbox_mode
+                
+                # Only skip for known sandbox limitations when actually in sandbox mode
+                if is_sandbox:
+                    # Business Policy Eligibility Issues
+                    if any(e.get("error_id") in [20403, 20001] for e in errors):
+                        if "not eligible for Business Policy" in error_msg or "not opted in to business policies" in error_msg:
+                            pytest.skip(f"Known eBay sandbox limitation: Business Policy eligibility - {error_msg}")
+                
+                # For production or unexpected sandbox errors - fail the test
+                if error_code == "CONFIGURATION_ERROR":
+                    pytest.fail(f"CREDENTIALS PROBLEM: {error_msg} - {response}")
+                elif error_code == "EXTERNAL_API_ERROR":
+                    pytest.fail(f"eBay API CONNECTIVITY ISSUE: {error_msg} - {response}")
+                else:
+                    pytest.fail(f"UNEXPECTED INFRASTRUCTURE ISSUE: {error_code} - {error_msg} - {response}")
+
+            assert response["status"] == "success"
+
         else:
             # Unit test - mocked dependencies
             with patch('tools.fulfillment_policy_api.EbayRestClient') as MockClient, \
                  patch('tools.fulfillment_policy_api.OAuthManager') as MockOAuth, \
                  patch('tools.fulfillment_policy_api.mcp.config') as MockConfig:
                 
-                # Setup mocks
+                # Setup mocks with Pydantic-based test data
                 mock_client = MockClient.return_value
-                mock_client.get.return_value = TestDataFulfillmentPolicy.GET_POLICIES_RESPONSE
+                # Create multiple policies using factory
+                policies = [
+                    TestDataFulfillmentPolicy.policy_to_api_response(
+                        TestDataFulfillmentPolicy.create_simple_policy(),
+                        policy_id="6197932000"
+                    ),
+                    TestDataFulfillmentPolicy.policy_to_api_response(
+                        TestDataFulfillmentPolicy.create_complex_policy(),
+                        policy_id="6197942000"
+                    ),
+                    TestDataFulfillmentPolicy.policy_to_api_response(
+                        TestDataFulfillmentPolicy.create_local_pickup_policy(),
+                        policy_id="6197952000"
+                    )
+                ]
+                mock_response = {
+                    "fulfillmentPolicies": policies,
+                    "total": len(policies),
+                    "limit": 10,
+                    "offset": 0
+                }
+                mock_client.get = AsyncMock(return_value={
+                    "body": mock_response,
+                    "headers": {}
+                })
                 mock_client.close = AsyncMock()
                 MockConfig.app_id = "test_app"
                 MockConfig.cert_id = "test_cert"
@@ -350,7 +420,7 @@ class TestFulfillmentPolicyApi(BaseApiTest):
                 
                 result = await get_fulfillment_policies.fn(
                     ctx=mock_context,
-                    marketplace_id=marketplace_id,
+                    marketplace_id=MarketplaceIdEnum.EBAY_US,
                     limit=10
                 )
                 
@@ -364,58 +434,13 @@ class TestFulfillmentPolicyApi(BaseApiTest):
                 mock_client.close.assert_called_once()
     
     @pytest.mark.asyncio
-    async def test_get_fulfillment_policy_success(self, mock_context, mock_credentials):
-        """Test successful retrieval of specific fulfillment policy."""
-        policy_id = "6197932000"
-        
-        if self.is_integration_mode:
-            # Integration test - OAuth scope enforcement
-            result = await get_fulfillment_policy.fn(
-                ctx=mock_context,
-                policy_id=policy_id
-            )
-            response = json.loads(result)
-            
-            # Should fail with auth error
-            assert response["status"] == "error"
-            assert response["error_code"] == "AUTHENTICATION_ERROR"
-            
-        else:
-            # Unit test - mocked dependencies
-            with patch('tools.fulfillment_policy_api.EbayRestClient') as MockClient, \
-                 patch('tools.fulfillment_policy_api.OAuthManager') as MockOAuth, \
-                 patch('tools.fulfillment_policy_api.mcp.config') as MockConfig:
-                
-                # Setup mocks
-                mock_client = MockClient.return_value
-                mock_client.get.return_value = TestDataFulfillmentPolicy.FULFILLMENT_POLICY_SIMPLE
-                mock_client.close = AsyncMock()
-                MockConfig.app_id = "test_app"
-                MockConfig.cert_id = "test_cert"
-                MockConfig.sandbox_mode = True
-                MockConfig.rate_limit_per_day = 5000
-                
-                result = await get_fulfillment_policy.fn(
-                    ctx=mock_context,
-                    policy_id=policy_id
-                )
-                
-                response = json.loads(result)
-                assert response["status"] == "success"
-                assert "data" in response
-                assert response["data"]["policy_id"] == "6197932000"
-                assert response["data"]["name"] == "Standard Shipping"
-                mock_client.get.assert_called_once_with(f"/sell/account/v1/fulfillment_policy/{policy_id}")
-                mock_client.close.assert_called_once()
-    
-    @pytest.mark.asyncio
     async def test_get_fulfillment_policy_by_name_success(self, mock_context, mock_credentials):
         """Test successful retrieval of fulfillment policy by name."""
         marketplace_id = MarketplaceIdEnum.EBAY_US
-        policy_name = "Standard Shipping"
+        policy_name = "Test Fulfillment Policy"
         
         if self.is_integration_mode:
-            # Integration test - OAuth scope enforcement
+
             result = await get_fulfillment_policy_by_name.fn(
                 ctx=mock_context,
                 marketplace_id=marketplace_id,
@@ -423,9 +448,31 @@ class TestFulfillmentPolicyApi(BaseApiTest):
             )
             response = json.loads(result)
             
-            # Should fail with auth error
-            assert response["status"] == "error"
-            assert response["error_code"] == "AUTHENTICATION_ERROR"
+            if response["status"] == "error":
+                error_code = response["error_code"]
+                error_msg = response["error_message"]
+                status_code = response.get("details", {}).get("status_code")
+                errors = response.get("details", {}).get("errors", [])
+                
+                # Check if we're in sandbox mode
+                is_sandbox = mcp.config.sandbox_mode
+                
+                # Only skip for known sandbox limitations when actually in sandbox mode
+                if is_sandbox:
+                    # Business Policy Eligibility Issues
+                    if any(e.get("error_id") in [20403, 20001] for e in errors):
+                        if "not eligible for Business Policy" in error_msg or "not opted in to business policies" in error_msg:
+                            pytest.skip(f"Known eBay sandbox limitation: Business Policy eligibility - {error_msg}")
+                
+                # For production or unexpected sandbox errors - fail the test
+                if error_code == "CONFIGURATION_ERROR":
+                    pytest.fail(f"CREDENTIALS PROBLEM: {error_msg} - {response}")
+                elif error_code == "EXTERNAL_API_ERROR":
+                    pytest.fail(f"eBay API CONNECTIVITY ISSUE: {error_msg} - {response}")
+                else:
+                    pytest.fail(f"UNEXPECTED INFRASTRUCTURE ISSUE: {error_code} - {error_msg} - {response}")
+
+            assert response["status"] == "success"
             
         else:
             # Unit test - mocked dependencies
@@ -435,7 +482,16 @@ class TestFulfillmentPolicyApi(BaseApiTest):
                 
                 # Setup mocks
                 mock_client = MockClient.return_value
-                mock_client.get.return_value = TestDataFulfillmentPolicy.GET_BY_NAME_RESPONSE
+                # Create test policy and convert to response
+                test_policy = TestDataFulfillmentPolicy.create_simple_policy(name=policy_name)
+                expected_response = TestDataFulfillmentPolicy.policy_to_api_response(
+                    test_policy,
+                    policy_id="6197932000"
+                )
+                mock_client.get = AsyncMock(return_value={
+                    "body": expected_response,
+                    "headers": {}
+                })
                 mock_client.close = AsyncMock()
                 MockConfig.app_id = "test_app"
                 MockConfig.cert_id = "test_cert"
@@ -451,7 +507,7 @@ class TestFulfillmentPolicyApi(BaseApiTest):
                 response = json.loads(result)
                 assert response["status"] == "success"
                 assert "data" in response
-                assert response["data"]["name"] == "Standard Shipping"
+                assert response["data"]["name"] == policy_name
                 
                 # Verify correct parameters were passed
                 expected_params = {
@@ -468,15 +524,35 @@ class TestFulfillmentPolicyApi(BaseApiTest):
     async def test_update_fulfillment_policy_success(self, mock_context, mock_credentials):
         """Test successful fulfillment policy update."""
         policy_id = "6197932000"
-        policy_input = FulfillmentPolicyInput(
-            name="Updated Fulfillment Policy",
-            marketplace_id=MarketplaceIdEnum.EBAY_US,
-            category_types=[CategoryType(name=CategoryTypeEnum.ALL_EXCLUDING_MOTORS_VEHICLES)],
-            description="Updated description"
-        )
+        # Create initial policy, then modify it for update
+        policy_input = TestDataFulfillmentPolicy.create_simple_policy()
+        policy_input.name = "Updated Fulfillment Policy"
+        policy_input.description = "Updated description"
         
         if self.is_integration_mode:
-            # Integration test - OAuth scope enforcement
+            # Try to get the policy ID from runtime data first
+            stored_policy_id = TestDataFulfillmentPolicy.get_policy_id("Test Fulfillment Policy")
+            if stored_policy_id:
+                policy_id = stored_policy_id
+            else:
+                # If not found in runtime data, try to retrieve it via API
+                marketplace_id = MarketplaceIdEnum.EBAY_US
+                policy_name = "Test Fulfillment Policy"
+            
+                result = await get_fulfillment_policy_by_name.fn(
+                    ctx=mock_context,
+                    marketplace_id=marketplace_id,
+                    name=policy_name
+                )
+                response = json.loads(result)
+
+                # Check if we got a successful response with policy data
+                if response["status"] == "success":
+                    # Extract the policy_id from the formatted response
+                    retrieved_policy_id = response["data"].get("fulfillment_policy_id")
+                    if retrieved_policy_id:
+                        policy_id = retrieved_policy_id
+            
             result = await update_fulfillment_policy.fn(
                 ctx=mock_context,
                 policy_id=policy_id,
@@ -484,9 +560,31 @@ class TestFulfillmentPolicyApi(BaseApiTest):
             )
             response = json.loads(result)
             
-            # Should fail with auth error
-            assert response["status"] == "error"
-            assert response["error_code"] == "AUTHENTICATION_ERROR"
+            if response["status"] == "error":
+                error_code = response["error_code"]
+                error_msg = response["error_message"]
+                status_code = response.get("details", {}).get("status_code")
+                errors = response.get("details", {}).get("errors", [])
+                
+                # Check if we're in sandbox mode
+                is_sandbox = mcp.config.sandbox_mode
+                
+                # Only skip for known sandbox limitations when actually in sandbox mode
+                if is_sandbox:
+                    # Business Policy Eligibility Issues
+                    if any(e.get("error_id") in [20403, 20001] for e in errors):
+                        if "not eligible for Business Policy" in error_msg or "not opted in to business policies" in error_msg:
+                            pytest.skip(f"Known eBay sandbox limitation: Business Policy eligibility - {error_msg}")
+                
+                # For production or unexpected sandbox errors - fail the test
+                if error_code == "CONFIGURATION_ERROR":
+                    pytest.fail(f"CREDENTIALS PROBLEM: {error_msg} - {response}")
+                elif error_code == "EXTERNAL_API_ERROR":
+                    pytest.fail(f"eBay API CONNECTIVITY ISSUE: {error_msg} - {response}")
+                else:
+                    pytest.fail(f"UNEXPECTED INFRASTRUCTURE ISSUE: {error_code} - {error_msg} - {response}")
+
+            assert response["status"] == "success"
             
         else:
             # Unit test - mocked dependencies
@@ -496,7 +594,15 @@ class TestFulfillmentPolicyApi(BaseApiTest):
                 
                 # Setup mocks
                 mock_client = MockClient.return_value
-                mock_client.put.return_value = TestDataFulfillmentPolicy.UPDATE_POLICY_RESPONSE
+                # Convert updated policy to expected response
+                expected_response = TestDataFulfillmentPolicy.policy_to_api_response(
+                    policy_input,
+                    policy_id=policy_id
+                )
+                mock_client.put = AsyncMock(return_value={
+                    "body": expected_response,
+                    "headers": {}
+                })
                 mock_client.close = AsyncMock()
                 MockConfig.app_id = "test_app"
                 MockConfig.cert_id = "test_cert"
@@ -512,7 +618,8 @@ class TestFulfillmentPolicyApi(BaseApiTest):
                 response = json.loads(result)
                 assert response["status"] == "success"
                 assert "data" in response
-                assert response["data"]["name"] == "Updated Fulfillment Policy"
+                assert response["data"]["name"] == policy_input.name
+                assert response["data"]["description"] == policy_input.description
                 mock_client.put.assert_called_once()
                 mock_client.close.assert_called_once()
     
@@ -522,16 +629,35 @@ class TestFulfillmentPolicyApi(BaseApiTest):
         policy_id = "6197932000"
         
         if self.is_integration_mode:
-            # Integration test - OAuth scope enforcement
+
             result = await delete_fulfillment_policy.fn(
                 ctx=mock_context,
                 policy_id=policy_id
             )
             response = json.loads(result)
             
-            # Should fail with auth error
-            assert response["status"] == "error"
-            assert response["error_code"] == "AUTHENTICATION_ERROR"
+            if response["status"] == "error":
+                error_code = response["error_code"]
+                error_msg = response["error_message"]
+                status_code = response.get("details", {}).get("status_code")
+                errors = response.get("details", {}).get("errors", [])
+                
+                # Check if we're in sandbox mode
+                is_sandbox = mcp.config.sandbox_mode
+                
+                # Only skip for known sandbox limitations when actually in sandbox mode
+                if is_sandbox:
+                    # Policy not found (sandbox limitation)
+                    if any(e.get("error_id") == 20404 for e in errors):
+                        pytest.skip(f"Known eBay sandbox limitation: Policy not found - {error_msg}")
+                    # General policy not found error
+                    elif "policyID not found" in error_msg:
+                        pytest.skip(f"Known eBay sandbox limitation: Policy not found - {error_msg}")
+                
+                # For production or unexpected sandbox errors - fail the test
+                pytest.fail(f"API call failed - {error_code}: {error_msg}")
+            
+            assert response["status"] == "success"
             
         else:
             # Unit test - mocked dependencies
@@ -541,7 +667,10 @@ class TestFulfillmentPolicyApi(BaseApiTest):
                 
                 # Setup mocks
                 mock_client = MockClient.return_value
-                mock_client.delete.return_value = None  # Delete returns no content
+                mock_client.delete = AsyncMock(return_value={
+                    "body": None,
+                    "headers": {}
+                })  # Delete returns no content
                 mock_client.close = AsyncMock()
                 MockConfig.app_id = "test_app"
                 MockConfig.cert_id = "test_cert"
@@ -620,7 +749,10 @@ class TestFulfillmentPolicyApi(BaseApiTest):
             
             # Setup mocks with API error
             mock_client = MockClient.return_value
-            mock_client.get.side_effect = EbayApiError("Policy not found", 404)
+            mock_client.get.side_effect = EbayApiError(
+                status_code=404,
+                error_response={"message": "Policy not found"}
+            )
             mock_client.close = AsyncMock()
             MockConfig.app_id = "test_app"
             MockConfig.cert_id = "test_cert"

@@ -14,7 +14,7 @@ from urllib.parse import quote
 
 from api.oauth import OAuthManager, OAuthConfig, OAuthScopes
 from api.rest_client import EbayRestClient, RestConfig
-from api.errors import EbayApiError, ValidationError as ApiValidationError
+from api.errors import EbayApiError, extract_ebay_error_details, ValidationError as ApiValidationError
 from data_types import success_response, error_response, ErrorCode
 from lootly_server import mcp
 
@@ -886,11 +886,12 @@ async def search_item_sales(
             "/buy/marketplace_insights/v1_beta/item_sales/search",
             params=params
         )
+        response_body = response["body"]
         
         await ctx.report_progress(0.8, "📊 Processing response...")
         
         # Extract sales data
-        sales = response.get("itemSales", [])
+        sales = response_body.get("itemSales", [])
         
         # Convert sales to our format
         converted_sales = [_convert_item_sale(sale) for sale in sales]
@@ -915,7 +916,7 @@ async def search_item_sales(
         return success_response(
             data={
                 "item_sales": converted_sales,
-                "total": response.get("total", len(converted_sales)),
+                "total": response_body.get("total", len(converted_sales)),
                 "limit": input_data.limit,
                 "offset": input_data.offset,
                 "statistics": stats,
@@ -925,9 +926,9 @@ async def search_item_sales(
                     "filter": input_data.filter,
                     "sort": input_data.sort
                 },
-                "href": response.get("href"),
-                "next": response.get("next"),
-                "prev": response.get("prev")
+                "href": response_body.get("href"),
+                "next": response_body.get("next"),
+                "prev": response_body.get("prev")
             },
             message=f"Retrieved {len(converted_sales)} item sales"
         ).to_json_string()

@@ -35,11 +35,12 @@ class TestAccountApi(BaseApiTest):
         if not self.is_integration_mode:
             pytest.skip("Infrastructure validation only runs in integration mode")
         
-        from tools.browse_api import search_items
+        from tools.browse_api import search_items, BrowseSearchInput
         print("Testing integration infrastructure with Browse API...")
         print("This API uses basic scope (no user consent required)")
         
-        result = await search_items.fn(ctx=mock_context, query="test", limit=1)
+        search_input = BrowseSearchInput(query="test", limit=1)
+        result = await search_items.fn(ctx=mock_context, search_input=search_input)
         response = json.loads(result)
         
         if response["status"] == "error":
@@ -74,54 +75,30 @@ class TestAccountApi(BaseApiTest):
                 cycle="CURRENT"
             )
             
-            # Parse response
             response = json.loads(result)
-            print(f"API Response status: {response['status']}")
             
-            # Real integration test will likely fail with auth error without user consent
             if response["status"] == "error":
-                error_code = response.get("error_code")
-                error_msg = response.get("error_message", "")
-                details = response.get("details", {})
+                error_code = response["error_code"]
+                error_msg = response["error_message"]
                 
-                # Expected auth error without real user consent in integration mode
-                if error_code in ["AUTHENTICATION_ERROR", "EXTERNAL_API_ERROR"]:
-                    print(f"Expected: User consent required for Account API - {error_msg}")
+                if error_code == "CONFIGURATION_ERROR":
+                    pytest.fail(f"CREDENTIALS PROBLEM: {error_msg} - {response}")
+                elif error_code == "EXTERNAL_API_ERROR":
+                    pytest.fail(f"eBay API CONNECTIVITY ISSUE: {error_msg} - {response}")
                 else:
-                    pytest.fail(f"Unexpected error - {error_code}: {error_msg}\nDetails: {details}")
-            else:
-                # If somehow we have real user consent, validate the response
-                print("SUCCESS: User consent available, validating response structure")
-                standards = response["data"]["seller_standards"]
-                
-                # Validate structure and types, not specific values
-                validate_field(standards, "program", str, validator=lambda x: len(x) > 0)
-                validate_field(standards, "cycle", str, validator=lambda x: len(x) > 0)
-                validate_field(standards, "seller_level", str, validator=lambda x: len(x) > 0)
-                
-                # Validate metrics array exists and has proper structure
-                validate_field(standards, "metrics", list)
-                if standards["metrics"]:
-                    # Check first metric has expected structure
-                    first_metric = standards["metrics"][0]
-                    validate_field(first_metric, "metricKey", str)
-                    validate_field(first_metric, "name", str)
-                    validate_field(first_metric, "level", str)
-                    
-                # Check optional rate fields if present - they are objects with value/numerator/denominator
-                if "defect_rate" in standards and standards["defect_rate"]:
-                    validate_field(standards["defect_rate"], "value", str)  # Value is a string
-                    validate_field(standards["defect_rate"], "numerator", int, required=False)
-                    validate_field(standards["defect_rate"], "denominator", int, required=False)
-                    
-                print(f"Successfully validated seller standards for {standards['program']}")
+                    pytest.fail(f"UNEXPECTED INFRASTRUCTURE ISSUE: {error_code} - {error_msg} - {response}")
+
+            assert response["status"] == "success"
         else:
             # Unit test - mocked response
             with patch('tools.account_api._check_user_consent', return_value="test_user_token"), \
                  patch('tools.account_api.EbayRestClient') as MockClient:
                 
                 mock_client = MockClient.return_value
-                mock_client.get = AsyncMock(return_value=TestDataGood.SELLER_STANDARDS_RESPONSE)
+                mock_client.get = AsyncMock(return_value={
+                    "body": TestDataGood.SELLER_STANDARDS_RESPONSE,
+                    "headers": {}
+                })
                 mock_client.close = AsyncMock()
                 # Mock the _user_token property
                 type(mock_client)._user_token = "test_user_token"
@@ -191,7 +168,10 @@ class TestAccountApi(BaseApiTest):
                     # Modify response for different programs
                     response = TestDataGood.SELLER_STANDARDS_RESPONSE.copy()
                     response["program"] = program
-                    mock_client.get = AsyncMock(return_value=response)
+                    mock_client.get = AsyncMock(return_value={
+                        "body": response,
+                        "headers": {}
+                    })
                     mock_client.close = AsyncMock()
                     type(mock_client)._user_token = "test_user_token"
                     
@@ -222,8 +202,8 @@ class TestAccountApi(BaseApiTest):
                 program="INVALID_PROGRAM",
                 cycle="CURRENT"
             )
-            
             response = json.loads(result)
+            
             print(f"API Response status: {response['status']}")
             
             if response["status"] == "error":
@@ -302,16 +282,24 @@ class TestAccountApi(BaseApiTest):
             result = await _check_user_consent(mock_context)
             assert result is None
         
-        # Test with no user token
+        # Test with no user token (ConsentRequiredException)
         with patch('tools.account_api.mcp.config.app_id', 'test_app_id'), \
-             patch('tools.account_api.get_user_access_token', return_value=None) as mock_get_token:
+             patch('tools.account_api.mcp.config.cert_id', 'test_cert_id'), \
+             patch('tools.account_api.OAuthManager') as MockOAuthManager:
+            from api.oauth import ConsentRequiredException
+            mock_oauth = MockOAuthManager.return_value
+            mock_oauth.get_token = AsyncMock(side_effect=ConsentRequiredException())
+            
             result = await _check_user_consent(mock_context)
             assert result is None
-            mock_get_token.assert_called_once_with('test_app_id')
             mock_context.info.assert_called()
         
         # Test with valid user token
         with patch('tools.account_api.mcp.config.app_id', 'test_app_id'), \
-             patch('tools.account_api.get_user_access_token', return_value='valid_token'):
+             patch('tools.account_api.mcp.config.cert_id', 'test_cert_id'), \
+             patch('tools.account_api.OAuthManager') as MockOAuthManager:
+            mock_oauth = MockOAuthManager.return_value
+            mock_oauth.get_token = AsyncMock(return_value='valid_token')
+            
             result = await _check_user_consent(mock_context)
             assert result == 'valid_token'

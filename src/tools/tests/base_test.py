@@ -11,8 +11,37 @@ from unittest.mock import Mock, AsyncMock, patch
 from typing import Dict, Any, Optional, Type, Callable
 import json
 from fastmcp import Context
+import logging
+import sys
+import os
 
-from tools.tests.test_data import TestDataGood, TestDataBad, TestDataError
+# Enable detailed aiohttp debugging for integration tests
+if "--test-mode=integration" in sys.argv and os.getenv("LOOTLY_LOG_LEVEL", "").lower() == "debug":
+    # Set root logger to DEBUG
+    logging.basicConfig(
+        level=logging.DEBUG, 
+        format='%(asctime)s - %(name)s:%(filename)s:%(lineno)d - %(levelname)s - %(message)s',
+        force=True  # Override any existing configuration
+    )
+    
+    # Enable ALL aiohttp loggers
+    logging.getLogger('aiohttp').setLevel(logging.DEBUG)
+    logging.getLogger('aiohttp.client').setLevel(logging.DEBUG)
+    logging.getLogger('aiohttp.connector').setLevel(logging.DEBUG)
+    logging.getLogger('aiohttp.internal').setLevel(logging.DEBUG)
+    logging.getLogger('aiohttp.access').setLevel(logging.DEBUG)
+    logging.getLogger('aiohttp.client_reqrep').setLevel(logging.DEBUG)
+    logging.getLogger('aiohttp.streams').setLevel(logging.DEBUG)
+    logging.getLogger('aiohttp.worker').setLevel(logging.DEBUG)
+    
+    # Also enable asyncio debugging
+    logging.getLogger('asyncio').setLevel(logging.DEBUG)
+    
+    # Enable our own module's logging
+    logging.getLogger('api.oauth').setLevel(logging.DEBUG)
+    logging.getLogger('api.rest_client').setLevel(logging.DEBUG)
+    
+    print("=== AIOHTTP DEBUG LOGGING ENABLED ===")
 
 
 class BaseApiTest:
@@ -38,6 +67,8 @@ class BaseApiTest:
         ctx.error = AsyncMock()
         ctx.debug = AsyncMock()
         ctx.report_progress = AsyncMock()
+        ctx.success = AsyncMock()
+        ctx.warning = AsyncMock()
         return ctx
     
     @pytest.fixture

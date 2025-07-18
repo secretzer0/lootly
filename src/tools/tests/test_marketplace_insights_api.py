@@ -38,11 +38,12 @@ class TestMarketplaceInsightsApi(BaseApiTest):
         if not self.is_integration_mode:
             pytest.skip("Infrastructure validation only runs in integration mode")
         
-        from tools.browse_api import search_items
+        from tools.browse_api import search_items, BrowseSearchInput
         print("Testing integration infrastructure with Browse API...")
         print("This API uses basic scope (no user consent required)")
         
-        result = await search_items.fn(ctx=mock_context, query="test", limit=1)
+        search_input = BrowseSearchInput(query="test", limit=1)
+        result = await search_items.fn(ctx=mock_context, search_input=search_input)
         response = json.loads(result)
         
         if response["status"] == "error":
@@ -204,7 +205,9 @@ class TestMarketplaceInsightsApi(BaseApiTest):
         """Test searching item sales by EPID."""
         if self.is_integration_mode:
             # Integration test - try keyword search for better results
-            print(f"\\nTesting real API call to eBay Marketplace Insights API...")
+            from lootly_server import mcp
+            environment = "sandbox" if mcp.config.sandbox_mode else "production"
+            print(f"\\nTesting real API call to eBay Marketplace Insights API in {environment} environment...")
             print(f"Query: phone, Category: 9355 (Cell Phones), Limit: 10")
             
             result = await search_item_sales.fn(
@@ -213,21 +216,35 @@ class TestMarketplaceInsightsApi(BaseApiTest):
                 category_ids="9355",  # Cell Phones & Smartphones
                 limit=10
             )
-            
-            # Parse response
             response = json.loads(result)
+            
             print(f"API Response status: {response['status']}")
             
             if response["status"] == "error":
                 error_code = response.get("error_code")
                 error_msg = response.get("error_message", "")
                 details = response.get("details", {})
+                status_code = details.get("status_code")
                 
-                # May fail with sandbox limitations or no data
-                if error_code in ["VALIDATION_ERROR", "NOT_FOUND", "EXTERNAL_API_ERROR"]:
-                    print(f"Expected: Sandbox limitations or no data - {error_msg}")
-                else:
-                    pytest.fail(f"Unexpected error - {error_code}: {error_msg}\\nDetails: {details}")
+                # Check if we're in sandbox mode
+                from lootly_server import mcp
+                is_sandbox = mcp.config.sandbox_mode
+                
+                # Only skip for known sandbox limitations when actually in sandbox mode
+                if is_sandbox:
+                    # Known sandbox limitations for marketplace insights
+                    if error_code == "VALIDATION_ERROR":
+                        pytest.skip(f"Known eBay sandbox limitation: {error_msg}")
+                    elif error_code == "NOT_FOUND" or status_code == 404:
+                        pytest.skip("Known eBay sandbox limitation: No item sales data available in sandbox")
+                    elif error_code == "EXTERNAL_API_ERROR" and status_code in [403, 500, 503]:
+                        if status_code == 403:
+                            pytest.skip("Known eBay sandbox limitation: Marketplace Insights API access denied (HTTP 403) - insufficient permissions in sandbox")
+                        else:
+                            pytest.skip(f"Known eBay sandbox limitation: Marketplace Insights API returns HTTP {status_code}")
+                
+                # For production or unexpected errors - fail the test
+                pytest.fail(f"Error from item sales search API: {error_code} - {error_msg}\nDetails: {json.dumps(details, indent=2)}")
             else:
                 # Validate response structure
                 data = response["data"]
@@ -257,7 +274,10 @@ class TestMarketplaceInsightsApi(BaseApiTest):
                 mock_sales_response = TestDataGood.ITEM_SALES_SEARCH_RESPONSE
                 
                 mock_client = MockClient.return_value
-                mock_client.get = AsyncMock(return_value=mock_sales_response)
+                mock_client.get = AsyncMock(return_value={
+                    "body": mock_sales_response,
+                    "headers": {}
+                })
                 mock_client.close = AsyncMock()
                 
                 with patch('tools.marketplace_insights_api.mcp.config.app_id', mock_credentials["app_id"]), \
@@ -305,19 +325,27 @@ class TestMarketplaceInsightsApi(BaseApiTest):
                 sort="-price",
                 limit=5
             )
+            response = json.loads(result)
             
-            # Parse response
-            data = json.loads(result)
-            
-            if data["status"] == "error":
-                # May fail with sandbox limitations
-                if data["error_code"] not in ["VALIDATION_ERROR", "NOT_FOUND", "EXTERNAL_API_ERROR"]:
-                    error_msg = data.get("error_message", "")
-                    details = data.get("details", {})
-                    pytest.fail(f"Unexpected error - {data['error_code']}: {error_msg}\nDetails: {details}")
+            if response["status"] == "error":
+                error_code = response.get("error_code")
+                error_msg = response.get("error_message", "")
+                details = response.get("details", {})
+                status_code = details.get("status_code")
+                
+                # Check if we're in sandbox mode
+                from lootly_server import mcp
+                is_sandbox = mcp.config.sandbox_mode
+                
+                # Only skip for known sandbox limitations when actually in sandbox mode
+                if is_sandbox and error_code in ["VALIDATION_ERROR", "NOT_FOUND", "EXTERNAL_API_ERROR"]:
+                    pytest.skip(f"Known eBay sandbox limitation: {error_msg}")
+                else:
+                    # For production or unexpected errors - fail the test
+                    pytest.fail(f"Error from item sales search API: {error_code} - {error_msg}\nDetails: {json.dumps(details, indent=2)}")
             else:
                 # Validate search criteria was preserved
-                criteria = data["data"]["search_criteria"]
+                criteria = response["data"]["search_criteria"]
                 assert criteria["q"] == "smartphone"
                 assert criteria["category_ids"] == "9355"
                 # Note: price filter is in the filter string, not search_criteria
@@ -325,7 +353,10 @@ class TestMarketplaceInsightsApi(BaseApiTest):
             # Unit test
             with patch('tools.marketplace_insights_api.EbayRestClient') as MockClient:
                 mock_client = MockClient.return_value
-                mock_client.get = AsyncMock(return_value={"itemSales": [], "total": 0})
+                mock_client.get = AsyncMock(return_value={
+                    "body": {"itemSales": [], "total": 0},
+                    "headers": {}
+                })
                 mock_client.close = AsyncMock()
                 
                 with patch('tools.marketplace_insights_api.mcp.config.app_id', mock_credentials["app_id"]), \
@@ -340,7 +371,7 @@ class TestMarketplaceInsightsApi(BaseApiTest):
                         limit=20
                     )
                     
-                    data = assert_api_response_success(result)
+                    response = assert_api_response_success(result)
                     
                     # Verify parameters were passed correctly
                     call_args = mock_client.get.call_args
@@ -372,8 +403,11 @@ class TestMarketplaceInsightsApi(BaseApiTest):
                 
                 mock_client = MockClient.return_value
                 mock_client.get = AsyncMock(return_value={
-                    "itemSales": mock_sales,
-                    "total": 5
+                    "body": {
+                        "itemSales": mock_sales,
+                        "total": 5
+                    },
+                    "headers": {}
                 })
                 mock_client.close = AsyncMock()
                 
@@ -501,12 +535,15 @@ class TestMarketplaceInsightsApi(BaseApiTest):
             with patch('tools.marketplace_insights_api.EbayRestClient') as MockClient:
                 mock_client = MockClient.return_value
                 mock_client.get = AsyncMock(return_value={
-                    "itemSales": [],
-                    "total": 100,
-                    "limit": 20,
-                    "offset": 20,
-                    "next": "https://api.ebay.com/buy/marketplace_insights/v1_beta/item_sales/search?offset=40",
-                    "prev": "https://api.ebay.com/buy/marketplace_insights/v1_beta/item_sales/search?offset=0"
+                    "body": {
+                        "itemSales": [],
+                        "total": 100,
+                        "limit": 20,
+                        "offset": 20,
+                        "next": "https://api.ebay.com/buy/marketplace_insights/v1_beta/item_sales/search?offset=40",
+                        "prev": "https://api.ebay.com/buy/marketplace_insights/v1_beta/item_sales/search?offset=0"
+                    },
+                    "headers": {}
                 })
                 mock_client.close = AsyncMock()
                 

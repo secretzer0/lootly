@@ -1,7 +1,23 @@
-"""eBay shipping rates resource.
+"""eBay shipping reference guide and rate estimates.
 
-Provides information about common eBay shipping services, rates, and delivery times.
-This resource works without API credentials, providing static data about shipping options.
+IMPORTANT: This resource provides REFERENCE DATA ONLY for shipping planning.
+Actual shipping rates vary significantly based on:
+- Exact package dimensions and weight
+- Origin and destination ZIP codes  
+- Current carrier rates and fuel surcharges
+- Account-specific discounts
+
+Always use official carrier calculators or eBay's shipping calculator for accurate pricing.
+
+This resource contains:
+- Common shipping service options and typical cost ranges
+- Delivery time estimates by service
+- Weight/size limits and restrictions
+- Best practices for different item types
+- Important warnings about each service
+
+Note: eBay does not provide a shipping rates API. This reference data helps sellers
+understand their options, but should not be used for final pricing decisions.
 """
 from typing import Dict, Any, Optional
 from fastmcp import Context

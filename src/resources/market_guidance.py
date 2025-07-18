@@ -1,7 +1,16 @@
-"""eBay market trends resource.
+"""eBay market guidance and selling tips.
 
-Provides market trend analysis and insights. Works with or without API credentials,
-using static analysis when APIs are not available.
+IMPORTANT: This resource provides curated selling advice and static market guidance.
+For live market data and trends, use the trending_api and marketplace_insights_api tools.
+
+This resource contains:
+- Seasonal selling patterns and tips
+- Category growth trends (general guidance)
+- Pricing strategies by item type
+- Peak shopping times and buyer behavior insights
+- Best practices for different quarters
+
+Note: All data here is general guidance based on historical patterns, not real-time data.
 """
 from typing import Dict, Any, Optional, List
 from datetime import datetime, timedelta, timezone

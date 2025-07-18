@@ -11,7 +11,7 @@ import json
 
 from api.oauth import OAuthManager, OAuthConfig
 from api.rest_client import EbayRestClient, RestConfig
-from api.errors import EbayApiError, ValidationError as ApiValidationError
+from api.errors import EbayApiError, extract_ebay_error_details, ValidationError as ApiValidationError
 from data_types import success_response, error_response, ErrorCode
 from lootly_server import mcp
 
@@ -170,11 +170,12 @@ async def get_merchandised_products(
             "/buy/marketing/v1_beta/merchandised_product",
             params=params
         )
+        response_body = response["body"]
         
         await ctx.report_progress(0.8, "📦 Processing response...")
         
         # Extract products
-        products = response.get("merchandisedProducts", [])
+        products = response_body.get("merchandisedProducts", [])
         
         # Convert products to our format
         converted_products = [_convert_merchandised_product(product) for product in products]

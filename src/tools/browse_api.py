@@ -18,7 +18,7 @@ from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 from api.oauth import OAuthManager, OAuthConfig
 from api.rest_client import EbayRestClient, RestConfig
-from api.errors import EbayApiError
+from api.errors import EbayApiError, extract_ebay_error_details
 from data_types import success_response, error_response, ErrorCode
 from lootly_server import mcp
 
@@ -274,11 +274,12 @@ async def search_items(
             "/buy/browse/v1/item_summary/search",
             params=params
         )
+        response_body = response["body"]
         
         await ctx.report_progress(0.8, "Processing search results...")
         
         # Format response
-        formatted_response = _format_search_response(response)
+        formatted_response = _format_search_response(response_body)
         
         await ctx.report_progress(1.0, "Complete")
         await ctx.info(f"Found {formatted_response['total']} items, returning {len(formatted_response['items'])}")
@@ -296,7 +297,7 @@ async def search_items(
         return error_response(
             ErrorCode.EXTERNAL_API_ERROR,
             e.get_comprehensive_message(),
-            e.get_full_error_details()
+            extract_ebay_error_details(e)
         ).to_json_string()
     except Exception as e:
         await ctx.error(f"Failed to search items: {str(e)}")
@@ -367,11 +368,12 @@ async def get_item_details(
             f"/buy/browse/v1/item/{details_input.item_id}",
             params=params
         )
+        response_body = response["body"]
         
         await ctx.report_progress(0.8, "Processing item details...")
         
         # Format response
-        formatted_response = _format_item_details_response(response)
+        formatted_response = _format_item_details_response(response_body)
         
         await ctx.report_progress(1.0, "Complete")
         await ctx.info(f"Retrieved details for: {formatted_response.get('title', 'Unknown')}")
@@ -390,14 +392,14 @@ async def get_item_details(
             return error_response(
                 ErrorCode.RESOURCE_NOT_FOUND,
                 f"Item {details_input.item_id} not found",
-                e.get_full_error_details()
+                extract_ebay_error_details(e)
             ).to_json_string()
         
         # Return full error details in response
         return error_response(
             ErrorCode.EXTERNAL_API_ERROR,
             e.get_comprehensive_message(),
-            e.get_full_error_details()
+            extract_ebay_error_details(e)
         ).to_json_string()
     except Exception as e:
         await ctx.error(f"Failed to get item details: {str(e)}")
@@ -457,8 +459,9 @@ async def get_items_by_category(
         await ctx.report_progress(0.3, "Browsing category...")
         
         # Use search with category filter and minimal query
+        # For category browsing, we need a more specific query to avoid "too large" errors
         search_input = BrowseSearchInput(
-            query=" ",  # Minimal query for category browsing
+            query="item",  # Generic query for category browsing
             category_ids=category_input.category_id,
             sort=category_input.sort,
             limit=category_input.limit,
@@ -475,11 +478,12 @@ async def get_items_by_category(
             "/buy/browse/v1/item_summary/search",
             params=params
         )
+        response_body = response["body"]
         
         await ctx.report_progress(0.8, "Processing category results...")
         
         # Format response
-        formatted_response = _format_search_response(response)
+        formatted_response = _format_search_response(response_body)
         
         await ctx.report_progress(1.0, "Complete")
         await ctx.info(f"Found {formatted_response['total']} items in category")
@@ -497,7 +501,7 @@ async def get_items_by_category(
         return error_response(
             ErrorCode.EXTERNAL_API_ERROR,
             e.get_comprehensive_message(),
-            e.get_full_error_details()
+            extract_ebay_error_details(e)
         ).to_json_string()
     except Exception as e:
         await ctx.error(f"Failed to browse category: {str(e)}")

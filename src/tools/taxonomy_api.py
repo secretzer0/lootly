@@ -21,7 +21,7 @@ from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 from api.oauth import OAuthManager, OAuthConfig, OAuthScopes
 from api.rest_client import EbayRestClient, RestConfig
-from api.errors import EbayApiError
+from api.errors import EbayApiError, extract_ebay_error_details
 from api.category_cache import get_category_tree_json, find_category_subtree
 from api.ebay_enums import MarketplaceIdEnum
 from data_types import success_response, error_response, ErrorCode
@@ -153,8 +153,9 @@ async def get_default_category_tree_id(
             "/commerce/taxonomy/v1/get_default_category_tree_id",
             params={"marketplace_id": input_data.marketplace_id.value}
         )
+        response_body = response["body"]
         
-        category_tree_id = response.get("categoryTreeId")
+        category_tree_id = response_body.get("categoryTreeId")
         
         await ctx.info(f"Default category tree ID: {category_tree_id}")
         
@@ -437,11 +438,12 @@ async def get_category_suggestions(
             f"/commerce/taxonomy/v1/category_tree/{input_data.category_tree_id}/get_category_suggestions",
             params={"q": input_data.q}
         )
+        response_body = response["body"]
         
-        await ctx.info(f"Found {len(response.get('categorySuggestions', []))} category suggestions")
+        await ctx.info(f"Found {len(response_body.get('categorySuggestions', []))} category suggestions")
         
         return success_response(
-            data=response,  # Raw API response
+            data=response_body,  # Raw API response
             message=f"Category suggestions for '{input_data.q}'"
         ).to_json_string()
         
@@ -532,12 +534,13 @@ async def get_expired_categories(
             f"/commerce/taxonomy/v1/category_tree/{input_data.category_tree_id}/get_expired_categories",
             params={"marketplace_id": input_data.marketplace_id.value}
         )
+        response_body = response["body"]
         
-        expired_count = len(response.get("expiredCategories", []))
+        expired_count = len(response_body.get("expiredCategories", []))
         await ctx.info(f"Found {expired_count} expired categories")
         
         return success_response(
-            data=response,  # Raw API response
+            data=response_body,  # Raw API response
             message=f"Found {expired_count} expired categories"
         ).to_json_string()
         

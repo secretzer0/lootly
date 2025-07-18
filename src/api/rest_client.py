@@ -6,6 +6,7 @@ with built-in rate limiting, retry logic, and error handling.
 """
 import asyncio
 import time
+import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any, Union
 import aiohttp
@@ -159,7 +160,9 @@ class EbayRestClient:
             headers: Additional headers
             
         Returns:
-            Response data as dictionary
+            Dict containing:
+            - body: The JSON response body
+            - headers: Dict of response headers
             
         Raises:
             EbayApiError: API-specific errors
@@ -220,9 +223,15 @@ class EbayRestClient:
                         
                         # Handle successful response
                         if response.status in (200, 201, 204):
+                            response_body = {}
                             if response_text:
-                                return await response.json()
-                            return {}
+                                response_body = await response.json()
+                            
+                            # Always return both body and headers
+                            return {
+                                "body": response_body,
+                                "headers": dict(response.headers)
+                            }
                         
                         # Parse error response
                         try:

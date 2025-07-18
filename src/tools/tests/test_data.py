@@ -888,9 +888,209 @@ class TestDataPaymentPolicy:
     GET_BY_NAME_RESPONSE = PAYMENT_POLICY_STANDARD
 
 
+from typing import Optional
+from tools.fulfillment_policy_api import (
+    FulfillmentPolicyInput, CategoryType, TimeDuration, ShippingOption, 
+    ShippingService, Amount, Region, RegionSet
+)
+from api.ebay_enums import (
+    MarketplaceIdEnum, CategoryTypeEnum, ShippingCostTypeEnum,
+    ShippingOptionTypeEnum, TimeDurationUnitEnum, CurrencyCodeEnum
+)
+
+
 class TestDataFulfillmentPolicy:
-    """Test data for Fulfillment Policy API responses."""
+    """
+    Test data for Fulfillment Policy API using Pydantic models.
     
+    This class provides factory methods to create Pydantic models that can be:
+    - Used to create policies via the API
+    - Modified to reflect state changes (e.g., after creation/update)
+    - Converted to expected API response format
+    """
+    
+    # Storage for runtime data (e.g., generated policy IDs)
+    _runtime_data = {}
+    
+    @classmethod
+    def create_simple_policy(cls, name: str = "Standard Shipping") -> FulfillmentPolicyInput:
+        """Create a simple fulfillment policy with minimal configuration."""
+        return FulfillmentPolicyInput(
+            name=name,
+            marketplace_id=MarketplaceIdEnum.EBAY_US,
+            category_types=[CategoryType(name=CategoryTypeEnum.ALL_EXCLUDING_MOTORS_VEHICLES)],
+            handling_time=TimeDuration(value=1, unit=TimeDurationUnitEnum.DAY),
+            description="Standard shipping policy with 1-day handling"
+        )
+    
+    @classmethod
+    def create_complex_policy(cls, name: str = "Premium Shipping") -> FulfillmentPolicyInput:
+        """Create a complex fulfillment policy with multiple shipping options."""
+        # Domestic shipping services
+        domestic_standard = ShippingService(
+            shipping_service_code="StandardShipping",
+            shipping_carrier_code="USPS",
+            shipping_cost=Amount(currency=CurrencyCodeEnum.USD, value="5.99"),
+            additional_shipping_cost=Amount(currency=CurrencyCodeEnum.USD, value="2.99"),
+            free_shipping=False,
+            sort_order=1
+        )
+        
+        domestic_expedited = ShippingService(
+            shipping_service_code="ExpeditedShipping",
+            shipping_carrier_code="UPS",
+            shipping_cost=Amount(currency=CurrencyCodeEnum.USD, value="12.99"),
+            free_shipping=False,
+            sort_order=2
+        )
+        
+        # International shipping service
+        international_standard = ShippingService(
+            shipping_service_code="InternationalStandardShipping",
+            shipping_carrier_code="USPS",
+            shipping_cost=Amount(currency=CurrencyCodeEnum.USD, value="19.99"),
+            free_shipping=False,
+            ship_to_locations=RegionSet(
+                region_included=[
+                    Region(region_name="Worldwide", region_type=None),
+                ],
+                region_excluded=[
+                    Region(region_name="RU", region_type=None),  # Russia
+                    Region(region_name="CN", region_type=None),  # China
+                ]
+            ),
+            sort_order=1
+        )
+        
+        # Shipping options
+        domestic_option = ShippingOption(
+            cost_type=ShippingCostTypeEnum.FLAT_RATE,
+            option_type=ShippingOptionTypeEnum.DOMESTIC,
+            shipping_services=[domestic_standard, domestic_expedited],
+            package_handling_cost=Amount(currency=CurrencyCodeEnum.USD, value="1.99")
+        )
+        
+        international_option = ShippingOption(
+            cost_type=ShippingCostTypeEnum.FLAT_RATE,
+            option_type=ShippingOptionTypeEnum.INTERNATIONAL,
+            shipping_services=[international_standard]
+        )
+        
+        return FulfillmentPolicyInput(
+            name=name,
+            marketplace_id=MarketplaceIdEnum.EBAY_US,
+            category_types=[CategoryType(name=CategoryTypeEnum.ALL_EXCLUDING_MOTORS_VEHICLES)],
+            handling_time=TimeDuration(value=2, unit=TimeDurationUnitEnum.DAY),
+            description="Premium shipping with multiple options",
+            shipping_options=[domestic_option, international_option],
+            ship_to_locations=RegionSet(
+                region_included=[Region(region_name="US", region_type=None)]
+            ),
+            local_pickup=True,
+            global_shipping=True
+        )
+    
+    @classmethod
+    def create_local_pickup_policy(cls, name: str = "Local Pickup Only") -> FulfillmentPolicyInput:
+        """Create a policy for local pickup only."""
+        return FulfillmentPolicyInput(
+            name=name,
+            marketplace_id=MarketplaceIdEnum.EBAY_US,
+            category_types=[CategoryType(name=CategoryTypeEnum.ALL_EXCLUDING_MOTORS_VEHICLES)],
+            local_pickup=True,
+            pickup_drop_off=True,
+            description="Local pickup and drop-off only policy"
+        )
+    
+    @classmethod
+    def store_policy_id(cls, policy_name: str, policy_id: str):
+        """Store a runtime policy ID for later use (e.g., cleanup)."""
+        cls._runtime_data[policy_name] = policy_id
+    
+    @classmethod
+    def get_policy_id(cls, policy_name: str) -> Optional[str]:
+        """Retrieve a stored policy ID."""
+        return cls._runtime_data.get(policy_name)
+    
+    @classmethod
+    def clear_runtime_data(cls):
+        """Clear all stored runtime data."""
+        cls._runtime_data.clear()
+    
+    @classmethod
+    def policy_to_api_response(cls, policy: FulfillmentPolicyInput, policy_id: str = "6197932000") -> dict:
+        """Convert a Pydantic model to expected API response format."""
+        response = {
+            "fulfillmentPolicyId": policy_id,
+            "name": policy.name,
+            "marketplaceId": policy.marketplace_id.value,
+            "categoryTypes": [
+                {"name": cat.name.value, **({"default": cat.default} if cat.default is not None else {})}
+                for cat in policy.category_types
+            ]
+        }
+        
+        if policy.description:
+            response["description"] = policy.description
+            
+        if policy.handling_time:
+            response["handlingTime"] = {
+                "value": policy.handling_time.value,
+                "unit": policy.handling_time.unit.value
+            }
+            
+        if policy.shipping_options:
+            response["shippingOptions"] = []
+            for opt in policy.shipping_options:
+                opt_data = {
+                    "costType": opt.cost_type.value,
+                    "optionType": opt.option_type.value
+                }
+                
+                if opt.package_handling_cost:
+                    opt_data["packageHandlingCost"] = {
+                        "currency": opt.package_handling_cost.currency.value,
+                        "value": opt.package_handling_cost.value
+                    }
+                
+                if opt.shipping_services:
+                    opt_data["shippingServices"] = []
+                    for svc in opt.shipping_services:
+                        svc_data = {"shippingServiceCode": svc.shipping_service_code}
+                        
+                        if svc.shipping_carrier_code:
+                            svc_data["shippingCarrierCode"] = svc.shipping_carrier_code
+                        if svc.shipping_cost:
+                            svc_data["shippingCost"] = {
+                                "currency": svc.shipping_cost.currency.value,
+                                "value": svc.shipping_cost.value
+                            }
+                        if svc.additional_shipping_cost:
+                            svc_data["additionalShippingCost"] = {
+                                "currency": svc.additional_shipping_cost.currency.value,
+                                "value": svc.additional_shipping_cost.value
+                            }
+                        if svc.free_shipping is not None:
+                            svc_data["freeShipping"] = svc.free_shipping
+                        if svc.sort_order is not None:
+                            svc_data["sortOrder"] = svc.sort_order
+                            
+                        opt_data["shippingServices"].append(svc_data)
+                
+                response["shippingOptions"].append(opt_data)
+        
+        if policy.local_pickup is not None:
+            response["localPickup"] = policy.local_pickup
+        if policy.pickup_drop_off is not None:
+            response["pickupDropOff"] = policy.pickup_drop_off
+        if policy.freight_shipping is not None:
+            response["freightShipping"] = policy.freight_shipping
+        if policy.global_shipping is not None:
+            response["globalShipping"] = policy.global_shipping
+            
+        return response
+    
+    # Static response data for mocking API responses
     FULFILLMENT_POLICY_SIMPLE = {
         "fulfillmentPolicyId": "6197932000",
         "name": "Standard Shipping",

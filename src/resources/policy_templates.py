@@ -1,7 +1,18 @@
-"""eBay seller policies resource.
+"""eBay seller policy templates and best practices.
 
-Provides best-practice policy templates for eBay sellers including return policies,
-payment options, and shipping policies. Works without API credentials.
+IMPORTANT: This resource provides policy templates and strategic guidance.
+To create and manage actual eBay policies, use these API tools:
+- return_policy_api: Create/manage return policies
+- payment_policy_api: Create/manage payment policies  
+- fulfillment_policy_api: Create/manage shipping/fulfillment policies
+
+This resource contains:
+- Best-practice policy templates with pros/cons
+- Strategic guidance for different seller types
+- Policy recommendations by product category
+- Trust-building tips for sellers
+
+Note: These are template suggestions. Actual policy creation requires the API tools above.
 """
 from typing import Dict, Any, Optional
 from fastmcp import Context

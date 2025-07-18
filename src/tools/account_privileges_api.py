@@ -20,7 +20,7 @@ from pydantic import BaseModel, Field, ConfigDict
 
 from api.oauth import OAuthManager, OAuthConfig, ConsentRequiredException
 from api.rest_client import EbayRestClient, RestConfig
-from api.errors import EbayApiError
+from api.errors import EbayApiError, extract_ebay_error_details
 from api.ebay_enums import CurrencyCodeEnum
 from data_types import success_response, error_response, ErrorCode
 from lootly_server import mcp
@@ -91,7 +91,6 @@ async def get_privileges(ctx: Context) -> str:
     oauth_config = OAuthConfig(
         client_id=mcp.config.app_id,
         client_secret=mcp.config.cert_id,
-        redirect_uri=mcp.config.redirect_uri,
         sandbox=mcp.config.sandbox_mode
     )
     oauth_manager = OAuthManager(oauth_config)
@@ -109,9 +108,10 @@ async def get_privileges(ctx: Context) -> str:
         response = await rest_client.get(
             "/sell/account/v1/privilege"
         )
+        response_body = response["body"]
         
         # Parse response with Pydantic model
-        privileges_data = PrivilegesResponse(**response)
+        privileges_data = PrivilegesResponse(**response_body)
         
         # Convert to response format
         result = {
@@ -139,9 +139,8 @@ async def get_privileges(ctx: Context) -> str:
     except ConsentRequiredException as e:
         await ctx.error(f"User consent required: {str(e)}")
         return error_response(
-            ErrorCode.CONSENT_REQUIRED,
-            str(e),
-            {"required_scopes": e.scopes, "auth_url": e.auth_url}
+            ErrorCode.AUTHENTICATION_ERROR,
+            str(e)
         ).to_json_string()
     except EbayApiError as e:
         await ctx.error(f"eBay API error: {e.get_comprehensive_message()}")

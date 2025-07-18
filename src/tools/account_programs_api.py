@@ -20,7 +20,7 @@ from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 from api.oauth import OAuthManager, OAuthConfig, ConsentRequiredException
 from api.rest_client import EbayRestClient, RestConfig
-from api.errors import EbayApiError
+from api.errors import EbayApiError, extract_ebay_error_details
 from api.ebay_enums import ProgramTypeEnum
 from data_types import success_response, error_response, ErrorCode
 from lootly_server import mcp
@@ -92,7 +92,6 @@ async def get_opted_in_programs(ctx: Context) -> str:
     oauth_config = OAuthConfig(
         client_id=mcp.config.app_id,
         client_secret=mcp.config.cert_id,
-        redirect_uri=mcp.config.redirect_uri,
         sandbox=mcp.config.sandbox_mode
     )
     oauth_manager = OAuthManager(oauth_config)
@@ -110,16 +109,17 @@ async def get_opted_in_programs(ctx: Context) -> str:
         response = await rest_client.get(
             "/sell/account/v1/program/get_opted_in_programs"
         )
+        response_body = response["body"]
         
         # Parse response with Pydantic model
-        programs_data = ProgramsResponse(**response)
+        programs_data = ProgramsResponse(**response_body)
         
         # Convert to response format
         result = {
             "programs": [
                 {
                     "program_type": program.program_type.value,
-                    "description": program.program_type.get_description()
+                    "description": ProgramTypeEnum.get_description(program.program_type.value)
                 }
                 for program in programs_data.programs
             ],
@@ -201,7 +201,6 @@ async def opt_in_to_program(
     oauth_config = OAuthConfig(
         client_id=mcp.config.app_id,
         client_secret=mcp.config.cert_id,
-        redirect_uri=mcp.config.redirect_uri,
         sandbox=mcp.config.sandbox_mode
     )
     oauth_manager = OAuthManager(oauth_config)
@@ -216,11 +215,10 @@ async def opt_in_to_program(
         await ctx.info(f"Opting into {input_data.program_type.value} program")
         
         # Make API request - using user token
-        # Note: opt_in_to_program is a POST with empty body
+        # Note: opt_in_to_program is a POST with programType in body
         await rest_client.post(
             "/sell/account/v1/program/opt_in",
-            params={"program_type": input_data.program_type.value},
-            data={}  # Empty body
+            json={"programType": input_data.program_type.value}
         )
         
         await ctx.info(f"Successfully opted into {input_data.program_type.value}")
@@ -228,7 +226,7 @@ async def opt_in_to_program(
         return success_response(
             data={
                 "program_type": input_data.program_type.value,
-                "description": input_data.program_type.get_description(),
+                "description": ProgramTypeEnum.get_description(input_data.program_type.value),
                 "status": "opted_in"
             },
             message=f"Successfully opted into {input_data.program_type.value} program"
@@ -303,7 +301,6 @@ async def opt_out_of_program(
     oauth_config = OAuthConfig(
         client_id=mcp.config.app_id,
         client_secret=mcp.config.cert_id,
-        redirect_uri=mcp.config.redirect_uri,
         sandbox=mcp.config.sandbox_mode
     )
     oauth_manager = OAuthManager(oauth_config)
@@ -318,11 +315,10 @@ async def opt_out_of_program(
         await ctx.info(f"Opting out of {input_data.program_type.value} program")
         
         # Make API request - using user token
-        # Note: opt_out_of_program is a POST with empty body
+        # Note: opt_out_of_program is a POST with programType in body
         await rest_client.post(
             "/sell/account/v1/program/opt_out",
-            params={"program_type": input_data.program_type.value},
-            data={}  # Empty body
+            json={"programType": input_data.program_type.value}
         )
         
         await ctx.info(f"Successfully opted out of {input_data.program_type.value}")
@@ -330,7 +326,7 @@ async def opt_out_of_program(
         return success_response(
             data={
                 "program_type": input_data.program_type.value,
-                "description": input_data.program_type.get_description(),
+                "description": ProgramTypeEnum.get_description(input_data.program_type.value),
                 "status": "opted_out"
             },
             message=f"Successfully opted out of {input_data.program_type.value} program"

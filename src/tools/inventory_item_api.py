@@ -21,7 +21,7 @@ from decimal import Decimal
 
 from api.oauth import OAuthManager, OAuthConfig, ConsentRequiredException
 from api.rest_client import EbayRestClient, RestConfig
-from api.errors import EbayApiError
+from api.errors import EbayApiError, extract_ebay_error_details
 from api.ebay_enums import (
     MarketplaceIdEnum,
     ConditionEnum,
@@ -475,11 +475,11 @@ async def create_or_replace_inventory_item(
         ).to_json_string()
         
     except EbayApiError as e:
-        await ctx.error(f"eBay API error: {e}")
+        await ctx.error(f"eBay API error: {e.get_comprehensive_message()}")
         return error_response(
             ErrorCode.EXTERNAL_API_ERROR,
-            str(e),
-            {"status_code": e.status_code}
+            e.get_comprehensive_message(),
+            extract_ebay_error_details(e)
         ).to_json_string()
         
     except Exception as e:
@@ -552,11 +552,12 @@ async def get_inventory_item(
         
         # Make API call
         response = await rest_client.get(f"/sell/inventory/v1/inventory_item/{sku}")
+        response_body = response["body"]
         
         await ctx.report_progress(0.8, "Processing response...")
         
         # Format response
-        formatted_response = _format_inventory_item_response(response)
+        formatted_response = _format_inventory_item_response(response_body)
         
         await ctx.report_progress(1.0, "Inventory item retrieved successfully")
         await ctx.success(f"Retrieved inventory item '{sku}'")
@@ -575,11 +576,11 @@ async def get_inventory_item(
         ).to_json_string()
         
     except EbayApiError as e:
-        await ctx.error(f"eBay API error: {e}")
+        await ctx.error(f"eBay API error: {e.get_comprehensive_message()}")
         return error_response(
             ErrorCode.EXTERNAL_API_ERROR,
-            str(e),
-            {"status_code": e.status_code}
+            e.get_comprehensive_message(),
+            extract_ebay_error_details(e)
         ).to_json_string()
         
     except Exception as e:
@@ -668,27 +669,28 @@ async def get_inventory_items(
             "/sell/inventory/v1/inventory_item",
             params=params if params else None
         )
+        response_body = response["body"]
         
         await ctx.report_progress(0.8, "Processing response...")
         
         # Format items
-        items = response.get("inventoryItems", [])
+        items = response_body.get("inventoryItems", [])
         formatted_items = [_format_inventory_item_response(item) for item in items]
         
         # Build response with pagination
         result = {
             "inventory_items": formatted_items,
-            "total": response.get("total", len(formatted_items)),
-            "size": response.get("size", 1),
+            "total": response_body.get("total", len(formatted_items)),
+            "size": response_body.get("size", 1),
             "limit": limit,
             "offset": offset
         }
         
         # Add pagination links if available
-        if response.get("next"):
-            result["next"] = response["next"]
-        if response.get("prev"):
-            result["prev"] = response["prev"]
+        if response_body.get("next"):
+            result["next"] = response_body["next"]
+        if response_body.get("prev"):
+            result["prev"] = response_body["prev"]
         
         await ctx.report_progress(1.0, f"Retrieved {len(formatted_items)} inventory items")
         await ctx.success(f"Found {len(formatted_items)} inventory items")
@@ -707,11 +709,11 @@ async def get_inventory_items(
         ).to_json_string()
         
     except EbayApiError as e:
-        await ctx.error(f"eBay API error: {e}")
+        await ctx.error(f"eBay API error: {e.get_comprehensive_message()}")
         return error_response(
             ErrorCode.EXTERNAL_API_ERROR,
-            str(e),
-            {"status_code": e.status_code}
+            e.get_comprehensive_message(),
+            extract_ebay_error_details(e)
         ).to_json_string()
         
     except Exception as e:
@@ -802,11 +804,11 @@ async def delete_inventory_item(
         ).to_json_string()
         
     except EbayApiError as e:
-        await ctx.error(f"eBay API error: {e}")
+        await ctx.error(f"eBay API error: {e.get_comprehensive_message()}")
         return error_response(
             ErrorCode.EXTERNAL_API_ERROR,
-            str(e),
-            {"status_code": e.status_code}
+            e.get_comprehensive_message(),
+            extract_ebay_error_details(e)
         ).to_json_string()
         
     except Exception as e:
@@ -899,11 +901,12 @@ async def bulk_create_or_replace_inventory_item(
             "/sell/inventory/v1/bulk_create_or_replace_inventory_item",
             json=bulk_data
         )
+        response_body = response["body"]
         
         await ctx.report_progress(0.8, "Processing bulk response...")
         
         # Format response
-        responses = response.get("responses", [])
+        responses = response_body.get("responses", [])
         
         # Categorize results
         successful = [r for r in responses if r.get("statusCode") in [200, 201, 204]]
@@ -937,11 +940,11 @@ async def bulk_create_or_replace_inventory_item(
         ).to_json_string()
         
     except EbayApiError as e:
-        await ctx.error(f"eBay API error: {e}")
+        await ctx.error(f"eBay API error: {e.get_comprehensive_message()}")
         return error_response(
             ErrorCode.EXTERNAL_API_ERROR,
-            str(e),
-            {"status_code": e.status_code}
+            e.get_comprehensive_message(),
+            extract_ebay_error_details(e)
         ).to_json_string()
         
     except Exception as e:
@@ -1041,11 +1044,12 @@ async def bulk_get_inventory_item(
             "/sell/inventory/v1/bulk_get_inventory_item",
             params=params
         )
+        response_body = response["body"]
         
         await ctx.report_progress(0.8, "Processing bulk response...")
         
         # Format response
-        responses = response.get("responses", [])
+        responses = response_body.get("responses", [])
         
         # Format individual items
         formatted_items = []
@@ -1103,11 +1107,11 @@ async def bulk_get_inventory_item(
         ).to_json_string()
         
     except EbayApiError as e:
-        await ctx.error(f"eBay API error: {e}")
+        await ctx.error(f"eBay API error: {e.get_comprehensive_message()}")
         return error_response(
             ErrorCode.EXTERNAL_API_ERROR,
-            str(e),
-            {"status_code": e.status_code}
+            e.get_comprehensive_message(),
+            extract_ebay_error_details(e)
         ).to_json_string()
         
     except Exception as e:
@@ -1217,11 +1221,12 @@ async def bulk_update_price_quantity(
             "/sell/inventory/v1/bulk_update_price_quantity",
             json=bulk_data
         )
+        response_body = response["body"]
         
         await ctx.report_progress(0.8, "Processing bulk response...")
         
         # Format response
-        responses = response.get("responses", [])
+        responses = response_body.get("responses", [])
         
         # Categorize results
         successful = [r for r in responses if r.get("statusCode") in [200, 201, 204]]
@@ -1255,11 +1260,11 @@ async def bulk_update_price_quantity(
         ).to_json_string()
         
     except EbayApiError as e:
-        await ctx.error(f"eBay API error: {e}")
+        await ctx.error(f"eBay API error: {e.get_comprehensive_message()}")
         return error_response(
             ErrorCode.EXTERNAL_API_ERROR,
-            str(e),
-            {"status_code": e.status_code}
+            e.get_comprehensive_message(),
+            extract_ebay_error_details(e)
         ).to_json_string()
         
     except Exception as e:

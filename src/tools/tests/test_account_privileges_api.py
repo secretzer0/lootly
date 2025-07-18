@@ -15,7 +15,6 @@ from tools.tests.test_helpers import (
     assert_api_response_success
 )
 from tools.account_privileges_api import get_privileges
-from api.ebay_enums import CurrencyCodeEnum
 
 
 class TestAccountPrivilegesApi(BaseApiTest):
@@ -62,7 +61,9 @@ class TestAccountPrivilegesApi(BaseApiTest):
         """Test getting seller account privileges."""
         if self.is_integration_mode:
             # Integration test - real API call
-            print(f"\\nTesting real API call to get account privileges...")
+            from lootly_server import mcp
+            environment = "sandbox" if mcp.config.sandbox_mode else "production"
+            print(f"\\nTesting real API call to get account privileges in {environment} environment...")
             print(f"Note: This requires user authentication")
             
             # Try to call without mocking - will check for real user token
@@ -70,10 +71,21 @@ class TestAccountPrivilegesApi(BaseApiTest):
             response = json.loads(result)
             
             if response["status"] == "error":
-                if response["error_code"] == "AUTHENTICATION_ERROR":
+                error_code = response["error_code"]
+                error_msg = response.get("error_message", "")
+                status_code = response.get("details", {}).get("status_code")
+                
+                # Check if we're in sandbox mode
+                from lootly_server import mcp
+                is_sandbox = mcp.config.sandbox_mode
+                
+                if error_code == "AUTHENTICATION_ERROR":
                     pytest.skip("User authentication required - run 'ebay auth' first")
+                elif is_sandbox and error_code == "EXTERNAL_API_ERROR" and status_code == 500:
+                    pytest.skip("Known eBay sandbox limitation: Privileges endpoint returns HTTP 500 in sandbox")
                 else:
-                    pytest.fail(f"Unexpected error: {response['error_code']} - {response['error_message']}")
+                    # For production or unexpected errors - fail the test
+                    pytest.fail(f"Error from privileges API: {error_code} - {error_msg}\nDetails: {json.dumps(response.get('details', {}), indent=2)}")
             else:
                 # Success - user is authenticated
                 print("User is authenticated, checking response...")
@@ -88,14 +100,17 @@ class TestAccountPrivilegesApi(BaseApiTest):
             with patch('tools.account_privileges_api.EbayRestClient') as MockClient:
                 mock_client = MockClient.return_value
                 mock_client.get = AsyncMock(return_value={
-                    "sellerRegistrationCompleted": True,
-                    "sellingLimit": {
-                        "amount": {
-                            "currency": "USD",
-                            "value": "5000.00"
-                        },
-                        "quantity": 100
-                    }
+                    "body": {
+                        "sellerRegistrationCompleted": True,
+                        "sellingLimit": {
+                            "amount": {
+                                "currency": "USD",
+                                "value": "5000.00"
+                            },
+                            "quantity": 100
+                        }
+                    },
+                    "headers": {}
                 })
                 mock_client.close = AsyncMock()
                 
@@ -127,14 +142,16 @@ class TestAccountPrivilegesApi(BaseApiTest):
         with patch('tools.account_privileges_api.EbayRestClient') as MockClient:
             mock_client = MockClient.return_value
             mock_client.get = AsyncMock(return_value={
-                "sellerRegistrationCompleted": True
-                # No sellingLimit field
+                "body": {
+                    "sellerRegistrationCompleted": True
+                    # No sellingLimit field
+                },
+                "headers": {}
             })
             mock_client.close = AsyncMock()
             
             with patch('tools.account_privileges_api.mcp.config.app_id', mock_credentials["app_id"]), \
-                 patch('tools.account_privileges_api.mcp.config.cert_id', mock_credentials["cert_id"]), \
-                 patch('tools.account_privileges_api.mcp.config.user_refresh_token', 'test_token'):
+                 patch('tools.account_privileges_api.mcp.config.cert_id', mock_credentials["cert_id"]):
                 
                 result = await get_privileges.fn(ctx=mock_context)
                 
@@ -165,9 +182,11 @@ class TestAccountPrivilegesApi(BaseApiTest):
     @pytest.mark.asyncio
     async def test_get_privileges_no_user_token(self, mock_context, mock_credentials):
         """Test privileges without user token returns authentication error."""
+        if self.is_integration_mode:
+            pytest.skip("Authentication test is unit only")
+        
         with patch('tools.account_privileges_api.mcp.config.app_id', mock_credentials["app_id"]), \
-             patch('tools.account_privileges_api.mcp.config.cert_id', mock_credentials["cert_id"]), \
-             patch('tools.account_privileges_api.mcp.config.user_refresh_token', None):
+             patch('tools.account_privileges_api.mcp.config.cert_id', mock_credentials["cert_id"]):
             
             result = await get_privileges.fn(ctx=mock_context)
             
@@ -175,8 +194,7 @@ class TestAccountPrivilegesApi(BaseApiTest):
             data = json.loads(result)
             assert data["status"] == "error"
             assert data["error_code"] == "AUTHENTICATION_ERROR"
-            assert "User authentication required" in data["error_message"]
-            assert "ebay auth" in data["error_message"]
+            assert "User consent required" in data["error_message"]
     
     @pytest.mark.asyncio
     @TestMode.skip_in_integration("Consent required test is unit only")
@@ -188,21 +206,18 @@ class TestAccountPrivilegesApi(BaseApiTest):
             mock_client = MockClient.return_value
             mock_client.get = AsyncMock(
                 side_effect=ConsentRequiredException(
-                    ["sell.account"],
-                    "https://auth.ebay.com/oauth2/authorize?..."
+                    "User consent required for scopes: sell.account"
                 )
             )
             mock_client.close = AsyncMock()
             
             with patch('tools.account_privileges_api.mcp.config.app_id', mock_credentials["app_id"]), \
-                 patch('tools.account_privileges_api.mcp.config.cert_id', mock_credentials["cert_id"]), \
-                 patch('tools.account_privileges_api.mcp.config.user_refresh_token', 'test_token'):
+                 patch('tools.account_privileges_api.mcp.config.cert_id', mock_credentials["cert_id"]):
                 
                 result = await get_privileges.fn(ctx=mock_context)
                 
                 # Should return consent required error
                 data = json.loads(result)
                 assert data["status"] == "error"
-                assert data["error_code"] == "CONSENT_REQUIRED"
-                assert data["details"]["required_scopes"] == ["sell.account"]
-                assert "auth_url" in data["details"]
+                assert data["error_code"] == "AUTHENTICATION_ERROR"
+                assert "User consent required" in data["error_message"]

@@ -76,9 +76,8 @@ class TestTaxonomyApi(BaseApiTest):
                 ctx=mock_context,
                 marketplace_id=MarketplaceIdEnum.EBAY_US
             )
-            
-            # Parse and validate response
             response = json.loads(result)
+            
             print(f"API Response status: {response['status']}")
             
             if response["status"] == "error":
@@ -100,7 +99,10 @@ class TestTaxonomyApi(BaseApiTest):
             with patch('tools.taxonomy_api.EbayRestClient') as MockClient:
                 mock_client = MockClient.return_value
                 mock_client.get = AsyncMock(return_value={
-                    "categoryTreeId": "0"
+                    "body": {
+                        "categoryTreeId": "0"
+                    },
+                    "headers": {}
                 })
                 mock_client.close = AsyncMock()
                 
@@ -131,12 +133,12 @@ class TestTaxonomyApi(BaseApiTest):
         """Test getting full category tree."""
         if self.is_integration_mode:
             # Integration test - get full category tree as raw JSON
-            result = await get_category_tree.fn(
+            response = await get_category_tree.fn(
                 ctx=mock_context,
                 category_tree_id="0"
             )
             
-            data = assert_api_response_success(result)
+            data = assert_api_response_success(response)
             
             # Should now return raw eBay JSON structure
             validate_field(data["data"], "categoryTreeId", str)
@@ -171,12 +173,12 @@ class TestTaxonomyApi(BaseApiTest):
                 with patch('tools.taxonomy_api.mcp.config.app_id', mock_credentials["app_id"]), \
                      patch('tools.taxonomy_api.mcp.config.cert_id', mock_credentials["cert_id"]):
                     
-                    result = await get_category_tree.fn(
+                    response = await get_category_tree.fn(
                         ctx=mock_context,
                         category_tree_id="0"
                     )
                     
-                    data = assert_api_response_success(result)
+                    data = assert_api_response_success(response)
                     
                     # Should return raw JSON from test_data.py
                     assert data["data"]["categoryTreeId"] == "0"
@@ -193,13 +195,13 @@ class TestTaxonomyApi(BaseApiTest):
         """Test getting category subtree."""
         if self.is_integration_mode:
             # Integration test - get electronics subtree
-            result = await get_category_subtree.fn(
+            response = await get_category_subtree.fn(
                 ctx=mock_context,
                 category_tree_id="0",
                 category_id="58058"  # Consumer Electronics
             )
             
-            data = assert_api_response_success(result)
+            data = assert_api_response_success(response)
             
             # Should return raw JSON subtree
             validate_field(data["data"], "category", dict)
@@ -226,13 +228,13 @@ class TestTaxonomyApi(BaseApiTest):
                 with patch('tools.taxonomy_api.mcp.config.app_id', mock_credentials["app_id"]), \
                      patch('tools.taxonomy_api.mcp.config.cert_id', mock_credentials["cert_id"]):
                     
-                    result = await get_category_subtree.fn(
+                    response = await get_category_subtree.fn(
                         ctx=mock_context,
                         category_tree_id="0",
                         category_id="58058"
                     )
                     
-                    data = assert_api_response_success(result)
+                    data = assert_api_response_success(response)
                     
                     # Should return the subtree from test_data.py
                     assert data["data"] == TestDataGood.CATEGORY_NODE_ELECTRONICS
@@ -249,62 +251,91 @@ class TestTaxonomyApi(BaseApiTest):
         """Test getting category suggestions."""
         if self.is_integration_mode:
             # Integration test - search for "phone" categories
+            from lootly_server import mcp
+            environment = "sandbox" if mcp.config.sandbox_mode else "production"
+            print(f"\nTesting category suggestions API in {environment} environment...")
             result = await get_category_suggestions.fn(
                 ctx=mock_context,
                 category_tree_id="0",
                 q="phone"
             )
+            response = json.loads(result)
             
-            # Check for known eBay sandbox issues
-            result_data = json.loads(result)
-            if result_data["status"] == "error":
-                # HTTP 500 with error ID 62000 is a known issue in eBay sandbox
-                if result_data.get("details", {}).get("status_code") == 500 and \
-                   any(e.get("error_id") == 62000 for e in result_data.get("details", {}).get("errors", [])):
-                    pytest.skip("Known eBay sandbox issue: Category suggestions endpoint returns HTTP 500")
-                print(f"Error response: {json.dumps(result_data, indent=2)}")
+            # Check if the request failed
+            if response["status"] == "error":
+                error_code = response.get("error_code")
+                error_msg = response.get("error_message", "")
+                status_code = response.get("details", {}).get("status_code")
+                errors = response.get("details", {}).get("errors", [])
+                
+                # Check if we're in sandbox mode
+                is_sandbox = mcp.config.sandbox_mode
+                
+                # Only skip for known sandbox limitations when actually in sandbox mode
+                if is_sandbox:
+                    # Known sandbox limitations:
+                    # 1. HTTP 500 with error ID 62000
+                    # 2. HTTP 404 indicating endpoint not available in sandbox
+                    if status_code == 500 and any(e.get("error_id") == 62000 for e in errors):
+                        pytest.skip("Known eBay sandbox limitation: Category suggestions endpoint returns HTTP 500 (error ID 62000)")
+                    elif status_code == 404:
+                        pytest.skip("Known eBay sandbox limitation: Category suggestions endpoint not available (HTTP 404)")
+                    elif error_code == "EXTERNAL_API_ERROR" and "not available" in error_msg.lower():
+                        pytest.skip(f"Known eBay sandbox limitation: {error_msg}")
+                
+                # For production or unexpected sandbox errors - fail the test
+                pytest.fail(f"Error from category suggestions API: {error_code} - {error_msg}\nDetails: {json.dumps(response.get('details', {}), indent=2)}")
             
-            data = assert_api_response_success(result)
+            # If we got here, the request succeeded!
+            print(f"Category suggestions API worked in {environment}!")
+            data = response
             
             # Should have categorySuggestions array
             validate_field(data["data"], "categorySuggestions", list)
             
             # If we have suggestions, validate their structure
             if data["data"]["categorySuggestions"]:
+                print(f"Found {len(data['data']['categorySuggestions'])} category suggestions")
                 for suggestion in data["data"]["categorySuggestions"][:3]:  # Check first 3
                     validate_field(suggestion, "categoryId", str)
                     validate_field(suggestion, "categoryName", str)
                     validate_field(suggestion, "categoryTreeNodeLevel", int)
+                    print(f"  - {suggestion['categoryName']} (ID: {suggestion['categoryId']})")
+            else:
+                print("No category suggestions returned (but API call succeeded)")
         else:
             # Unit test
             with patch('tools.taxonomy_api.EbayRestClient') as MockClient:
                 mock_client = MockClient.return_value
                 mock_client.get = AsyncMock(return_value={
-                    "categorySuggestions": [
-                        {
-                            "categoryId": "9355",
-                            "categoryName": "Cell Phones & Smartphones",
-                            "categoryTreeNodeLevel": 3
-                        },
-                        {
-                            "categoryId": "15032",
-                            "categoryName": "Cell Phone Accessories",
-                            "categoryTreeNodeLevel": 3
-                        }
-                    ]
+                    "body": {
+                        "categorySuggestions": [
+                            {
+                                "categoryId": "9355",
+                                "categoryName": "Cell Phones & Smartphones",
+                                "categoryTreeNodeLevel": 3
+                            },
+                            {
+                                "categoryId": "15032",
+                                "categoryName": "Cell Phone Accessories",
+                                "categoryTreeNodeLevel": 3
+                            }
+                        ]
+                    },
+                    "headers": {}
                 })
                 mock_client.close = AsyncMock()
                 
                 with patch('tools.taxonomy_api.mcp.config.app_id', mock_credentials["app_id"]), \
                      patch('tools.taxonomy_api.mcp.config.cert_id', mock_credentials["cert_id"]):
                     
-                    result = await get_category_suggestions.fn(
+                    response = await get_category_suggestions.fn(
                         ctx=mock_context,
                         category_tree_id="0",
                         q="phone"
                     )
                     
-                    data = assert_api_response_success(result)
+                    data = assert_api_response_success(response)
                     
                     assert len(data["data"]["categorySuggestions"]) == 2
                     assert data["data"]["categorySuggestions"][0]["categoryId"] == "9355"
@@ -319,13 +350,13 @@ class TestTaxonomyApi(BaseApiTest):
         """Test getting expired categories."""
         if self.is_integration_mode:
             # Integration test
-            result = await get_expired_categories.fn(
+            response = await get_expired_categories.fn(
                 ctx=mock_context,
                 category_tree_id="0",
                 marketplace_id=MarketplaceIdEnum.EBAY_US
             )
             
-            data = assert_api_response_success(result)
+            data = assert_api_response_success(response)
             
             # Should have expiredCategories array (may be empty)
             validate_field(data["data"], "expiredCategories", list)
@@ -340,25 +371,28 @@ class TestTaxonomyApi(BaseApiTest):
             with patch('tools.taxonomy_api.EbayRestClient') as MockClient:
                 mock_client = MockClient.return_value
                 mock_client.get = AsyncMock(return_value={
-                    "expiredCategories": [
-                        {
-                            "fromCategoryId": "12345",
-                            "toCategoryId": "67890"
-                        }
-                    ]
+                    "body": {
+                        "expiredCategories": [
+                            {
+                                "fromCategoryId": "12345",
+                                "toCategoryId": "67890"
+                            }
+                        ]
+                    },
+                    "headers": {}
                 })
                 mock_client.close = AsyncMock()
                 
                 with patch('tools.taxonomy_api.mcp.config.app_id', mock_credentials["app_id"]), \
                      patch('tools.taxonomy_api.mcp.config.cert_id', mock_credentials["cert_id"]):
                     
-                    result = await get_expired_categories.fn(
+                    response = await get_expired_categories.fn(
                         ctx=mock_context,
                         category_tree_id="0",
                         marketplace_id=MarketplaceIdEnum.EBAY_US
                     )
                     
-                    data = assert_api_response_success(result)
+                    data = assert_api_response_success(response)
                     
                     assert len(data["data"]["expiredCategories"]) == 1
                     assert data["data"]["expiredCategories"][0]["fromCategoryId"] == "12345"

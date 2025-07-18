@@ -13,7 +13,7 @@ from datetime import datetime
 from api.oauth import OAuthManager, OAuthConfig, OAuthScopes
 from api.rest_client import EbayRestClient, RestConfig
 from api.models import MarketplaceId
-from api.errors import EbayApiError
+from api.errors import EbayApiError, extract_ebay_error_details
 from data_types import success_response, error_response, ErrorCode
 from lootly_server import mcp
 
@@ -237,10 +237,11 @@ async def _search_trending_items(
             "/buy/browse/v1/item_summary/search",
             params=params
         )
+        response_body = response["body"]
         
         # Parse response
         items = []
-        for item_summary in response.get("itemSummaries", []):
+        for item_summary in response_body.get("itemSummaries", []):
             try:
                 # Convert to standardized format
                 item = _convert_trending_item(item_summary)

@@ -38,11 +38,12 @@ class TestMarketingApi(BaseApiTest):
         if not self.is_integration_mode:
             pytest.skip("Infrastructure validation only runs in integration mode")
         
-        from tools.browse_api import search_items
+        from tools.browse_api import search_items, BrowseSearchInput
         print("Testing integration infrastructure with Browse API...")
         print("This API uses basic scope (no user consent required)")
         
-        result = await search_items.fn(ctx=mock_context, query="test", limit=1)
+        search_input = BrowseSearchInput(query="test", limit=1)
+        result = await search_items.fn(ctx=mock_context, search_input=search_input)
         response = json.loads(result)
         
         if response["status"] == "error":
@@ -171,7 +172,9 @@ class TestMarketingApi(BaseApiTest):
         """Test getting merchandised products for a category."""
         if self.is_integration_mode:
             # Integration test - use sandbox test category
-            print(f"\\nTesting real API call to eBay Marketing API...")
+            from lootly_server import mcp
+            environment = "sandbox" if mcp.config.sandbox_mode else "production"
+            print(f"\\nTesting real API call to eBay Marketing API in {environment} environment...")
             print(f"Category: 9355 (Cell Phones), Limit: 10")
             
             result = await get_merchandised_products.fn(
@@ -179,21 +182,36 @@ class TestMarketingApi(BaseApiTest):
                 category_id="9355",  # Required test category for sandbox
                 limit=10
             )
-            
-            # Parse response
             response = json.loads(result)
+            
             print(f"API Response status: {response['status']}")
             
             if response["status"] == "error":
                 error_code = response.get("error_code")
                 error_msg = response.get("error_message", "")
                 details = response.get("details", {})
+                status_code = details.get("status_code")
                 
-                # May fail with sandbox limitations
-                if error_code in ["VALIDATION_ERROR", "NOT_FOUND", "EXTERNAL_API_ERROR"]:
-                    print(f"Expected: Sandbox limitations - {error_msg}")
-                else:
-                    pytest.fail(f"Unexpected error - {error_code}: {error_msg}\\nDetails: {details}")
+                # Check if we're in sandbox mode
+                from lootly_server import mcp
+                is_sandbox = mcp.config.sandbox_mode
+                
+                # Only skip for known sandbox limitations when actually in sandbox mode
+                if is_sandbox:
+                    # Known sandbox limitations for merchandised products
+                    if error_code == "VALIDATION_ERROR" and "category" in error_msg.lower():
+                        pytest.skip(f"Known eBay sandbox limitation: {error_msg}")
+                    elif error_code == "NOT_FOUND":
+                        pytest.skip("Known eBay sandbox limitation: No merchandised products data in sandbox")
+                    elif error_code == "EXTERNAL_API_ERROR" and status_code in [403, 404, 500]:
+                        # 403 Access denied is common in sandbox for marketing APIs
+                        if status_code == 403:
+                            pytest.skip("Known eBay sandbox limitation: Marketing API access denied (HTTP 403) - insufficient permissions in sandbox")
+                        else:
+                            pytest.skip(f"Known eBay sandbox limitation: Marketing API returns HTTP {status_code}")
+                
+                # For production or unexpected errors - fail the test
+                pytest.fail(f"Error from merchandised products API: {error_code} - {error_msg}\nDetails: {json.dumps(details, indent=2)}")
             else:
                 # Validate response structure
                 data = response["data"]
@@ -217,7 +235,10 @@ class TestMarketingApi(BaseApiTest):
             # Unit test - mocked response
             with patch('tools.marketing_api.EbayRestClient') as MockClient:
                 mock_client = MockClient.return_value
-                mock_client.get = AsyncMock(return_value=TestDataGood.MERCHANDISED_PRODUCTS_RESPONSE)
+                mock_client.get = AsyncMock(return_value={
+                    "body": TestDataGood.MERCHANDISED_PRODUCTS_RESPONSE,
+                    "headers": {}
+                })
                 mock_client.close = AsyncMock()
                 
                 with patch('tools.marketing_api.mcp.config.app_id', mock_credentials["app_id"]), \
@@ -256,7 +277,10 @@ class TestMarketingApi(BaseApiTest):
             with patch('tools.marketing_api.EbayRestClient') as MockClient:
                 mock_client = MockClient.return_value
                 mock_client.get = AsyncMock(return_value={
-                    "merchandisedProducts": []  # Empty result
+                    "body": {
+                        "merchandisedProducts": []  # Empty result
+                    },
+                    "headers": {}
                 })
                 mock_client.close = AsyncMock()
                 

@@ -19,7 +19,7 @@ from datetime import datetime, timezone
 
 from api.oauth import OAuthManager, OAuthConfig, ConsentRequiredException
 from api.rest_client import EbayRestClient, RestConfig
-from api.errors import EbayApiError
+from api.errors import EbayApiError, extract_ebay_error_details
 from api.ebay_enums import (
     MarketplaceIdEnum,
     CategoryTypeEnum,
@@ -339,11 +339,12 @@ async def create_payment_policy(
             "/sell/account/v1/payment_policy",
             json=policy_data
         )
+        response_body = response["body"]
         
         await ctx.report_progress(0.8, "Processing response...")
         
         # Format response
-        formatted_response = _format_policy_response(response)
+        formatted_response = _format_policy_response(response_body)
         
         await ctx.report_progress(1.0, "Complete")
         await ctx.info(f"Payment policy created successfully with ID: {formatted_response['policy_id']}")
@@ -353,12 +354,6 @@ async def create_payment_policy(
             message=f"Payment policy '{policy_input.name}' created successfully"
         ).to_json_string()
         
-    except ConsentRequiredException as e:
-        await ctx.error(f"User consent required: {str(e)}")
-        return error_response(
-            ErrorCode.AUTHENTICATION_ERROR,
-            "User consent required. Use initiate_user_consent tool to authorize eBay API access."
-        ).to_json_string()
     except ConsentRequiredException as e:
         await ctx.error(f"User consent required: {str(e)}")
         return error_response(
@@ -456,20 +451,21 @@ async def get_payment_policies(
             "/sell/account/v1/payment_policy",
             params=params
         )
+        response_body = response["body"]
         
         await ctx.report_progress(0.8, "Processing policies...")
         
         # Format response
         policies = []
-        for policy in response.get("paymentPolicies", []):
+        for policy in response_body.get("paymentPolicies", []):
             policies.append(_format_policy_response(policy))
         
         result = {
             "policies": policies,
-            "total": response.get("total", 0),
+            "total": response_body.get("total", 0),
             "limit": limit,
             "offset": offset,
-            "has_more": offset + len(policies) < response.get("total", 0)
+            "has_more": offset + len(policies) < response_body.get("total", 0)
         }
         
         await ctx.report_progress(1.0, "Complete")
@@ -560,11 +556,12 @@ async def get_payment_policy(
         response = await rest_client.get(
             f"/sell/account/v1/payment_policy/{payment_policy_id}"
         )
+        response_body = response["body"]
         
         await ctx.report_progress(0.8, "Processing policy...")
         
         # Format response
-        formatted_response = _format_policy_response(response)
+        formatted_response = _format_policy_response(response_body)
         
         await ctx.report_progress(1.0, "Complete")
         await ctx.info(f"Retrieved payment policy: {formatted_response.get('name', 'Unknown')}")
@@ -662,11 +659,12 @@ async def get_payment_policy_by_name(
             "/sell/account/v1/payment_policy/get_by_policy_name",
             params=params
         )
+        response_body = response["body"]
         
         await ctx.report_progress(0.8, "Processing policy...")
         
         # Format response
-        formatted_response = _format_policy_response(response)
+        formatted_response = _format_policy_response(response_body)
         
         await ctx.report_progress(1.0, "Complete")
         await ctx.info(f"Found payment policy: {name}")
@@ -772,11 +770,12 @@ async def update_payment_policy(
             f"/sell/account/v1/payment_policy/{payment_policy_id}",
             json=policy_data
         )
+        response_body = response["body"]
         
         await ctx.report_progress(0.8, "Processing response...")
         
         # Format response
-        formatted_response = _format_policy_response(response)
+        formatted_response = _format_policy_response(response_body)
         
         await ctx.report_progress(1.0, "Complete")
         await ctx.info(f"Payment policy updated successfully: {policy_input.name}")
