@@ -294,6 +294,23 @@ async def search_items(
             await ctx.info("📝 Parsing JSON search parameters...")
             data = json.loads(search_input)
             await ctx.info(f"🔍 DEBUG: JSON parsed successfully: {data}")
+            
+            # Convert JSON arrays to comma-separated strings (Claude sends arrays, we expect strings)
+            if 'conditions' in data and isinstance(data['conditions'], list):
+                logger.info(f"🔄 Converting conditions array {data['conditions']} to comma-separated string")
+                data['conditions'] = ','.join(str(x) for x in data['conditions'])
+                await ctx.info(f"🔄 Converted conditions to: {data['conditions']}")
+            
+            if 'sellers' in data and isinstance(data['sellers'], list):
+                logger.info(f"🔄 Converting sellers array {data['sellers']} to comma-separated string")
+                data['sellers'] = ','.join(str(x) for x in data['sellers'])
+                await ctx.info(f"🔄 Converted sellers to: {data['sellers']}")
+            
+            if 'category_ids' in data and isinstance(data['category_ids'], list):
+                logger.info(f"🔄 Converting category_ids array {data['category_ids']} to comma-separated string")
+                data['category_ids'] = ','.join(str(x) for x in data['category_ids'])
+                await ctx.info(f"🔄 Converted category_ids to: {data['category_ids']}")
+            
             parsed_input = BrowseSearchInput(**data)
             await ctx.info(f"🔍 DEBUG: BrowseSearchInput created successfully")
         elif isinstance(search_input, BrowseSearchInput):
