@@ -69,10 +69,9 @@ def create_lootly_server():
     import tools.inventory_item_api  # Inventory Item API for managing product inventory
     
     # Resources
-    import resources.categories
     import resources.shipping
-    import resources.policies
-    import resources.trends
+    import resources.policy_templates
+    import resources.market_guidance
     
     # Prompts
     import prompts.search_assistant
