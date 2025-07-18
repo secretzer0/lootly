@@ -204,8 +204,13 @@ def _open_browser(url: str) -> bool:
         return False
     
     try:
-        return webbrowser.open(url)
-    except Exception:
+        # Try to open browser with new=2 to open in a new tab if possible
+        # This is more likely to succeed in various environments
+        result = webbrowser.open(url, new=2)
+        logger.debug(f"Browser open attempt returned: {result}")
+        return result
+    except Exception as e:
+        logger.warning(f"Failed to open browser: {str(e)}")
         return False
 
 

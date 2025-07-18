@@ -143,22 +143,30 @@ async def initiate_user_consent(ctx: Context) -> str:
         await ctx.info("  5. Use complete_user_consent tool with that URL")
         
         # Create urgent action message for Claude
+        # IMPORTANT: Keep the URL on a single line to prevent line wrapping issues
         urgent_message = (
             "🚨 ACTION REQUIRED: OAuth Authorization Needed\n\n"
             f"{'✅ Browser opened! Please check your browser window.' if result['browser_opened'] else '❌ Could not open browser automatically.'}\n\n"
             "YOU MUST NOW:\n"
-            "1. Open this URL in your browser (if not already open):\n"
-            f"   {result['auth_url']}\n\n"
+            "1. Copy and open this URL in your browser:\n\n"
+            f"{result['auth_url']}\n\n"
             "2. Log in to your eBay account\n"
             "3. Grant the requested permissions\n"
             "4. After granting permissions, copy the ENTIRE URL from your browser's address bar\n"
             "5. IMMEDIATELY use the 'complete_user_consent' tool with that URL\n\n"
-            "⏰ This authorization expires in 5 minutes!"
+            "⏰ This authorization expires in 5 minutes!\n\n"
+            "NOTE: The authorization URL above is on a single line - copy the entire URL even if it appears wrapped in your terminal."
         )
+        
+        # Also create a compact URL display for easier copying
+        # Break down the URL into base and parameters for display
+        url_parts = result["auth_url"].split('?', 1)
+        base_url = url_parts[0]
         
         return success_response(
             data={
                 "authorization_url": result["auth_url"],
+                "authorization_url_base": base_url,
                 "browser_opened": result["browser_opened"],
                 "state": result["state"],
                 "redirect_uri": result["redirect_uri"],
@@ -166,7 +174,8 @@ async def initiate_user_consent(ctx: Context) -> str:
                 "expires_in": 300,  # URL expires in 5 minutes
                 "environment": "sandbox" if mcp.config.sandbox_mode else "production",
                 "next_step": "IMMEDIATELY copy the callback URL from your browser and use complete_user_consent tool",
-                "urgent_action": urgent_message
+                "urgent_action": urgent_message,
+                "copy_tip": f"TIP: If the URL is hard to copy, try selecting from '{base_url}' to the end of the line"
             },
             message=urgent_message
         ).to_json_string()
