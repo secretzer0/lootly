@@ -15,9 +15,6 @@ from typing import Optional, Dict, Any, Union
 from decimal import Decimal
 import decimal
 import json
-import logging
-import os
-from datetime import datetime
 from fastmcp import Context
 from pydantic import BaseModel, Field, field_validator, ConfigDict, ValidationError
 
@@ -26,6 +23,7 @@ from api.rest_client import EbayRestClient, RestConfig
 from api.errors import EbayApiError, extract_ebay_error_details
 from data_types import success_response, error_response, ErrorCode
 from lootly_server import mcp
+from utils.claude_input_converter import preprocess_claude_json, COMMON_FIELD_SPECS, ConversionError
 
 
 # PYDANTIC MODELS - API Documentation → Pydantic Models → MCP Tools
@@ -57,7 +55,7 @@ class BrowseSearchInput(BaseModel):
         if isinstance(v, str):
             try:
                 return Decimal(v)
-            except (ValueError, decimal.InvalidOperation) as e:
+            except (ValueError, decimal.InvalidOperation):
                 raise ValueError(f"Invalid decimal value: {v}")
         return v
     
@@ -119,7 +117,7 @@ class CategoryBrowseInput(BaseModel):
         if isinstance(v, str):
             try:
                 return Decimal(v)
-            except (ValueError, decimal.InvalidOperation) as e:
+            except (ValueError, decimal.InvalidOperation):
                 raise ValueError(f"Invalid decimal value: {v}")
         return v
     
@@ -270,60 +268,44 @@ async def search_items(
     Returns:
         JSON response with search results and pagination info
     """
-    # Setup file logging for debugging
-    log_file = "/tmp/ebay_mcp_debug.log"
-    logging.basicConfig(
-        filename=log_file,
-        level=logging.DEBUG,
-        format='%(asctime)s - %(levelname)s - %(message)s',
-        filemode='a'
-    )
-    logger = logging.getLogger(__name__)
+    
+    # Define field specs for this tool
+    field_specs = {
+        'conditions': COMMON_FIELD_SPECS['conditions'],
+        'sellers': COMMON_FIELD_SPECS['sellers'],
+        'category_ids': COMMON_FIELD_SPECS['category_ids'],
+    }
     
     # Parse input - handles both JSON strings (from Claude) and Pydantic objects (from tests)
-    logger.info(f"=== search_items CALLED at {datetime.now()} ===")
-    logger.info(f"🔍 Input type: {type(search_input)}")
-    logger.info(f"🔍 Input value: {str(search_input)[:500]}")
-    
-    await ctx.info(f"🔍 DEBUG: search_items called with input type: {type(search_input)}")
-    await ctx.info(f"🔍 DEBUG: search_input value: {str(search_input)[:200]}...")
     
     parsed_input = None
     try:
         if isinstance(search_input, str):
-            await ctx.info("📝 Parsing JSON search parameters...")
-            data = json.loads(search_input)
-            await ctx.info(f"🔍 DEBUG: JSON parsed successfully: {data}")
+            await ctx.info("Parsing JSON search parameters...")
+            raw_data = json.loads(search_input)
             
-            # Convert JSON arrays to comma-separated strings (Claude sends arrays, we expect strings)
-            if 'conditions' in data and isinstance(data['conditions'], list):
-                logger.info(f"🔄 Converting conditions array {data['conditions']} to comma-separated string")
-                data['conditions'] = ','.join(str(x) for x in data['conditions'])
-                await ctx.info(f"🔄 Converted conditions to: {data['conditions']}")
+            # Preprocess Claude's input formats
+            processed_data = preprocess_claude_json(raw_data, field_specs)
             
-            if 'sellers' in data and isinstance(data['sellers'], list):
-                logger.info(f"🔄 Converting sellers array {data['sellers']} to comma-separated string")
-                data['sellers'] = ','.join(str(x) for x in data['sellers'])
-                await ctx.info(f"🔄 Converted sellers to: {data['sellers']}")
-            
-            if 'category_ids' in data and isinstance(data['category_ids'], list):
-                logger.info(f"🔄 Converting category_ids array {data['category_ids']} to comma-separated string")
-                data['category_ids'] = ','.join(str(x) for x in data['category_ids'])
-                await ctx.info(f"🔄 Converted category_ids to: {data['category_ids']}")
-            
-            parsed_input = BrowseSearchInput(**data)
-            await ctx.info(f"🔍 DEBUG: BrowseSearchInput created successfully")
+            # Create Pydantic object
+            parsed_input = BrowseSearchInput(**processed_data)
         elif isinstance(search_input, BrowseSearchInput):
-            await ctx.info("📝 Using existing BrowseSearchInput object")
             parsed_input = search_input
         else:
-            await ctx.error(f"❌ Invalid input type: {type(search_input)}")
+            await ctx.error(f"Invalid input type: {type(search_input)}")
             raise ValueError(f"Expected JSON string or BrowseSearchInput object, got {type(search_input)}")
     except json.JSONDecodeError as e:
         await ctx.error(f"Invalid JSON in search_input: {str(e)}")
         return error_response(
             ErrorCode.VALIDATION_ERROR,
             f"Invalid JSON in search_input: {str(e)}. Please provide valid JSON with search parameters."
+        ).to_json_string()
+        
+    except ConversionError as e:
+        await ctx.error(f"Input conversion failed: {str(e)}")
+        return error_response(
+            ErrorCode.VALIDATION_ERROR,
+            f"Input conversion failed: {str(e)}"
         ).to_json_string()
     except ValidationError as e:
         await ctx.error(f"Invalid search parameters: {str(e)}")
@@ -349,8 +331,6 @@ async def search_items(
     
     # Store query as string to avoid serialization issues with Decimal fields
     query_string = parsed_input.query
-    await ctx.info(f"🔍 DEBUG: About to search eBay for: {query_string}")
-    await ctx.info(f"🔍 DEBUG: parsed_input.price_max = {parsed_input.price_max} (type: {type(parsed_input.price_max)})")
     await ctx.report_progress(0.1, "Validating search parameters...")
     
     # Pydantic validation already handled - no manual validation needed!
@@ -380,21 +360,14 @@ async def search_items(
         await ctx.report_progress(0.3, "Searching eBay marketplace...")
         
         # Convert Pydantic model to API parameters
-        logger.info(f"🔍 About to build search params")
-        await ctx.info(f"🔍 DEBUG: About to build search params")
         params = _build_search_params(parsed_input)
-        logger.info(f"🔍 Search params built: {params}")
-        await ctx.info(f"🔍 DEBUG: Search params built: {params}")
         
         # Make API request - Browse API uses client credentials with api_scope
-        logger.info(f"🔍 About to make eBay API call")
         response = await rest_client.get(
             "/buy/browse/v1/item_summary/search",
             params=params
         )
-        logger.info(f"🔍 eBay API call completed")
         response_body = response["body"]
-        logger.info(f"🔍 Response body extracted, has {len(response_body.get('itemSummaries', []))} items")
         
         await ctx.report_progress(0.8, "Processing search results...")
         
@@ -404,15 +377,10 @@ async def search_items(
         await ctx.report_progress(1.0, "Complete")
         await ctx.info(f"Found {formatted_response['total']} items, returning {len(formatted_response['items'])}")
         
-        await ctx.info(f"🔍 DEBUG: About to create success response")
-        response_obj = success_response(
+        return success_response(
             data=formatted_response,
             message=f"Successfully searched for '{query_string}'"
-        )
-        await ctx.info(f"🔍 DEBUG: Success response object created")
-        json_result = response_obj.to_json_string()
-        await ctx.info(f"🔍 DEBUG: JSON serialization successful, length: {len(json_result)}")
-        return json_result
+        ).to_json_string()
         
     except EbayApiError as e:
         # Log comprehensive error details
