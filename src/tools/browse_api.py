@@ -257,13 +257,23 @@ async def search_items(
     except ValidationError as e:
         await ctx.error(f"Invalid search parameters: {str(e)}")
         error_details = []
+        # Create a serializable version of validation errors
+        # IMPORTANT: Exclude 'ctx' field which contains non-serializable ValueError objects
+        serializable_errors = []
         for error in e.errors():
             field = " -> ".join(str(x) for x in error["loc"])
             error_details.append(f"{field}: {error['msg']}")
+            # Only include serializable fields, excluding 'ctx' which has ValueError object
+            serializable_errors.append({
+                "field": field,
+                "message": error["msg"],
+                "type": error.get("type", "validation_error"),
+                "input": error.get("input", "")
+            })
         return error_response(
             ErrorCode.VALIDATION_ERROR,
             f"Invalid search parameters: {'; '.join(error_details)}",
-            {"validation_errors": e.errors(), "required_fields": ["query"]}
+            {"validation_errors": serializable_errors, "required_fields": ["query"]}
         ).to_json_string()
     
     await ctx.info(f"Searching eBay for: {search_input.query}")
@@ -341,7 +351,7 @@ async def search_items(
 @mcp.tool
 async def get_item_details(
     ctx: Context,
-    details_input: ItemDetailsInput
+    details_input: Union[str, ItemDetailsInput]
 ) -> str:
     """
     Get detailed information about a specific eBay item.
@@ -350,16 +360,50 @@ async def get_item_details(
     seller information, and current status.
     
     Args:
-        details_input: Item details request configuration
+        details_input: Either a JSON string or ItemDetailsInput object with item details
         ctx: MCP context
     
     Returns:
         JSON response with complete item details
     """
+    # Parse input - handles both JSON strings (from Claude) and Pydantic objects (from tests)
+    try:
+        if isinstance(details_input, str):
+            await ctx.info("Parsing JSON item details parameters...")
+            data = json.loads(details_input)
+            details_input = ItemDetailsInput(**data)
+        elif not isinstance(details_input, ItemDetailsInput):
+            raise ValueError(f"Expected JSON string or ItemDetailsInput object, got {type(details_input)}")
+    except json.JSONDecodeError as e:
+        await ctx.error(f"Invalid JSON in details_input: {str(e)}")
+        return error_response(
+            ErrorCode.VALIDATION_ERROR,
+            f"Invalid JSON in details_input: {str(e)}. Please provide valid JSON with item details."
+        ).to_json_string()
+    except ValidationError as e:
+        await ctx.error(f"Invalid item details parameters: {str(e)}")
+        error_details = []
+        # Create a serializable version of validation errors
+        # IMPORTANT: Exclude 'ctx' field which contains non-serializable ValueError objects
+        serializable_errors = []
+        for error in e.errors():
+            field = " -> ".join(str(x) for x in error["loc"])
+            error_details.append(f"{field}: {error['msg']}")
+            # Only include serializable fields, excluding 'ctx' which has ValueError object
+            serializable_errors.append({
+                "field": field,
+                "message": error["msg"],
+                "type": error.get("type", "validation_error"),
+                "input": error.get("input", "")
+            })
+        return error_response(
+            ErrorCode.VALIDATION_ERROR,
+            f"Invalid item details parameters: {'; '.join(error_details)}",
+            {"validation_errors": serializable_errors, "required_fields": ["item_id"]}
+        ).to_json_string()
+    
     await ctx.info(f"Getting details for item: {details_input.item_id}")
     await ctx.report_progress(0.1, "Validating item request...")
-    
-    # Pydantic validation already handled - no manual validation needed!
     
     # Check credentials
     if not mcp.config.app_id or not mcp.config.cert_id:
@@ -443,7 +487,7 @@ async def get_item_details(
 @mcp.tool
 async def get_items_by_category(
     ctx: Context,
-    category_input: CategoryBrowseInput
+    category_input: Union[str, CategoryBrowseInput]
 ) -> str:
     """
     Browse items within a specific eBay category.
@@ -452,16 +496,50 @@ async def get_items_by_category(
     Useful for browsing category listings.
     
     Args:
-        category_input: Category browsing configuration
+        category_input: Either a JSON string or CategoryBrowseInput object with category parameters
         ctx: MCP context
     
     Returns:
         JSON response with items from the category
     """
+    # Parse input - handles both JSON strings (from Claude) and Pydantic objects (from tests)
+    try:
+        if isinstance(category_input, str):
+            await ctx.info("Parsing JSON category browse parameters...")
+            data = json.loads(category_input)
+            category_input = CategoryBrowseInput(**data)
+        elif not isinstance(category_input, CategoryBrowseInput):
+            raise ValueError(f"Expected JSON string or CategoryBrowseInput object, got {type(category_input)}")
+    except json.JSONDecodeError as e:
+        await ctx.error(f"Invalid JSON in category_input: {str(e)}")
+        return error_response(
+            ErrorCode.VALIDATION_ERROR,
+            f"Invalid JSON in category_input: {str(e)}. Please provide valid JSON with category parameters."
+        ).to_json_string()
+    except ValidationError as e:
+        await ctx.error(f"Invalid category browse parameters: {str(e)}")
+        error_details = []
+        # Create a serializable version of validation errors
+        # IMPORTANT: Exclude 'ctx' field which contains non-serializable ValueError objects
+        serializable_errors = []
+        for error in e.errors():
+            field = " -> ".join(str(x) for x in error["loc"])
+            error_details.append(f"{field}: {error['msg']}")
+            # Only include serializable fields, excluding 'ctx' which has ValueError object
+            serializable_errors.append({
+                "field": field,
+                "message": error["msg"],
+                "type": error.get("type", "validation_error"),
+                "input": error.get("input", "")
+            })
+        return error_response(
+            ErrorCode.VALIDATION_ERROR,
+            f"Invalid category browse parameters: {'; '.join(error_details)}",
+            {"validation_errors": serializable_errors, "required_fields": ["category_id"]}
+        ).to_json_string()
+    
     await ctx.info(f"Browsing category: {category_input.category_id}")
     await ctx.report_progress(0.1, "Validating category request...")
-    
-    # Pydantic validation already handled - no manual validation needed!
     
     # Check credentials
     if not mcp.config.app_id or not mcp.config.cert_id:
