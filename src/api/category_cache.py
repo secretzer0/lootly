@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 async def get_category_tree_json(
-    oauth_manager: OAuthManager,
+    oauth_manager: OAuthManager,  # noqa: ARG001
     rest_client: EbayRestClient,
     category_tree_id: str,
     force_refresh: bool = False

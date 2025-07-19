@@ -88,7 +88,7 @@ SELLER_POLICIES = {
 
 
 @mcp.resource("ebay://policies")
-async def ebay_all_policies_resource(ctx: Context) -> str:
+async def ebay_all_policies_resource(ctx: Context) -> str:  # noqa: ARG001
     """Get all eBay seller policy templates."""
     try:
         return MCPResourceData(
@@ -124,7 +124,7 @@ async def ebay_all_policies_resource(ctx: Context) -> str:
 
 
 @mcp.resource("ebay://policies/return")
-async def ebay_return_policies_resource(ctx: Context) -> str:
+async def ebay_return_policies_resource(ctx: Context) -> str:  # noqa: ARG001
     """Get return policy templates."""
     try:
         return MCPResourceData(
@@ -155,7 +155,7 @@ async def ebay_return_policies_resource(ctx: Context) -> str:
 
 
 @mcp.resource("ebay://policies/shipping")
-async def ebay_shipping_policies_resource(ctx: Context) -> str:
+async def ebay_shipping_policies_resource(ctx: Context) -> str:  # noqa: ARG001
     """Get shipping policy templates."""
     try:
         return MCPResourceData(
@@ -187,7 +187,7 @@ async def ebay_shipping_policies_resource(ctx: Context) -> str:
 
 
 @mcp.resource("ebay://policies/payment")
-async def ebay_payment_policies_resource(ctx: Context) -> str:
+async def ebay_payment_policies_resource(ctx: Context) -> str:  # noqa: ARG001
     """Get payment policy information."""
     try:
         return MCPResourceData(

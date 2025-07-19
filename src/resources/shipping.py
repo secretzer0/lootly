@@ -169,7 +169,7 @@ SHIPPING_SERVICES = {
 
 
 @mcp.resource("ebay://shipping/rates")
-async def ebay_all_shipping_rates_resource(ctx: Context) -> str:
+async def ebay_all_shipping_rates_resource(ctx: Context) -> str:  # noqa: ARG001
     """Get all eBay shipping rate information."""
     try:
         return MCPResourceData(
@@ -221,7 +221,7 @@ async def ebay_all_shipping_rates_resource(ctx: Context) -> str:
 
 
 @mcp.resource("ebay://shipping/rates/domestic")
-async def ebay_domestic_shipping_rates_resource(ctx: Context) -> str:
+async def ebay_domestic_shipping_rates_resource(ctx: Context) -> str:  # noqa: ARG001
     """Get domestic shipping rate information."""
     try:
         return MCPResourceData(
@@ -254,7 +254,7 @@ async def ebay_domestic_shipping_rates_resource(ctx: Context) -> str:
 
 
 @mcp.resource("ebay://shipping/rates/international")
-async def ebay_international_shipping_rates_resource(ctx: Context) -> str:
+async def ebay_international_shipping_rates_resource(ctx: Context) -> str:  # noqa: ARG001
     """Get international shipping rate information."""
     try:
         return MCPResourceData(
@@ -292,7 +292,7 @@ async def ebay_international_shipping_rates_resource(ctx: Context) -> str:
 
 
 @mcp.resource("ebay://shipping/rates/domestic/{carrier}")
-async def ebay_carrier_specific_rates_resource(carrier: str, ctx: Context) -> str:
+async def ebay_carrier_specific_rates_resource(carrier: str, ctx: Context) -> str:  # noqa: ARG001
     """Get shipping rates for a specific carrier."""
     try:
         carrier_upper = carrier.upper()

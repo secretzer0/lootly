@@ -120,7 +120,7 @@ def _setup_standard_logging(level: str, service_name: str) -> logging.Logger:
 def _add_service_info(service_name: str, version: str):
     """Add service information to structured logs."""
 
-    def processor(logger, method_name, event_dict):
+    def processor(logger, method_name, event_dict):  # noqa: ARG001
         event_dict["service"] = service_name
         event_dict["version"] = version
         return event_dict

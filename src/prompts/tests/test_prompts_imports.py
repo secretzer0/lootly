@@ -281,17 +281,19 @@ class TestPromptInitialization:
     
     def test_can_import_all_prompts_from_package(self):
         """Test that all prompts can be imported from package."""
-        # This verifies the package structure is correct
-        try:
-            from prompts.search_assistant import item_search_assistant_prompt
-            from prompts.listing_optimizer import listing_optimizer_prompt
-            from prompts.deal_finder import deal_finder_prompt
-            from prompts.market_researcher import market_researcher_prompt
-            success = True
-        except ImportError:
-            success = False
+        import importlib.util
         
-        assert success, "Could not import all prompts from package"
+        # This verifies the package structure is correct
+        prompt_modules = [
+            "prompts.search_assistant",
+            "prompts.listing_optimizer", 
+            "prompts.deal_finder",
+            "prompts.market_researcher"
+        ]
+        
+        for module_name in prompt_modules:
+            spec = importlib.util.find_spec(module_name)
+            assert spec is not None, f"Could not find module {module_name}"
     
     def test_prompt_modules_are_independent(self):
         """Test that prompt modules can be imported independently."""

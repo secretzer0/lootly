@@ -221,7 +221,7 @@ def _get_current_actionable_insights() -> List[Dict[str, str]]:
     return insights
 
 
-async def get_trends_from_api(trend_type: Optional[str] = None) -> Optional[Dict[str, Any]]:
+async def get_trends_from_api(trend_type: Optional[str] = None) -> Optional[Dict[str, Any]]:  # noqa: ARG001
     """Try to get trend data from eBay API.
     
     Returns None if API is not available or credentials are missing.
@@ -232,7 +232,7 @@ async def get_trends_from_api(trend_type: Optional[str] = None) -> Optional[Dict
 
 
 @mcp.resource("ebay://market/trends")
-async def ebay_all_market_trends_resource(ctx: Context) -> str:
+async def ebay_all_market_trends_resource(ctx: Context) -> str:  # noqa: ARG001
     """Get comprehensive eBay market trend analysis."""
     try:
         current_quarter = _get_current_season().replace("_", " ")
@@ -268,7 +268,7 @@ async def ebay_all_market_trends_resource(ctx: Context) -> str:
 
 
 @mcp.resource("ebay://market/trends/seasonal")
-async def ebay_seasonal_trends_resource(ctx: Context) -> str:
+async def ebay_seasonal_trends_resource(ctx: Context) -> str:  # noqa: ARG001
     """Get seasonal market trends."""
     try:
         current_season = _get_current_season()
@@ -298,7 +298,7 @@ async def ebay_seasonal_trends_resource(ctx: Context) -> str:
 
 
 @mcp.resource("ebay://market/trends/categories")
-async def ebay_category_trends_resource(ctx: Context) -> str:
+async def ebay_category_trends_resource(ctx: Context) -> str:  # noqa: ARG001
     """Get category-specific market trends."""
     try:
         return MCPResourceData(
@@ -336,7 +336,7 @@ async def ebay_category_trends_resource(ctx: Context) -> str:
 
 
 @mcp.resource("ebay://market/trends/pricing")
-async def ebay_pricing_trends_resource(ctx: Context) -> str:
+async def ebay_pricing_trends_resource(ctx: Context) -> str:  # noqa: ARG001
     """Get pricing trend analysis."""
     try:
         return MCPResourceData(
@@ -369,7 +369,7 @@ async def ebay_pricing_trends_resource(ctx: Context) -> str:
 
 
 @mcp.resource("ebay://market/trends/opportunities")
-async def ebay_market_opportunities_resource(ctx: Context) -> str:
+async def ebay_market_opportunities_resource(ctx: Context) -> str:  # noqa: ARG001
     """Get market opportunities and gaps."""
     try:
         return MCPResourceData(

@@ -64,7 +64,7 @@ class TestOAuthEnhancements:
             # Create counter to track calls
             call_count = 0
             
-            def mock_post(*args, **kwargs):
+            def mock_post(*_args, **_kwargs):
                 nonlocal call_count
                 call_count += 1
                 if call_count == 1:
@@ -95,7 +95,7 @@ class TestOAuthEnhancements:
             mock_session.__aexit__ = AsyncMock(return_value=None)
             mock_session_class.return_value = mock_session
             
-            def mock_post(*args, **kwargs):
+            def mock_post(*_args, **_kwargs):
                 raise Exception("Network error")
             
             mock_session.post = MagicMock(side_effect=mock_post)
@@ -118,7 +118,7 @@ class TestOAuthEnhancements:
             mock_session.__aexit__ = AsyncMock(return_value=None)
             mock_session_class.return_value = mock_session
             
-            def mock_post(*args, **kwargs):
+            def mock_post(*_args, **_kwargs):
                 raise Exception("Network error")
             
             mock_session.post = MagicMock(side_effect=mock_post)
