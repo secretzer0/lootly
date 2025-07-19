@@ -11,9 +11,11 @@ from api.oauth import OAuthManager, OAuthConfig
 from api.rest_client import EbayRestClient, RestConfig
 from api.errors import EbayApiError
 from models.marketplace import (
-    ConditionID, BuyingOption, DeliveryOption, PriceCurrency, 
-    SellerAccountType, ItemLocationRegion, QualifiedProgram, ItemSalesSearchInput
+    BuyingOption, DeliveryOption, PriceCurrency, 
+    SellerAccountType, ItemLocationRegion, QualifiedProgram
 )
+from models.browse import ItemSalesSearchInput
+from models.enums import ConditionEnum
 from data_types import success_response, error_response, ErrorCode
 from lootly_server import mcp
 
@@ -30,9 +32,9 @@ class FilterBuilder:
         """Add price range filter."""
         if min_price is not None or max_price is not None:
             price_filter = f"price:[{min_price or '*'}..{max_price or '*'}]"
-            if currency:
-                price_filter += f";currency:{currency}"
             self.filters.append(price_filter)
+            if currency:
+                self.filters.append(f"priceCurrency:{currency}")
     
     def add_item_location_country(self, country):
         """Add item location country filter."""
@@ -111,20 +113,58 @@ class FilterBuilder:
 
 def _convert_item_sale(sale_data: Dict[str, Any]) -> Dict[str, Any]:
     """Convert eBay item sale response for consistent output."""
+    # Extract price information
+    price_info = {}
+    if sale_data.get("itemPrice"):
+        price_data = sale_data["itemPrice"]
+        price_info = {
+            "value": float(price_data["value"]) if price_data.get("value") else None,
+            "currency": price_data.get("currency")
+        }
+    
+    # Extract seller information
+    seller_info = {}
+    if sale_data.get("seller"):
+        seller_data = sale_data["seller"]
+        seller_info = {
+            "username": seller_data.get("username"),
+            "feedbackPercentage": seller_data.get("feedbackPercentage"),
+            "feedbackScore": seller_data.get("feedbackScore")
+        }
+    
+    # Extract location information
+    location_info = {}
+    if sale_data.get("itemLocation"):
+        location_data = sale_data["itemLocation"]
+        location_info = {
+            "city": location_data.get("city"),
+            "state": location_data.get("stateOrProvince"),
+            "country": location_data.get("country"),
+            "postalCode": location_data.get("postalCode")
+        }
+    
+    # Extract image URLs
+    images = []
+    if sale_data.get("image") and sale_data["image"].get("imageUrl"):
+        images = [sale_data["image"]["imageUrl"]]
+    
     formatted = {
         "itemId": sale_data.get("itemId"),
-        "transactionId": sale_data.get("transactionId"),
-        "conditionId": sale_data.get("conditionId"),
-        "conditionDisplayName": sale_data.get("conditionDisplayName"),
-        "itemLocation": sale_data.get("itemLocation", {}),
-        "sellingState": sale_data.get("sellingState"),
-        "saleDate": sale_data.get("saleDate"),
-        "totalPrice": sale_data.get("totalPrice", {}),
-        "buyingOptions": sale_data.get("buyingOptions", []),
-        "seller": sale_data.get("seller", {}),
         "title": sale_data.get("title"),
-        "deliveryOptions": sale_data.get("deliveryOptions", []),
-        "qualifiedPrograms": sale_data.get("qualifiedPrograms", [])
+        "condition": sale_data.get("condition"),
+        "conditionId": sale_data.get("conditionId"),
+        "conditionName": sale_data.get("conditionDisplayName") or sale_data.get("condition"),
+        "soldDate": sale_data.get("itemSoldDate"),
+        "categoryId": sale_data.get("categoryId"),
+        "categoryPath": sale_data.get("categoryPath"),
+        "price": price_info if price_info else None,
+        "seller": seller_info if seller_info else None,
+        "buyingOption": sale_data.get("buyingOption"),
+        "quantitySold": sale_data.get("quantitySold", 1),
+        "itemLocation": location_info if location_info else None,
+        "itemUrl": sale_data.get("itemWebUrl"),
+        "epid": sale_data.get("epid"),
+        "images": images
     }
     
     # Clean up None values
@@ -137,7 +177,7 @@ async def build_marketplace_filter(
     price_min: Optional[str] = None,
     price_max: Optional[str] = None,
     price_currency: Optional[Union[PriceCurrency, str]] = None,
-    conditions: Optional[List[Union[ConditionID, str]]] = None,
+    conditions: Optional[List[Union[ConditionEnum, str]]] = None,
     buying_options: Optional[List[Union[BuyingOption, str]]] = None,
     delivery_options: Optional[List[Union[DeliveryOption, str]]] = None,
     item_location_country: Optional[str] = None,
@@ -179,8 +219,8 @@ async def build_marketplace_filter(
             - Or string values: "USD", "EUR", "GBP", "CAD", "AUD", "JPY", "CNY", "INR"
             - "MXN", "BRL", "CHF", "SEK", "NOK", "DKK", "PLN", "SGD"
             - "HKD", "NZD", "ZAR", "RUB"
-        conditions: List of item conditions. Use ConditionID enum or string:
-            - ConditionID.NEW, ConditionID.USED, ConditionID.VERY_GOOD, etc.
+        conditions: List of item conditions. Use ConditionEnum enum or string:
+            - ConditionEnum.NEW, ConditionEnum.USED, ConditionEnum.VERY_GOOD, etc.
             - Or condition IDs: "1000", "3000", "4000", etc.
             - Or human-readable names: "New", "Used", "Very Good", etc.
         buying_options: List of buying options. Use BuyingOption enum or string:
@@ -244,25 +284,17 @@ async def build_marketplace_filter(
         currency = price_currency.value if isinstance(price_currency, PriceCurrency) else (price_currency or "USD")
         fb.add_price_range(price_min, price_max, currency)
     
-    # Condition filter
+    # Condition filter - simple pass-through approach
     if conditions:
-        condition_ids = []
+        condition_values = []
         for cond in conditions:
-            if isinstance(cond, ConditionID):
-                condition_ids.append(cond.id)
-            elif cond in ConditionID.get_all_ids():
-                # Direct condition ID
-                condition_ids.append(cond)
+            if isinstance(cond, ConditionEnum):
+                condition_values.append(cond.value)
             else:
-                # Try to convert from human-readable name
-                cid = ConditionID.get_id(cond)
-                if cid:
-                    condition_ids.append(cid)
-                else:
-                    await ctx.warning(f"Unknown condition: {cond}. Valid IDs: {', '.join(ConditionID.get_all_ids())}")
+                condition_values.append(str(cond))
         
-        if condition_ids:
-            fb.add_condition_ids(condition_ids)
+        if condition_values:
+            fb.add_condition_ids(condition_values)
     
     # Buying options
     if buying_options:
@@ -274,8 +306,8 @@ async def build_marketplace_filter(
             else:
                 option_strings.append(opt)
         
-        # Validate buying options
-        valid_options = BuyingOption.get_all()
+        # Validate buying options  
+        valid_options = [t.value for t in BuyingOption]
         for opt in option_strings:
             if opt not in valid_options:
                 await ctx.warning(f"Unknown buying option: {opt}. Valid: {', '.join(valid_options)}")
@@ -292,7 +324,7 @@ async def build_marketplace_filter(
                 option_strings.append(opt)
         
         # Validate delivery options
-        valid_options = DeliveryOption.get_all()
+        valid_options = [t.value for t in DeliveryOption]
         for opt in option_strings:
             if opt not in valid_options:
                 await ctx.warning(f"Unknown delivery option: {opt}. Valid: {', '.join(valid_options)}")
@@ -331,7 +363,7 @@ async def build_marketplace_filter(
                 type_strings.append(account_type)
         
         # Validate seller account types
-        valid_types = SellerAccountType.get_all()
+        valid_types = [t.value for t in SellerAccountType]
         for account_type in type_strings:
             if account_type not in valid_types:
                 await ctx.warning(f"Unknown seller account type: {account_type}. Valid: {', '.join(valid_types)}")
@@ -365,21 +397,21 @@ async def build_marketplace_filter(
         return success_response(
             data={
                 "filter": "",
-                "filter_count": 0,
+                "filterCount": 0,
                 "description": "No filters applied"
             },
             message="Empty filter string (no filters specified)"
         ).to_json_string()
     
     # Parse filter for description
-    filter_parts = filter_string.split(",")
+    filter_parts = filter_string.split(";")
     
     await ctx.info(f"✅ Built filter with {len(filter_parts)} components")
     
     return success_response(
         data={
             "filter": filter_string,
-            "filter_count": len(filter_parts),
+            "filterCount": len(filter_parts),
             "components": filter_parts,
             "description": f"Filter with {len(filter_parts)} conditions"
         },
@@ -391,7 +423,7 @@ async def build_marketplace_filter(
 async def search_item_sales(
     ctx: Context,
     q: Optional[str] = None,
-    category_ids: Optional[str] = None,
+    categoryIds: Optional[str] = None,
     filter: Optional[str] = None,
     sort: Optional[str] = None,
     limit: int = 50,
@@ -414,7 +446,7 @@ async def search_item_sales(
     Search for historical sales data of items on eBay.
     
     Provides insights into sold items including prices, dates, and seller information.
-    At least one search criterion (q, category_ids, or filter) must be provided.
+    At least one search criterion (q, categoryIds, or filter) must be provided.
     
     TWO WAYS TO USE THIS TOOL:
     
@@ -431,7 +463,7 @@ async def search_item_sales(
         q: Keyword search query (e.g., "iphone 15", "vintage camera"). Max 100 chars.
            - Space-separated words are treated as OR
            - Comma-separated words are treated as AND
-        category_ids: Comma-separated category IDs (e.g., "9355,15032")
+        categoryIds: Comma-separated category IDs (e.g., "9355,15032")
         filter: Complex filter string - use build_marketplace_filter tool to create this
         sort: Sort order - "price" (ascending) or "-price" (descending). Default: Best Match
         limit: Number of results (1-200, default: 50)
@@ -476,7 +508,7 @@ async def search_item_sales(
     
     Examples:
         # Search for iPhone sales
-        search_item_sales(q="iphone 15", category_ids="9355", price_min=500)
+        search_item_sales(q="iphone 15", categoryIds="9355", price_min=500)
         
         # Search with complex filters
         search_item_sales(
@@ -505,7 +537,7 @@ async def search_item_sales(
             condition=["Used", "Very Good"]
         )
     """
-    await ctx.info(f"🔍 Searching item sales: q='{q}', categories={category_ids}")
+    await ctx.info(f"🔍 Searching item sales: q='{q}', categories={categoryIds}")
     await ctx.report_progress(0.1, "🛠️ Building filters...")
     
     # Build filter string from helper parameters if not provided
@@ -516,22 +548,23 @@ async def search_item_sales(
         if price_min is not None or price_max is not None:
             fb.add_price_range(price_min, price_max, price_currency)
         
-        # Condition filter
+        # Condition filter - use the ConditionEnum model properly
         if condition:
             if isinstance(condition, str):
                 condition = [condition]
-            # Convert condition names to IDs
-            condition_ids = []
-            for c in condition:
-                if c in ConditionID.get_all_ids():
-                    condition_ids.append(c)
+            
+            # Convert condition names to proper ConditionEnum values
+            condition_values = []
+            for cond in condition:
+                # Try to convert to ConditionEnum first
+                enum_val = ConditionEnum.from_string(str(cond))
+                if enum_val:
+                    condition_values.append(enum_val.value)
                 else:
-                    cid = ConditionID.get_id(c)
-                    if cid:
-                        condition_ids.append(cid)
-                    else:
-                        condition_ids.append(c)  # Keep original if not found
-            fb.add_condition_ids(condition_ids)
+                    # Pass through as-is if not found in enum
+                    condition_values.append(str(cond))
+            
+            fb.add_condition_ids(condition_values)
         
         # Buying options
         if buying_options:
@@ -570,7 +603,7 @@ async def search_item_sales(
     try:
         input_data = ItemSalesSearchInput(
             q=q,
-            category_ids=category_ids,
+            categoryIds=categoryIds,
             filter=filter,
             sort=sort,
             limit=limit,
@@ -646,12 +679,12 @@ async def search_item_sales(
             prices = [s["price"]["value"] for s in converted_sales if "price" in s]
             if prices:
                 stats = {
-                    "average_price": sum(prices) / len(prices),
-                    "min_price": min(prices),
-                    "max_price": max(prices),
-                    "median_price": sorted(prices)[len(prices) // 2],
-                    "total_items": len(converted_sales),
-                    "price_currency": converted_sales[0]["price"]["currency"] if converted_sales[0].get("price") else "USD"
+                    "averagePrice": sum(prices) / len(prices),
+                    "minPrice": min(prices),
+                    "maxPrice": max(prices),
+                    "medianPrice": sorted(prices)[len(prices) // 2],
+                    "totalItems": len(converted_sales),
+                    "priceCurrency": converted_sales[0]["price"]["currency"] if converted_sales[0].get("price") else "USD"
                 }
         
         await ctx.report_progress(1.0, "✅ Complete")
@@ -659,14 +692,14 @@ async def search_item_sales(
         
         return success_response(
             data={
-                "item_sales": converted_sales,
+                "itemSales": converted_sales,
                 "total": response_body.get("total", len(converted_sales)),
                 "limit": input_data.limit,
                 "offset": input_data.offset,
                 "statistics": stats,
-                "search_criteria": {
+                "searchCriteria": {
                     "q": input_data.q,
-                    "category_ids": input_data.category_ids,
+                    "categoryIds": input_data.categoryIds,
                     "filter": input_data.filter,
                     "sort": input_data.sort
                 },

@@ -189,8 +189,8 @@ class BulkInventoryItemInput(BaseModel):
     
     requests: List[BulkInventoryItemRequest] = Field(
         ..., 
-        min_items=1, 
-        max_items=25,
+        min_length=1, 
+        max_length=25,
         description="List of inventory item requests"
     )
     
@@ -235,8 +235,8 @@ class BulkPriceQuantityInput(BaseModel):
     
     requests: List[BulkPriceQuantityRequest] = Field(
         ...,
-        min_items=1,
-        max_items=25,
+        min_length=1,
+        max_length=25,
         description="List of price/quantity update requests"
     )
     

@@ -45,7 +45,7 @@ class TestTrendingApi(BaseApiTest):
         print("Testing integration infrastructure with Browse API...")
         print("This API uses basic scope (no user consent required)")
         
-        search_input = BrowseSearchInput(query="test", limit=1)
+        search_input = BrowseSearchInput(q="test", limit=1)
         result = await search_items.fn(ctx=mock_context, search_input=search_input)
         response = json.loads(result)
         
@@ -105,8 +105,8 @@ class TestTrendingApi(BaseApiTest):
         result = _convert_trending_item(browse_item)
         
         # Validate structure, not specific values
-        assert result["item_id"] is not None
-        assert FieldValidator.is_non_empty_string(result["item_id"])
+        assert result["itemId"] is not None
+        assert FieldValidator.is_non_empty_string(result["itemId"])
         
         assert result["title"] is not None
         assert FieldValidator.is_non_empty_string(result["title"])
@@ -118,26 +118,26 @@ class TestTrendingApi(BaseApiTest):
         
         # Check seller
         assert FieldValidator.is_non_empty_string(result["seller"]["username"])
-        assert isinstance(result["seller"]["feedback_score"], int)
-        assert isinstance(result["seller"]["positive_feedback_percent"], (int, float, str))
+        assert isinstance(result["seller"]["feedbackScore"], int)
+        assert isinstance(result["seller"]["positiveFeedbackPercent"], (int, float, str))
         # If it's a string, validate it can be converted to float
-        if isinstance(result["seller"]["positive_feedback_percent"], str):
-            feedback_pct = float(result["seller"]["positive_feedback_percent"])
+        if isinstance(result["seller"]["positiveFeedbackPercent"], str):
+            feedback_pct = float(result["seller"]["positiveFeedbackPercent"])
             assert 0 <= feedback_pct <= 100
         else:
-            assert 0 <= result["seller"]["positive_feedback_percent"] <= 100
+            assert 0 <= result["seller"]["positiveFeedbackPercent"] <= 100
         
         # Check URLs
         assert FieldValidator.is_valid_url(result["url"])
-        assert FieldValidator.is_valid_url(result["image_url"])
+        assert FieldValidator.is_valid_url(result["imageUrl"])
         
         # Check other fields
         assert result["condition"] == "NEW"
         assert result["category"] == "Trading Card Games"
         assert "Los Angeles, CA" in result["location"]
-        assert result["free_shipping"] is True  # 0 shipping cost
-        assert result["watch_count"] is None  # Not available in Browse API
-        assert result["trending_score"] == "high"
+        assert result["freeShipping"] is True  # 0 shipping cost
+        assert result["watchCount"] is None  # Not available in Browse API
+        assert result["trendingScore"] == "high"
     
     @TestMode.skip_in_integration("Data conversion is unit test only")
     def test_convert_trending_item_minimal(self):
@@ -150,7 +150,7 @@ class TestTrendingApi(BaseApiTest):
         result = _convert_trending_item(minimal_item)
         
         # Required fields should exist
-        assert result["item_id"] == "v1|123|0"
+        assert result["itemId"] == "v1|123|0"
         assert result["title"] == "Test Item"
         
         # Optional fields should have defaults
@@ -159,30 +159,30 @@ class TestTrendingApi(BaseApiTest):
         assert result["seller"]["username"] == "Unknown"
         assert result["condition"] == "NEW"
         assert result["url"] == ""
-        assert result["image_url"] == ""
+        assert result["imageUrl"] == ""
     
     @TestMode.skip_in_integration("Input validation is unit test only")
     def test_trending_items_input_validation(self):
         """Test trending items input validation."""
         # Valid input
         valid_input = TrendingItemsInput(
-            category_id="2536",
-            max_results=50,
-            marketplace_id="EBAY_US"
+            categoryId="2536",
+            maxResults=50,
+            marketplaceId="EBAY_US"
         )
-        assert valid_input.category_id == "2536"
-        assert valid_input.max_results == 50
+        assert valid_input.categoryId == "2536"
+        assert valid_input.maxResults == 50
         
         # Empty category ID (should be allowed as it's optional)
-        input_no_cat = TrendingItemsInput(max_results=20)
-        assert input_no_cat.category_id is None
+        input_no_cat = TrendingItemsInput(maxResults=20)
+        assert input_no_cat.categoryId is None
         
-        # Invalid max_results
+        # Invalid maxResults
         with pytest.raises(ValueError):
-            TrendingItemsInput(max_results=150)  # Over 100 limit
+            TrendingItemsInput(maxResults=150)  # Over 100 limit
         
         with pytest.raises(ValueError):
-            TrendingItemsInput(max_results=0)  # Under 1 limit
+            TrendingItemsInput(maxResults=0)  # Under 1 limit
     
     # ==============================================================================
     # Get Most Watched Items Tests (Both unit and integration)
@@ -196,9 +196,10 @@ class TestTrendingApi(BaseApiTest):
             print(f"\\nTesting real API call to eBay Trending API...")
             print(f"Max results: 10")
             
+            trending_input = TrendingItemsInput(maxResults=10)
             result = await get_most_watched_items.fn(
                 ctx=mock_context,
-                max_results=10
+                trending_input=trending_input
             )
             response = json.loads(result)
             
@@ -255,9 +256,10 @@ class TestTrendingApi(BaseApiTest):
                 with patch('tools.trending_api.mcp.config.app_id', mock_credentials["app_id"]), \
                      patch('tools.trending_api.mcp.config.cert_id', mock_credentials["cert_id"]):
                     
+                    trending_input = TrendingItemsInput(maxResults=20)
                     response = await get_most_watched_items.fn(
                         ctx=mock_context,
-                        max_results=20
+                        trending_input=trending_input
                     )
                     
                     data = assert_api_response_success(response)
@@ -265,7 +267,7 @@ class TestTrendingApi(BaseApiTest):
                     # Validate response structure
                     assert len(data["data"]["items"]) > 0
                     item = data["data"]["items"][0]
-                    assert item["item_id"] == "v1|999888777|0"
+                    assert item["itemId"] == "v1|999888777|0"
                     assert item["title"] == "Pokemon Trading Card Game Booster Box"
                     assert item["price"]["value"] == 149.99
                     
@@ -277,10 +279,10 @@ class TestTrendingApi(BaseApiTest):
         """Test getting most watched items filtered by category."""
         if self.is_integration_mode:
             # Integration test
+            trending_input = TrendingItemsInput(categoryId="2536", maxResults=5)  # Trading Card Games
             response = await get_most_watched_items.fn(
                 ctx=mock_context,
-                category_id="2536",  # Trading Card Games
-                max_results=5
+                trending_input=trending_input
             )
             
             data = assert_api_response_success(response)
@@ -301,10 +303,10 @@ class TestTrendingApi(BaseApiTest):
                 with patch('tools.trending_api.mcp.config.app_id', mock_credentials["app_id"]), \
                      patch('tools.trending_api.mcp.config.cert_id', mock_credentials["cert_id"]):
                     
+                    trending_input = TrendingItemsInput(categoryId="2536", maxResults=10)
                     response = await get_most_watched_items.fn(
                         ctx=mock_context,
-                        category_id="2536",
-                        max_results=10
+                        trending_input=trending_input
                     )
                     
                     data = assert_api_response_success(response)
@@ -323,10 +325,10 @@ class TestTrendingApi(BaseApiTest):
         """Test getting trending items by category."""
         if self.is_integration_mode:
             # Integration test
+            trending_input = TrendingItemsInput(categoryId="9355", maxResults=10)  # Cell Phones
             response = await get_trending_items_by_category.fn(
                 ctx=mock_context,
-                category_id="9355",  # Cell Phones
-                max_results=10
+                trending_input=trending_input
             )
             
             data = assert_api_response_success(response)
@@ -339,23 +341,24 @@ class TestTrendingApi(BaseApiTest):
                     "status": "success",
                     "data": {
                         "items": [],
-                        "total_count": 0,
-                        "category_id": "9355"
+                        "totalCount": 0,
+                        "categoryId": "9355"
                     }
                 })
                 
+                trending_input = TrendingItemsInput(categoryId="9355", maxResults=15)
                 response = await get_trending_items_by_category.fn(
                     ctx=mock_context,
-                    category_id="9355",
-                    max_results=15
+                    trending_input=trending_input
                 )
                 
                 # Verify it called get_most_watched_items with correct params
-                mock_get_watched.assert_called_once_with(
-                    ctx=mock_context,
-                    category_id="9355",
-                    max_results=15
-                )
+                # The call includes a TrendingItemsInput object
+                mock_get_watched.assert_called_once()
+                call_args = mock_get_watched.call_args
+                assert call_args[1]["ctx"] == mock_context
+                assert call_args[1]["trending_input"].categoryId == "9355"
+                assert call_args[1]["trending_input"].maxResults == 15
     
     # ==============================================================================
     # Helper Function Tests (Unit tests only)
@@ -427,9 +430,10 @@ class TestTrendingApi(BaseApiTest):
         if self.is_integration_mode:
             # Test with invalid input
             try:
+                trending_input = TrendingItemsInput(maxResults=200)  # Over limit
                 response = await get_most_watched_items.fn(
                     ctx=mock_context,
-                    max_results=200  # Over limit
+                    trending_input=trending_input
                 )
                 
                 data = json.loads(response)
@@ -455,8 +459,10 @@ class TestTrendingApi(BaseApiTest):
                 with patch('tools.trending_api.mcp.config.app_id', mock_credentials["app_id"]), \
                      patch('tools.trending_api.mcp.config.cert_id', mock_credentials["cert_id"]):
                     
+                    trending_input = TrendingItemsInput()  # Default values
                     response = await get_most_watched_items.fn(
-                        ctx=mock_context
+                        ctx=mock_context,
+                        trending_input=trending_input
                     )
                     
                     data = json.loads(response)
@@ -483,9 +489,10 @@ class TestTrendingApi(BaseApiTest):
         with patch('tools.trending_api.mcp.config.app_id', ''), \
              patch('tools.trending_api.mcp.config.cert_id', ''):
             
+            trending_input = TrendingItemsInput(maxResults=10)
             result = await get_most_watched_items.fn(
                 ctx=mock_context,
-                max_results=10
+                trending_input=trending_input
             )
             
             data = assert_api_response_success(result)

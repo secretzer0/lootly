@@ -120,12 +120,13 @@ class TestAccountPrivilegesApi(BaseApiTest):
                     result = await get_privileges.fn(ctx=mock_context)
                     
                     data = assert_api_response_success(result)
+                    print(f"### ACCOUNT PRIVILEGES RESPONSE: {data}")
                     
                     # Validate response structure
-                    assert data["data"]["seller_registration_completed"] is True
-                    assert data["data"]["selling_limit"]["amount"]["currency"] == "USD"
-                    assert data["data"]["selling_limit"]["amount"]["value"] == "5000.00"
-                    assert data["data"]["selling_limit"]["quantity"] == 100
+                    assert data["data"]["sellerRegistrationCompleted"] is True
+                    assert data["data"]["sellingLimit"]["amount"]["currency"] == "USD"
+                    assert data["data"]["sellingLimit"]["amount"]["value"] == "5000.00"
+                    assert data["data"]["sellingLimit"]["quantity"] == 100
                     
                     # Verify API was called correctly
                     mock_client.get.assert_called_once()
@@ -158,8 +159,8 @@ class TestAccountPrivilegesApi(BaseApiTest):
                 data = assert_api_response_success(result)
                 
                 # Should have registration status but no limits
-                assert data["data"]["seller_registration_completed"] is True
-                assert data["data"]["selling_limit"] is None
+                assert data["data"]["sellerRegistrationCompleted"] is True
+                assert data["data"]["sellingLimit"] is None
     
     # ==============================================================================
     # Error Handling Tests

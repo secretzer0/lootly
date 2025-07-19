@@ -83,13 +83,10 @@ def _build_inventory_item_data(inventory_item: InventoryItemInput) -> Dict[str, 
     if inventory_item.condition:
         item_data["condition"] = inventory_item.condition.value
     
-    if inventory_item.condition_description:
-        item_data["conditionDescription"] = inventory_item.condition_description
-    
     # Add package weight and size
-    if inventory_item.package_weight_and_size:
+    if inventory_item.packageWeightAndSize:
         package_data = {}
-        pkg = inventory_item.package_weight_and_size
+        pkg = inventory_item.packageWeightAndSize
         
         if pkg.dimensions:
             dims = {}
@@ -132,20 +129,16 @@ def _build_inventory_item_data(inventory_item: InventoryItemInput) -> Dict[str, 
             product_data["ean"] = prod.ean
         if prod.epid:
             product_data["epid"] = prod.epid
-        if prod.image_urls:
-            product_data["imageUrls"] = prod.image_urls
+        if prod.imageUrls:
+            product_data["imageUrls"] = prod.imageUrls
         if prod.isbn:
             product_data["isbn"] = prod.isbn
         if prod.mpn:
             product_data["mpn"] = prod.mpn
-        if prod.subtitle:
-            product_data["subtitle"] = prod.subtitle
         if prod.title:
             product_data["title"] = prod.title
         if prod.upc:
             product_data["upc"] = prod.upc
-        if prod.video_ids:
-            product_data["videoIds"] = prod.video_ids
         
         if product_data:
             item_data["product"] = product_data
@@ -991,22 +984,13 @@ async def bulk_update_price_quantity(
         for req in bulk_updates.requests:
             price_quantity_data = {}
             
-            if req.price_quantity.offers:
-                price_quantity_data["offers"] = req.price_quantity.offers
+            # Add price if provided
+            if req.price_quantity.price is not None:
+                price_quantity_data["price"] = str(req.price_quantity.price)
             
-            if req.price_quantity.ship_to_location_availability:
-                ship_data = {}
-                ship_avail = req.price_quantity.ship_to_location_availability
-                
-                if ship_avail.allocation_by_format:
-                    ship_data["allocationByFormat"] = ship_avail.allocation_by_format
-                if ship_avail.availability_distributions:
-                    ship_data["availabilityDistributions"] = ship_avail.availability_distributions
-                if ship_avail.quantity is not None:
-                    ship_data["quantity"] = ship_avail.quantity
-                
-                if ship_data:
-                    price_quantity_data["shipToLocationAvailability"] = ship_data
+            # Add quantity if provided  
+            if req.price_quantity.quantity is not None:
+                price_quantity_data["quantity"] = req.price_quantity.quantity
             
             requests_data.append({
                 "sku": req.sku,

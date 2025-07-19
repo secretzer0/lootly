@@ -80,11 +80,11 @@ class Deposit(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
     
     # Required fields
-    due_in: DepositDueIn = Field(..., description="When deposit payment is due (24, 48, or 72 hours)")
-    amount: Decimal = Field(..., ge=0, decimal_places=2, description="Deposit amount")
+    dueIn: DepositDueIn = Field(..., description="When deposit payment is due (24, 48, or 72 hours)")
+    amount: Amount = Field(..., description="Deposit amount")
     
     # Optional payment methods for deposit
-    payment_methods: Optional[List[PaymentMethod]] = Field(
+    paymentMethods: Optional[List[PaymentMethod]] = Field(
         None,
         description="Accepted payment methods for deposit"
     )
@@ -92,7 +92,7 @@ class Deposit(BaseModel):
     @model_validator(mode='after')
     def validate_deposit_amount(self):
         """Ensure deposit amount is reasonable."""
-        if self.amount > Decimal('50000'):
+        if Decimal(self.amount.value) > Decimal('50000'):
             raise ValueError("Deposit amount seems unreasonably high")
         return self
 
@@ -185,8 +185,15 @@ class PaymentPolicyInput(BaseModel):
         return self
 
 
-# Alias for update operations
-UpdatePaymentPolicyInput = PaymentPolicyInput
+class UpdatePaymentPolicyInput(PaymentPolicyInput):
+    """
+    Payment policy input for update operations.
+    
+    Inherits all fields from PaymentPolicyInput and adds the paymentPolicyId
+    which is needed for update operations.
+    """
+    
+    paymentPolicyId: str = Field(..., description="eBay payment policy ID to update")
 
 
 # =============================================================================
@@ -197,19 +204,19 @@ class InternationalReturnOverride(BaseModel):
     """International return policy override settings."""
     model_config = ConfigDict(str_strip_whitespace=True)
     
-    returns_accepted: bool = Field(..., description="Whether international returns are accepted")
-    return_period: Optional[TimeDuration] = Field(None, description="Return period for international buyers")
-    return_shipping_cost_payer: Optional[ReturnShippingCostPayerEnum] = Field(None, description="Who pays international return shipping")
-    return_method: Optional[ReturnMethodEnum] = Field(None, description="Return method for international buyers")
+    returnsAccepted: bool = Field(..., description="Whether international returns are accepted")
+    returnPeriod: Optional[TimeDuration] = Field(None, description="Return period for international buyers")
+    returnShippingCostPayer: Optional[ReturnShippingCostPayerEnum] = Field(None, description="Who pays international return shipping")
+    returnMethod: Optional[ReturnMethodEnum] = Field(None, description="Return method for international buyers")
     
     @model_validator(mode='after')
     def validate_conditional_fields(self):
         """Validate conditional requirements for international returns."""
-        if self.returns_accepted:
-            if not self.return_period:
-                raise ValueError("return_period is required when returns_accepted is true for international override")
-            if not self.return_shipping_cost_payer:
-                raise ValueError("return_shipping_cost_payer is required when returns_accepted is true for international override")
+        if self.returnsAccepted:
+            if not self.returnPeriod:
+                raise ValueError("returnPeriod is required when returnsAccepted is true for international override")
+            if not self.returnShippingCostPayer:
+                raise ValueError("returnShippingCostPayer is required when returnsAccepted is true for international override")
         return self
 
 

@@ -83,7 +83,7 @@ class TestAccountProgramsApi(BaseApiTest):
                 print("User is authenticated, checking response...")
                 assert response["status"] == "success"
                 assert "programs" in response["data"]
-                print(f"Found {response['data']['total_programs']} opted-in programs")
+                print(f"Found {response['data']['totalPrograms']} opted-in programs")
         else:
             # Unit test - mocked response
             with patch('tools.account_programs_api.EbayRestClient') as MockClient:
@@ -107,17 +107,17 @@ class TestAccountProgramsApi(BaseApiTest):
                     data = assert_api_response_success(result)
                     
                     # Validate response structure
-                    assert data["data"]["total_programs"] == 2
+                    assert data["data"]["totalPrograms"] == 2
                     assert len(data["data"]["programs"]) == 2
                     
                     # Check first program
                     program1 = data["data"]["programs"][0]
-                    assert program1["program_type"] == "OUT_OF_STOCK_CONTROL"
+                    assert program1["programType"] == "OUT_OF_STOCK_CONTROL"
                     assert "description" in program1
                     
                     # Check second program
                     program2 = data["data"]["programs"][1]
-                    assert program2["program_type"] == "SELLING_POLICY_MANAGEMENT"
+                    assert program2["programType"] == "SELLING_POLICY_MANAGEMENT"
                     assert "description" in program2
                     
                     # Verify API was called correctly
@@ -135,7 +135,7 @@ class TestAccountProgramsApi(BaseApiTest):
             
             result = await opt_in_to_program.fn(
                 ctx=mock_context,
-                program_type=ProgramTypeEnum.OUT_OF_STOCK_CONTROL
+                programType=ProgramTypeEnum.OUT_OF_STOCK_CONTROL
             )
             response = json.loads(result)
             
@@ -165,13 +165,13 @@ class TestAccountProgramsApi(BaseApiTest):
                     
                     result = await opt_in_to_program.fn(
                         ctx=mock_context,
-                        program_type=ProgramTypeEnum.OUT_OF_STOCK_CONTROL
+                        programType=ProgramTypeEnum.OUT_OF_STOCK_CONTROL
                     )
                     
                     data = assert_api_response_success(result)
                     
                     # Validate response
-                    assert data["data"]["program_type"] == "OUT_OF_STOCK_CONTROL"
+                    assert data["data"]["programType"] == "OUT_OF_STOCK_CONTROL"
                     assert data["data"]["status"] == "opted_in"
                     assert "description" in data["data"]
                     
@@ -195,7 +195,7 @@ class TestAccountProgramsApi(BaseApiTest):
             
             result = await opt_out_of_program.fn(
                 ctx=mock_context,
-                program_type=ProgramTypeEnum.SELLING_POLICY_MANAGEMENT
+                programType=ProgramTypeEnum.SELLING_POLICY_MANAGEMENT
             )
             response = json.loads(result)
             
@@ -225,13 +225,13 @@ class TestAccountProgramsApi(BaseApiTest):
                     
                     result = await opt_out_of_program.fn(
                         ctx=mock_context,
-                        program_type=ProgramTypeEnum.SELLING_POLICY_MANAGEMENT
+                        programType=ProgramTypeEnum.SELLING_POLICY_MANAGEMENT
                     )
                     
                     data = assert_api_response_success(result)
                     
                     # Validate response
-                    assert data["data"]["program_type"] == "SELLING_POLICY_MANAGEMENT"
+                    assert data["data"]["programType"] == "SELLING_POLICY_MANAGEMENT"
                     assert data["data"]["status"] == "opted_out"
                     assert "description" in data["data"]
                     
@@ -272,7 +272,7 @@ class TestAccountProgramsApi(BaseApiTest):
         # Call the function with the mock invalid enum
         result = await opt_in_to_program.fn(
             ctx=mock_context,
-            program_type=invalid_program
+            programType=invalid_program
         )
         
         # Parse response
@@ -312,7 +312,7 @@ class TestAccountProgramsApi(BaseApiTest):
                 
                 result = await opt_in_to_program.fn(
                     ctx=mock_context,
-                    program_type=ProgramTypeEnum.OUT_OF_STOCK_CONTROL
+                    programType=ProgramTypeEnum.OUT_OF_STOCK_CONTROL
                 )
                 
                 # Should return API error
@@ -320,4 +320,4 @@ class TestAccountProgramsApi(BaseApiTest):
                 assert data["status"] == "error"
                 assert data["error_code"] == "EXTERNAL_API_ERROR"
                 assert "Already opted into program" in data["error_message"]
-                assert data["details"]["program_type"] == "OUT_OF_STOCK_CONTROL"
+                assert data["details"]["programType"] == "OUT_OF_STOCK_CONTROL"

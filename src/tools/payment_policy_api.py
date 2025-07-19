@@ -34,38 +34,38 @@ def _convert_to_api_format(policy_input: PaymentPolicyInput) -> Dict[str, Any]:
     """Convert Pydantic PaymentPolicyInput to eBay API format."""
     policy_data = {
         "name": policy_input.name,
-        "marketplaceId": policy_input.marketplace_id.value,
-        "categoryTypes": [cat_type.model_dump(mode='json') for cat_type in policy_input.category_types]
+        "marketplaceId": policy_input.marketplaceId.value,
+        "categoryTypes": [cat_type.model_dump(mode='json') for cat_type in policy_input.categoryTypes]
     }
     
     # Add optional fields
     if policy_input.description:
         policy_data["description"] = policy_input.description
     
-    if policy_input.payment_methods:
-        payment_methods = []
-        for method in policy_input.payment_methods:
+    if policy_input.paymentMethods:
+        paymentMethods = []
+        for method in policy_input.paymentMethods:
             method_data = {
                 "paymentMethodType": method.payment_method_type.value
             }
             if method.brands:
                 method_data["brands"] = [brand.value for brand in method.brands]
-            payment_methods.append(method_data)
-        policy_data["paymentMethods"] = payment_methods
+            paymentMethods.append(method_data)
+        policy_data["paymentMethods"] = paymentMethods
     
     if policy_input.deposit:
         deposit_data = {}
-        if policy_input.deposit.due_in:
-            deposit_data["dueIn"] = policy_input.deposit.due_in.model_dump()
+        if policy_input.deposit.dueIn:
+            deposit_data["dueIn"] = policy_input.deposit.dueIn.model_dump()
         if policy_input.deposit.amount:
             deposit_data["amount"] = policy_input.deposit.amount.model_dump()
         policy_data["deposit"] = deposit_data
     
-    if policy_input.full_payment_due_in:
-        policy_data["fullPaymentDueIn"] = policy_input.full_payment_due_in.model_dump()
+    if policy_input.fullPaymentDueIn:
+        policy_data["fullPaymentDueIn"] = policy_input.fullPaymentDueIn.model_dump()
     
-    if policy_input.immediate_pay is not None:
-        policy_data["immediatePay"] = policy_input.immediate_pay
+    if policy_input.immediatePay is not None:
+        policy_data["immediatePay"] = policy_input.immediatePay
     
     return policy_data
 
@@ -153,7 +153,7 @@ async def create_payment_policy(
         formatted_response = _format_policy_response(response_body)
         
         await ctx.report_progress(1.0, "Complete")
-        await ctx.info(f"Payment policy created successfully with ID: {formatted_response['policy_id']}")
+        await ctx.info(f"Payment policy created successfully with ID: {formatted_response['paymentPolicyId']}")
         
         return success_response(
             data=formatted_response,
@@ -189,7 +189,7 @@ async def create_payment_policy(
 @mcp.tool
 async def get_payment_policies(
     ctx: Context,
-    marketplace_id: MarketplaceIdEnum,
+    marketplaceId: MarketplaceIdEnum,
     limit: int = 20,
     offset: int = 0
 ) -> str:
@@ -208,7 +208,7 @@ async def get_payment_policies(
     Returns:
         JSON response with list of payment policies and pagination info
     """
-    await ctx.info(f"Getting payment policies for {marketplace_id.value}")
+    await ctx.info(f"Getting payment policies for {marketplaceId.value}")
     
     if limit < 1 or limit > 100:
         return error_response(
@@ -248,7 +248,7 @@ async def get_payment_policies(
         
         # Make API request
         params = {
-            "marketplace_id": marketplace_id.value,
+            "marketplaceId": marketplaceId.value,
             "limit": limit,
             "offset": offset
         }
@@ -406,7 +406,7 @@ async def get_payment_policy(
 @mcp.tool
 async def get_payment_policy_by_name(
     ctx: Context,
-    marketplace_id: MarketplaceIdEnum,
+    marketplaceId: MarketplaceIdEnum,
     name: str
 ) -> str:
     """
@@ -457,7 +457,7 @@ async def get_payment_policy_by_name(
         
         # Make API request
         params = {
-            "marketplace_id": marketplace_id.value,
+            "marketplaceId": marketplaceId.value,
             "name": name
         }
         
@@ -488,7 +488,7 @@ async def get_payment_policy_by_name(
         if e.status_code == 404:
             return error_response(
                 ErrorCode.RESOURCE_NOT_FOUND,
-                f"No payment policy found with name '{name}' in marketplace {marketplace_id.value}",
+                f"No payment policy found with name '{name}' in marketplace {marketplaceId.value}",
                 e.get_full_error_details()
             ).to_json_string()
         
@@ -506,11 +506,6 @@ async def get_payment_policy_by_name(
         ).to_json_string()
     finally:
         await rest_client.close()
-
-
-# Update model is same as create model
-# eBay API uses the same structure for both
-UpdatePaymentPolicyInput = PaymentPolicyInput
 
 
 @mcp.tool

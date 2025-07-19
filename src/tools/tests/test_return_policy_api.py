@@ -51,91 +51,91 @@ class TestReturnPolicyPydanticModels:
         """Test complete valid policy with required fields only."""
         policy = ReturnPolicyInput(
             name="Test Policy",
-            marketplace_id=MarketplaceIdEnum.EBAY_US,
-            category_types=[CategoryType(name=CategoryTypeEnum.ALL_EXCLUDING_MOTORS_VEHICLES)],
-            returns_accepted=True,
-            return_period=TimeDuration(value=30, unit=TimeDurationUnitEnum.DAY),
-            return_shipping_cost_payer=ReturnShippingCostPayerEnum.BUYER
+            marketplaceId=MarketplaceIdEnum.EBAY_US,
+            categoryTypes=[CategoryType(name=CategoryTypeEnum.ALL_EXCLUDING_MOTORS_VEHICLES)],
+            returnsAccepted=True,
+            returnPeriod=TimeDuration(value=30, unit=TimeDurationUnitEnum.DAY),
+            returnShippingCostPayer=ReturnShippingCostPayerEnum.BUYER
         )
         assert policy.name == "Test Policy"
-        assert policy.marketplace_id == MarketplaceIdEnum.EBAY_US
-        assert policy.returns_accepted is True
-        assert policy.return_period.value == 30
-        assert policy.return_period.unit == TimeDurationUnitEnum.DAY
-        assert policy.return_shipping_cost_payer == ReturnShippingCostPayerEnum.BUYER
+        assert policy.marketplaceId == MarketplaceIdEnum.EBAY_US
+        assert policy.returnsAccepted is True
+        assert policy.returnPeriod.value == 30
+        assert policy.returnPeriod.unit == TimeDurationUnitEnum.DAY
+        assert policy.returnShippingCostPayer == ReturnShippingCostPayerEnum.BUYER
     
     def test_valid_complex_policy_with_international_override(self):
         """Test complex policy with all optional fields."""
         policy = ReturnPolicyInput(
             name="Premium Policy",
-            marketplace_id=MarketplaceIdEnum.EBAY_GB,
-            category_types=[CategoryType(name=CategoryTypeEnum.ALL_EXCLUDING_MOTORS_VEHICLES)],
-            returns_accepted=True,
-            return_period=TimeDuration(value=60, unit=TimeDurationUnitEnum.DAY),
-            return_shipping_cost_payer=ReturnShippingCostPayerEnum.SELLER,
+            marketplaceId=MarketplaceIdEnum.EBAY_UK,
+            categoryTypes=[CategoryType(name=CategoryTypeEnum.ALL_EXCLUDING_MOTORS_VEHICLES)],
+            returnsAccepted=True,
+            returnPeriod=TimeDuration(value=60, unit=TimeDurationUnitEnum.DAY),
+            returnShippingCostPayer=ReturnShippingCostPayerEnum.SELLER,
             description="Premium return policy with extended terms",
-            refund_method=RefundMethodEnum.MONEY_BACK,
-            return_method=ReturnMethodEnum.EXCHANGE,
-            return_instructions="Contact seller for return authorization",
-            international_override=InternationalReturnOverride(
-                returns_accepted=True,
-                return_period=TimeDuration(value=30, unit=TimeDurationUnitEnum.DAY),
-                return_shipping_cost_payer=ReturnShippingCostPayerEnum.BUYER,
-                return_method=ReturnMethodEnum.REPLACEMENT
+            refundMethod=RefundMethodEnum.MONEY_BACK,
+            returnMethod=ReturnMethodEnum.REPLACEMENT,
+            returnInstructions="Contact seller for return authorization",
+            internationalOverride=InternationalReturnOverride(
+                returnsAccepted=True,
+                returnPeriod=TimeDuration(value=30, unit=TimeDurationUnitEnum.DAY),
+                returnShippingCostPayer=ReturnShippingCostPayerEnum.BUYER,
+                returnMethod=ReturnMethodEnum.REPLACEMENT
             )
         )
         
         assert policy.description == "Premium return policy with extended terms"
-        assert policy.international_override is not None
-        assert policy.international_override.return_period.value == 30
+        assert policy.internationalOverride is not None
+        assert policy.internationalOverride.returnPeriod.value == 30
     
     def test_no_returns_policy_validation(self):
-        """Test policy with returns_accepted=False (no conditional fields required)."""
+        """Test policy with returnsAccepted=False (no conditional fields required)."""
         policy = ReturnPolicyInput(
             name="No Returns",
-            marketplace_id=MarketplaceIdEnum.EBAY_US,
-            category_types=[CategoryType(name=CategoryTypeEnum.ALL_EXCLUDING_MOTORS_VEHICLES)],
-            returns_accepted=False
+            marketplaceId=MarketplaceIdEnum.EBAY_US,
+            categoryTypes=[CategoryType(name=CategoryTypeEnum.ALL_EXCLUDING_MOTORS_VEHICLES)],
+            returnsAccepted=False
         )
-        assert policy.returns_accepted is False
-        assert policy.return_period is None
-        assert policy.return_shipping_cost_payer is None
+        assert policy.returnsAccepted is False
+        assert policy.returnPeriod is None
+        assert policy.returnShippingCostPayer is None
     
     def test_conditional_validation_missing_return_period(self):
-        """Test that return_period is required when returns_accepted=True."""
+        """Test that return_period is required when returnsAccepted=True."""
         with pytest.raises(ValidationError) as exc:
             ReturnPolicyInput(
                 name="Test",
-                marketplace_id=MarketplaceIdEnum.EBAY_US,
-                category_types=[CategoryType(name=CategoryTypeEnum.ALL_EXCLUDING_MOTORS_VEHICLES)],
-                returns_accepted=True
-                # Missing return_period and return_shipping_cost_payer
+                marketplaceId=MarketplaceIdEnum.EBAY_US,
+                categoryTypes=[CategoryType(name=CategoryTypeEnum.ALL_EXCLUDING_MOTORS_VEHICLES)],
+                returnsAccepted=True
+                # Missing return_period and returnShippingCostPayer
             )
         error_str = str(exc.value)
-        assert "return_period is required when returns_accepted is true" in error_str
+        assert "returnPeriod is required when returnsAccepted is true" in error_str
     
     def test_conditional_validation_missing_shipping_cost_payer(self):
-        """Test that return_shipping_cost_payer is required when returns_accepted=True."""
+        """Test that returnShippingCostPayer is required when returnsAccepted=True."""
         with pytest.raises(ValidationError) as exc:
             ReturnPolicyInput(
                 name="Test",
-                marketplace_id=MarketplaceIdEnum.EBAY_US,
-                category_types=[CategoryType(name=CategoryTypeEnum.ALL_EXCLUDING_MOTORS_VEHICLES)],
-                returns_accepted=True,
-                return_period=TimeDuration(value=30, unit=TimeDurationUnitEnum.DAY)
-                # Missing return_shipping_cost_payer
+                marketplaceId=MarketplaceIdEnum.EBAY_US,
+                categoryTypes=[CategoryType(name=CategoryTypeEnum.ALL_EXCLUDING_MOTORS_VEHICLES)],
+                returnsAccepted=True,
+                returnPeriod=TimeDuration(value=30, unit=TimeDurationUnitEnum.DAY)
+                # Missing returnShippingCostPayer
             )
         error_str = str(exc.value)
-        assert "return_shipping_cost_payer is required when returns_accepted is true" in error_str
+        assert "returnShippingCostPayer is required when returnsAccepted is true" in error_str
     
     def test_validation_errors_show_enum_options(self):
         """Test that enum validation errors show all valid options for LLM guidance."""
         with pytest.raises(ValidationError) as exc:
             ReturnPolicyInput(
                 name="Test",
-                marketplace_id="INVALID_MARKETPLACE",  # Wrong type - should trigger enum error
-                category_types=[CategoryType(name=CategoryTypeEnum.ALL_EXCLUDING_MOTORS_VEHICLES)],
-                returns_accepted=False
+                marketplaceId="INVALID_MARKETPLACE",  # Wrong type - should trigger enum error
+                categoryTypes=[CategoryType(name=CategoryTypeEnum.ALL_EXCLUDING_MOTORS_VEHICLES)],
+                returnsAccepted=False
             )
         error_str = str(exc.value)
         # Error should show valid marketplace options
@@ -145,11 +145,11 @@ class TestReturnPolicyPydanticModels:
         """Test conditional validation in international override."""
         with pytest.raises(ValidationError) as exc:
             InternationalReturnOverride(
-                returns_accepted=True
-                # Missing required fields when returns_accepted=True
+                returnsAccepted=True
+                # Missing required fields when returnsAccepted=True
             )
         error_str = str(exc.value)
-        assert "return_period is required" in error_str or "return_shipping_cost_payer is required" in error_str
+        assert "returnPeriod is required" in error_str or "returnShippingCostPayer is required" in error_str
     
     def test_time_duration_validation(self):
         """Test TimeDuration validation constraints."""
@@ -161,18 +161,19 @@ class TestReturnPolicyPydanticModels:
         with pytest.raises(ValidationError):
             TimeDuration(value=0, unit=TimeDurationUnitEnum.DAY)
         
-        # Invalid duration - too large
+        # Invalid duration - too large for return period (max 365 days)
+        ReturnPeriodDuration = TimeDuration.for_return_period()
         with pytest.raises(ValidationError):
-            TimeDuration(value=400, unit=TimeDurationUnitEnum.DAY)
+            ReturnPeriodDuration(value=400, unit=TimeDurationUnitEnum.DAY)
     
     def test_name_length_validation(self):
         """Test policy name length constraints."""
         # Valid name
         policy = ReturnPolicyInput(
             name="A" * 64,  # Max length
-            marketplace_id=MarketplaceIdEnum.EBAY_US,
-            category_types=[CategoryType(name=CategoryTypeEnum.ALL_EXCLUDING_MOTORS_VEHICLES)],
-            returns_accepted=False
+            marketplaceId=MarketplaceIdEnum.EBAY_US,
+            categoryTypes=[CategoryType(name=CategoryTypeEnum.ALL_EXCLUDING_MOTORS_VEHICLES)],
+            returnsAccepted=False
         )
         assert len(policy.name) == 64
         
@@ -180,9 +181,9 @@ class TestReturnPolicyPydanticModels:
         with pytest.raises(ValidationError):
             ReturnPolicyInput(
                 name="A" * 65,  # Over max length
-                marketplace_id=MarketplaceIdEnum.EBAY_US,
-                category_types=[CategoryType(name=CategoryTypeEnum.ALL_EXCLUDING_MOTORS_VEHICLES)],
-                returns_accepted=False
+                marketplaceId=MarketplaceIdEnum.EBAY_US,
+                categoryTypes=[CategoryType(name=CategoryTypeEnum.ALL_EXCLUDING_MOTORS_VEHICLES)],
+                returnsAccepted=False
             )
 
 
@@ -195,11 +196,11 @@ class TestReturnPolicyApi(BaseApiTest):
         # Create valid input using Pydantic model
         policy_input = ReturnPolicyInput(
             name="Test Return Policy",
-            marketplace_id=MarketplaceIdEnum.EBAY_US,
-            category_types=[CategoryType(name=CategoryTypeEnum.ALL_EXCLUDING_MOTORS_VEHICLES)],
-            returns_accepted=True,
-            return_period=TimeDuration(value=30, unit=TimeDurationUnitEnum.DAY),
-            return_shipping_cost_payer=ReturnShippingCostPayerEnum.BUYER,
+            marketplaceId=MarketplaceIdEnum.EBAY_US,
+            categoryTypes=[CategoryType(name=CategoryTypeEnum.ALL_EXCLUDING_MOTORS_VEHICLES)],
+            returnsAccepted=True,
+            returnPeriod=TimeDuration(value=30, unit=TimeDurationUnitEnum.DAY),
+            returnShippingCostPayer=ReturnShippingCostPayerEnum.BUYER,
             description="Test policy description"
         )
         
@@ -233,7 +234,7 @@ class TestReturnPolicyApi(BaseApiTest):
 
             assert response["status"] == "success"
             assert "data" in response
-            assert "policy_id" in response["data"]
+            assert "returnPolicyId" in response["data"]
             assert response["data"]["name"] == policy_input.name
         
         else:
@@ -277,8 +278,8 @@ class TestReturnPolicyApi(BaseApiTest):
                 # Verify request data structure
                 json_data = call_args[1]["json"]
                 assert json_data["name"] == policy_input.name
-                assert json_data["marketplaceId"] == policy_input.marketplace_id.value
-                assert json_data["returnsAccepted"] == policy_input.returns_accepted
+                assert json_data["marketplaceId"] == policy_input.marketplaceId.value
+                assert json_data["returnsAccepted"] == policy_input.returnsAccepted
                 assert "returnPeriod" in json_data
                 assert json_data["returnPeriod"]["value"] == 30
                 assert json_data["returnPeriod"]["unit"] == "DAY"
@@ -288,15 +289,15 @@ class TestReturnPolicyApi(BaseApiTest):
         """Test policy creation with international override."""
         policy_input = ReturnPolicyInput(
             name="International Policy",
-            marketplace_id=MarketplaceIdEnum.EBAY_US,
-            category_types=[CategoryType(name=CategoryTypeEnum.ALL_EXCLUDING_MOTORS_VEHICLES)],
-            returns_accepted=True,
-            return_period=TimeDuration(value=60, unit=TimeDurationUnitEnum.DAY),
-            return_shipping_cost_payer=ReturnShippingCostPayerEnum.SELLER,
-            international_override=InternationalReturnOverride(
-                returns_accepted=True,
-                return_period=TimeDuration(value=30, unit=TimeDurationUnitEnum.DAY),
-                return_shipping_cost_payer=ReturnShippingCostPayerEnum.BUYER
+            marketplaceId=MarketplaceIdEnum.EBAY_US,
+            categoryTypes=[CategoryType(name=CategoryTypeEnum.ALL_EXCLUDING_MOTORS_VEHICLES)],
+            returnsAccepted=True,
+            returnPeriod=TimeDuration(value=60, unit=TimeDurationUnitEnum.DAY),
+            returnShippingCostPayer=ReturnShippingCostPayerEnum.SELLER,
+            internationalOverride=InternationalReturnOverride(
+                returnsAccepted=True,
+                returnPeriod=TimeDuration(value=30, unit=TimeDurationUnitEnum.DAY),
+                returnShippingCostPayer=ReturnShippingCostPayerEnum.BUYER
             )
         )
         
@@ -349,9 +350,9 @@ class TestReturnPolicyApi(BaseApiTest):
         """Test creating a no-returns policy."""
         policy_input = ReturnPolicyInput(
             name="No Returns Policy",
-            marketplace_id=MarketplaceIdEnum.EBAY_US,
-            category_types=[CategoryType(name=CategoryTypeEnum.ALL_EXCLUDING_MOTORS_VEHICLES)],
-            returns_accepted=False,
+            marketplaceId=MarketplaceIdEnum.EBAY_US,
+            categoryTypes=[CategoryType(name=CategoryTypeEnum.ALL_EXCLUDING_MOTORS_VEHICLES)],
+            returnsAccepted=False,
             description="All sales final"
         )
         
@@ -401,7 +402,7 @@ class TestReturnPolicyApi(BaseApiTest):
     @pytest.mark.asyncio
     async def test_get_return_policies_success(self, mock_context):
         """Test retrieving return policies."""
-        marketplace_id = MarketplaceIdEnum.EBAY_US
+        marketplaceId = MarketplaceIdEnum.EBAY_US
         limit = 10
         offset = 0
         
@@ -409,7 +410,7 @@ class TestReturnPolicyApi(BaseApiTest):
             # Integration test
             result = await get_return_policies.fn(
                 ctx=mock_context,
-                marketplace_id=marketplace_id,
+                marketplaceId=marketplaceId,
                 limit=limit,
                 offset=offset
             )
@@ -446,7 +447,7 @@ class TestReturnPolicyApi(BaseApiTest):
                 
                 result = await get_return_policies.fn(
                     ctx=mock_context,
-                    marketplace_id=marketplace_id,
+                    marketplaceId=marketplaceId,
                     limit=limit,
                     offset=offset
                 )
@@ -458,7 +459,7 @@ class TestReturnPolicyApi(BaseApiTest):
                 mock_client.get.assert_called_once()
                 call_args = mock_client.get.call_args
                 params = call_args[1]["params"]
-                assert params["marketplace_id"] == "EBAY_US"
+                assert params["marketplaceId"] == "EBAY_US"
                 assert params["limit"] == 10
                 assert params["offset"] == 0
                 
@@ -474,7 +475,7 @@ class TestReturnPolicyApi(BaseApiTest):
         # Test invalid limit
         result = await get_return_policies.fn(
             ctx=mock_context,
-            marketplace_id=MarketplaceIdEnum.EBAY_US,
+            marketplaceId=MarketplaceIdEnum.EBAY_US,
             limit=150,  # Over maximum
             offset=0
         )
@@ -487,7 +488,7 @@ class TestReturnPolicyApi(BaseApiTest):
         # Test negative offset
         result = await get_return_policies.fn(
             ctx=mock_context,
-            marketplace_id=MarketplaceIdEnum.EBAY_US,
+            marketplaceId=MarketplaceIdEnum.EBAY_US,
             limit=20,
             offset=-1  # Negative
         )
@@ -502,9 +503,9 @@ class TestReturnPolicyApi(BaseApiTest):
         """Test behavior when credentials are missing."""
         policy_input = ReturnPolicyInput(
             name="Test",
-            marketplace_id=MarketplaceIdEnum.EBAY_US,
-            category_types=[CategoryType(name=CategoryTypeEnum.ALL_EXCLUDING_MOTORS_VEHICLES)],
-            returns_accepted=False
+            marketplaceId=MarketplaceIdEnum.EBAY_US,
+            categoryTypes=[CategoryType(name=CategoryTypeEnum.ALL_EXCLUDING_MOTORS_VEHICLES)],
+            returnsAccepted=False
         )
         
         if not self.is_integration_mode:
@@ -528,9 +529,9 @@ class TestReturnPolicyApi(BaseApiTest):
         """Test behavior when user consent is missing."""
         policy_input = ReturnPolicyInput(
             name="Test",
-            marketplace_id=MarketplaceIdEnum.EBAY_US,
-            category_types=[CategoryType(name=CategoryTypeEnum.ALL_EXCLUDING_MOTORS_VEHICLES)],
-            returns_accepted=False
+            marketplaceId=MarketplaceIdEnum.EBAY_US,
+            categoryTypes=[CategoryType(name=CategoryTypeEnum.ALL_EXCLUDING_MOTORS_VEHICLES)],
+            returnsAccepted=False
         )
         
         if not self.is_integration_mode:
@@ -556,9 +557,9 @@ class TestReturnPolicyApi(BaseApiTest):
         """Test eBay API error handling."""
         policy_input = ReturnPolicyInput(
             name="Test",
-            marketplace_id=MarketplaceIdEnum.EBAY_US,
-            category_types=[CategoryType(name=CategoryTypeEnum.ALL_EXCLUDING_MOTORS_VEHICLES)],
-            returns_accepted=False
+            marketplaceId=MarketplaceIdEnum.EBAY_US,
+            categoryTypes=[CategoryType(name=CategoryTypeEnum.ALL_EXCLUDING_MOTORS_VEHICLES)],
+            returnsAccepted=False
         )
         
         if not self.is_integration_mode:
@@ -657,7 +658,7 @@ class TestReturnPolicyApi(BaseApiTest):
             # Integration test
             result = await get_return_policy.fn(
                 ctx=mock_context,
-                return_policy_id=policy_id
+                returnPolicyId=policy_id
             )
             response = json.loads(result)
             
@@ -686,7 +687,7 @@ class TestReturnPolicyApi(BaseApiTest):
             # Validate successful response
             assert response["status"] == "success"
             assert "data" in response
-            assert "policy_id" in response["data"]
+            assert "returnPolicyId" in response["data"]
             print(f"Retrieved policy: {response['data'].get('name', 'Unknown')}")
         
         else:
@@ -709,12 +710,12 @@ class TestReturnPolicyApi(BaseApiTest):
                 
                 result = await get_return_policy.fn(
                     ctx=mock_context,
-                    return_policy_id=policy_id
+                    returnPolicyId=policy_id
                 )
                 
                 response = json.loads(result)
                 assert response["status"] == "success"
-                assert response["data"]["policy_id"] == "6196932000"
+                assert response["data"]["returnPolicyId"] == "6196932000"
                 assert response["data"]["name"] == "30 Day Returns"
                 
                 # Verify API call
@@ -725,14 +726,14 @@ class TestReturnPolicyApi(BaseApiTest):
     @pytest.mark.asyncio
     async def test_get_return_policy_by_name_success(self, mock_context, mock_credentials):
         """Test getting a return policy by name."""
-        marketplace_id = MarketplaceIdEnum.EBAY_US
+        marketplaceId = MarketplaceIdEnum.EBAY_US
         policy_name = "30 Day Returns"
         
         if self.is_integration_mode:
             # Integration test
             result = await get_return_policy_by_name.fn(
                 ctx=mock_context,
-                marketplace_id=marketplace_id,
+                marketplaceId=marketplaceId,
                 name=policy_name
             )
             response = json.loads(result)
@@ -784,7 +785,7 @@ class TestReturnPolicyApi(BaseApiTest):
                 
                 result = await get_return_policy_by_name.fn(
                     ctx=mock_context,
-                    marketplace_id=marketplace_id,
+                    marketplaceId=marketplaceId,
                     name=policy_name
                 )
                 
@@ -797,7 +798,7 @@ class TestReturnPolicyApi(BaseApiTest):
                 call_args = mock_client.get.call_args
                 assert call_args[0][0] == "/sell/account/v1/return_policy/get_by_policy_name"
                 params = call_args[1]["params"]
-                assert params["marketplace_id"] == "EBAY_US"
+                assert params["marketplaceId"] == "EBAY_US"
                 assert params["name"] == policy_name
 
     @pytest.mark.asyncio
@@ -821,7 +822,7 @@ class TestReturnPolicyApi(BaseApiTest):
             
             result = await get_return_policy_by_name.fn(
                 ctx=mock_context,
-                marketplace_id=MarketplaceIdEnum.EBAY_US,
+                marketplaceId=MarketplaceIdEnum.EBAY_US,
                 name="Non-existent Policy"
             )
             
@@ -838,11 +839,11 @@ class TestReturnPolicyApi(BaseApiTest):
         # Create update input
         policy_input = ReturnPolicyInput(
             name="Updated 30 Day Returns",
-            marketplace_id=MarketplaceIdEnum.EBAY_US,
-            category_types=[CategoryType(name=CategoryTypeEnum.ALL_EXCLUDING_MOTORS_VEHICLES)],
-            returns_accepted=True,
-            return_period=TimeDuration(value=30, unit=TimeDurationUnitEnum.DAY),
-            return_shipping_cost_payer=ReturnShippingCostPayerEnum.SELLER,  # Changed to SELLER
+            marketplaceId=MarketplaceIdEnum.EBAY_US,
+            categoryTypes=[CategoryType(name=CategoryTypeEnum.ALL_EXCLUDING_MOTORS_VEHICLES)],
+            returnsAccepted=True,
+            returnPeriod=TimeDuration(value=30, unit=TimeDurationUnitEnum.DAY),
+            returnShippingCostPayer=ReturnShippingCostPayerEnum.SELLER,  # Changed to SELLER
             description="Updated policy with free returns"
         )
         
@@ -850,7 +851,7 @@ class TestReturnPolicyApi(BaseApiTest):
             # Integration test
             result = await update_return_policy.fn(
                 ctx=mock_context,
-                return_policy_id=policy_id,
+                returnPolicyId=policy_id,
                 policy_input=policy_input
             )
             response = json.loads(result)
@@ -884,7 +885,7 @@ class TestReturnPolicyApi(BaseApiTest):
             assert response["status"] == "success"
             assert "data" in response
             assert response["data"]["name"] == "Updated 30 Day Returns"
-            assert response["data"]["return_shipping_cost_payer"] == "SELLER"
+            assert response["data"]["returnShippingCostPayer"] == "SELLER"
         
         else:
             # Unit test
@@ -906,14 +907,14 @@ class TestReturnPolicyApi(BaseApiTest):
                 
                 result = await update_return_policy.fn(
                     ctx=mock_context,
-                    return_policy_id=policy_id,
+                    returnPolicyId=policy_id,
                     policy_input=policy_input
                 )
                 
                 response = json.loads(result)
                 assert response["status"] == "success"
                 assert response["data"]["name"] == "Updated 30 Day Returns"
-                assert response["data"]["return_shipping_cost_payer"] == "SELLER"
+                assert response["data"]["returnShippingCostPayer"] == "SELLER"
                 
                 # Verify API call
                 mock_client.put.assert_called_once()
@@ -933,7 +934,7 @@ class TestReturnPolicyApi(BaseApiTest):
             # Integration test
             result = await delete_return_policy.fn(
                 ctx=mock_context,
-                return_policy_id=policy_id
+                returnPolicyId=policy_id
             )
             response = json.loads(result)
             
@@ -962,7 +963,7 @@ class TestReturnPolicyApi(BaseApiTest):
             # Validate successful response
             assert response["status"] == "success"
             assert response["data"]["deleted"] is True
-            assert response["data"]["policy_id"] == policy_id
+            assert response["data"]["returnPolicyId"] == policy_id
         
         else:
             # Unit test
@@ -984,13 +985,13 @@ class TestReturnPolicyApi(BaseApiTest):
                 
                 result = await delete_return_policy.fn(
                     ctx=mock_context,
-                    return_policy_id=policy_id
+                    returnPolicyId=policy_id
                 )
                 
                 response = json.loads(result)
                 assert response["status"] == "success"
                 assert response["data"]["deleted"] is True
-                assert response["data"]["policy_id"] == policy_id
+                assert response["data"]["returnPolicyId"] == policy_id
                 
                 # Verify API call
                 mock_client.delete.assert_called_once_with(
@@ -1020,7 +1021,7 @@ class TestReturnPolicyApi(BaseApiTest):
             
             result = await delete_return_policy.fn(
                 ctx=mock_context,
-                return_policy_id="6196932000"
+                returnPolicyId="6196932000"
             )
             
             response = json.loads(result)
@@ -1037,7 +1038,7 @@ class TestReturnPolicyApi(BaseApiTest):
         # Test get_return_policy with empty ID
         result = await get_return_policy.fn(
             ctx=mock_context,
-            return_policy_id=""
+            returnPolicyId=""
         )
         
         response = json.loads(result)
@@ -1048,14 +1049,14 @@ class TestReturnPolicyApi(BaseApiTest):
         # Test update_return_policy with empty ID
         policy_input = ReturnPolicyInput(
             name="Test",
-            marketplace_id=MarketplaceIdEnum.EBAY_US,
-            category_types=[CategoryType(name=CategoryTypeEnum.ALL_EXCLUDING_MOTORS_VEHICLES)],
-            returns_accepted=False
+            marketplaceId=MarketplaceIdEnum.EBAY_US,
+            categoryTypes=[CategoryType(name=CategoryTypeEnum.ALL_EXCLUDING_MOTORS_VEHICLES)],
+            returnsAccepted=False
         )
         
         result = await update_return_policy.fn(
             ctx=mock_context,
-            return_policy_id="",
+            returnPolicyId="",
             policy_input=policy_input
         )
         
@@ -1067,7 +1068,7 @@ class TestReturnPolicyApi(BaseApiTest):
         # Test delete_return_policy with empty ID
         result = await delete_return_policy.fn(
             ctx=mock_context,
-            return_policy_id=""
+            returnPolicyId=""
         )
         
         response = json.loads(result)
@@ -1083,7 +1084,7 @@ class TestReturnPolicyApi(BaseApiTest):
         
         result = await get_return_policy_by_name.fn(
             ctx=mock_context,
-            marketplace_id=MarketplaceIdEnum.EBAY_US,
+            marketplaceId=MarketplaceIdEnum.EBAY_US,
             name=""
         )
         

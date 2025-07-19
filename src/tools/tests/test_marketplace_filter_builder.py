@@ -17,14 +17,14 @@ async def test_build_marketplace_filter_price_condition():
         ctx=mock_context,
         price_min=100,
         price_max=500,
-        conditions=["New", "Used"]
+        conditions=["1000", "3000"]
     )
     
     data = assert_api_response_success(result)
-    assert data["data"]["filter_count"] >= 3  # price, priceCurrency, conditionIds
+    assert data["data"]["filterCount"] >= 3  # price, priceCurrency, conditionIds
     assert "price:[100..500]" in data["data"]["filter"]
     assert "priceCurrency:USD" in data["data"]["filter"]
-    assert "conditionIds:{1000|3000}" in data["data"]["filter"]
+    assert "conditionIds:{1000,3000}" in data["data"]["filter"]
 
 
 @pytest.mark.asyncio
@@ -54,7 +54,7 @@ async def test_build_marketplace_filter_empty():
     
     data = assert_api_response_success(result)
     assert data["data"]["filter"] == ""
-    assert data["data"]["filter_count"] == 0
+    assert data["data"]["filterCount"] == 0
 
 
 @pytest.mark.asyncio
@@ -77,6 +77,6 @@ async def test_build_marketplace_filter_complex():
     
     # Check all components are present
     assert "price:[200..1000]" in filter_str
-    assert "buyingOptions:{FIXED_PRICE|BEST_OFFER}" in filter_str
+    assert "buyingOptions:{FIXED_PRICE,BEST_OFFER}" in filter_str
     assert "sellerAccountTypes:{BUSINESS}" in filter_str
     assert "qualifiedPrograms:{AUTHENTICITY_GUARANTEE}" in filter_str

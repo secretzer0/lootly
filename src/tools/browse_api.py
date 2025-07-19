@@ -28,7 +28,7 @@ from lootly_server import mcp
 def _build_search_params(input_data: BrowseSearchInput) -> Dict[str, Any]:
     """Convert Pydantic model to Browse API search parameters."""
     params = {
-        "q": input_data.query,
+        "q": input_data.q,
         "limit": input_data.limit,
         "offset": input_data.offset,
         "sort": input_data.sort
@@ -37,14 +37,14 @@ def _build_search_params(input_data: BrowseSearchInput) -> Dict[str, Any]:
     # Build filter string
     filters = []
     
-    if input_data.category_ids:
-        filters.append(f"categoryIds:{{{input_data.category_ids}}}")
+    if input_data.categoryIds:
+        filters.append(f"categoryIds:{{{input_data.categoryIds}}}")
     
-    if input_data.price_min is not None or input_data.price_max is not None:
+    if input_data.priceMin is not None or input_data.priceMax is not None:
         price_filter = "price:["
-        price_filter += str(input_data.price_min) if input_data.price_min is not None else "*"
+        price_filter += str(input_data.priceMin) if input_data.priceMin is not None else "*"
         price_filter += ".."
-        price_filter += str(input_data.price_max) if input_data.price_max is not None else "*"
+        price_filter += str(input_data.priceMax) if input_data.priceMax is not None else "*"
         price_filter += "]"
         filters.append(price_filter)
     
@@ -131,7 +131,7 @@ def _format_item_details_response(item_data: Dict[str, Any]) -> Dict[str, Any]:
     )
     
     # Get quantity if available
-    est_avail = formatted["estimated_availabilities"]
+    est_avail = formatted["estimatedAvailabilities"]
     if est_avail:
         formatted["quantity_available"] = est_avail[0].get("estimatedAvailableQuantity")
     
@@ -181,7 +181,7 @@ async def search_items(
         # Create validated pydantic model
         search_input = BrowseSearchInput(**processed_data)
     
-    await ctx.info(f"Searching eBay for: {search_input.query}")
+    await ctx.info(f"Searching eBay for: {search_input.q}")
     await ctx.report_progress(0.1, "Validating search parameters...")
     
     # Pydantic validation already handled - no manual validation needed!
@@ -230,7 +230,7 @@ async def search_items(
         
         return success_response(
             data=formatted_response,
-            message=f"Successfully searched for '{search_input.query}'"
+            message=f"Successfully searched for '{search_input.q}'"
         ).to_json_string()
         
     except EbayApiError as e:
@@ -285,7 +285,7 @@ async def get_item_details(
         # Create validated pydantic model
         details_input = ItemDetailsInput(**parsed_data)
     
-    await ctx.info(f"Getting details for item: {details_input.item_id}")
+    await ctx.info(f"Getting details for item: {details_input.itemId}")
     await ctx.report_progress(0.1, "Validating item request...")
     
     # Pydantic validation already handled - no manual validation needed!
@@ -316,14 +316,14 @@ async def get_item_details(
         
         # Build field groups based on description requirement
         params = {}
-        if details_input.include_description:
+        if details_input.includeDescription:
             params["fieldgroups"] = "PRODUCT,ADDITIONAL_SELLER_DETAILS"
         else:
             params["fieldgroups"] = "COMPACT"
         
         # Make API request - Browse API uses client credentials with api_scope
         response = await rest_client.get(
-            f"/buy/browse/v1/item/{details_input.item_id}",
+            f"/buy/browse/v1/item/{details_input.itemId}",
             params=params
         )
         response_body = response["body"]
@@ -349,7 +349,7 @@ async def get_item_details(
         if e.status_code == 404:
             return error_response(
                 ErrorCode.RESOURCE_NOT_FOUND,
-                f"Item {details_input.item_id} not found",
+                f"Item {details_input.itemId} not found",
                 extract_ebay_error_details(e)
             ).to_json_string()
         
@@ -401,7 +401,7 @@ async def get_items_by_category(
         # Create validated pydantic model
         category_input = CategoryBrowseInput(**parsed_data)
     
-    await ctx.info(f"Browsing category: {category_input.category_id}")
+    await ctx.info(f"Browsing category: {category_input.categoryId}")
     await ctx.report_progress(0.1, "Validating category request...")
     
     # Pydantic validation already handled - no manual validation needed!
@@ -433,13 +433,13 @@ async def get_items_by_category(
         # Use search with category filter and minimal query
         # For category browsing, we need a more specific query to avoid "too large" errors
         search_input = BrowseSearchInput(
-            query="item",  # Generic query for category browsing
-            category_ids=category_input.category_id,
+            q="item",  # Generic query for category browsing
+            categoryIds=category_input.categoryId,
             sort=category_input.sort,
             limit=category_input.limit,
             offset=category_input.offset,
-            price_min=category_input.price_min,
-            price_max=category_input.price_max
+            priceMin=category_input.priceMin,
+            priceMax=category_input.priceMax
         )
         
         # Convert to API parameters
@@ -462,7 +462,7 @@ async def get_items_by_category(
         
         return success_response(
             data=formatted_response,
-            message=f"Successfully browsed category {category_input.category_id}"
+            message=f"Successfully browsed category {category_input.categoryId}"
         ).to_json_string()
         
     except EbayApiError as e:

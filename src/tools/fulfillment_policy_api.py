@@ -50,78 +50,78 @@ def _build_policy_data(policy_input: FulfillmentPolicyInput) -> Dict[str, Any]:
     """Convert Pydantic model to eBay API format."""
     policy_data = {
         "name": policy_input.name,
-        "marketplaceId": policy_input.marketplace_id.value,
-        "categoryTypes": [cat_type.model_dump(mode='json') for cat_type in policy_input.category_types]
+        "marketplaceId": policy_input.marketplaceId.value,
+        "categoryTypes": [cat_type.model_dump(mode='json') for cat_type in policy_input.categoryTypes]
     }
     
     # Add optional fields
     if policy_input.description:
         policy_data["description"] = policy_input.description
     
-    if policy_input.handling_time:
-        policy_data["handlingTime"] = policy_input.handling_time.model_dump()
+    if policy_input.handlingTime:
+        policy_data["handlingTime"] = policy_input.handlingTime.model_dump()
     
-    if policy_input.shipping_options:
+    if policy_input.shippingOptions:
         shipping_options = []
-        for option in policy_input.shipping_options:
+        for option in policy_input.shippingOptions:
             option_data = {
-                "costType": option.cost_type.value,
-                "optionType": option.option_type.value
+                "costType": option.costType.value,
+                "optionType": option.optionType.value
             }
             
             # Add optional shipping option fields
-            if option.shipping_services:
+            if option.shippingServices:
                 services = []
-                for service in option.shipping_services:
+                for service in option.shippingServices:
                     service_data = {
-                        "shippingServiceCode": service.shipping_service_code
+                        "shippingServiceCode": service.shippingServiceCode
                     }
                     
                     # Add optional service fields
-                    if service.shipping_carrier_code:
-                        service_data["shippingCarrierCode"] = service.shipping_carrier_code
-                    if service.shipping_cost:
-                        service_data["shippingCost"] = service.shipping_cost.model_dump()
-                    if service.additional_shipping_cost:
-                        service_data["additionalShippingCost"] = service.additional_shipping_cost.model_dump()
-                    if service.free_shipping is not None:
-                        service_data["freeShipping"] = service.free_shipping
-                    if service.ship_to_locations:
-                        service_data["shipToLocations"] = service.ship_to_locations.model_dump()
-                    if service.sort_order is not None:
-                        service_data["sortOrder"] = service.sort_order
-                    if service.buyer_responsible_for_shipping is not None:
-                        service_data["buyerResponsibleForShipping"] = service.buyer_responsible_for_shipping
-                    if service.buyer_responsible_for_pickup is not None:
-                        service_data["buyerResponsibleForPickup"] = service.buyer_responsible_for_pickup
+                    if service.shippingCarrierCode:
+                        service_data["shippingCarrierCode"] = service.shippingCarrierCode
+                    if service.shippingCost:
+                        service_data["shippingCost"] = service.shippingCost.model_dump()
+                    if service.additionalShippingCost:
+                        service_data["additionalShippingCost"] = service.additionalShippingCost.model_dump()
+                    if service.freeShipping is not None:
+                        service_data["freeShipping"] = service.freeShipping
+                    if service.shipToLocations:
+                        service_data["shipToLocations"] = service.shipToLocations.model_dump()
+                    if service.sortOrder is not None:
+                        service_data["sortOrder"] = service.sortOrder
+                    if service.buyerResponsibleForShipping is not None:
+                        service_data["buyerResponsibleForShipping"] = service.buyerResponsibleForShipping
+                    if service.buyerResponsibleForPickup is not None:
+                        service_data["buyerResponsibleForPickup"] = service.buyerResponsibleForPickup
                     
                     services.append(service_data)
                 option_data["shippingServices"] = services
             
-            if option.package_handling_cost:
-                option_data["packageHandlingCost"] = option.package_handling_cost.model_dump()
-            if option.rate_table_id:
-                option_data["rateTableId"] = option.rate_table_id
-            if option.shipping_discount_profile_id:
-                option_data["shippingDiscountProfileId"] = option.shipping_discount_profile_id
-            if option.shipping_promotion_offered is not None:
-                option_data["shippingPromotionOffered"] = option.shipping_promotion_offered
+            if option.packageHandlingCost:
+                option_data["packageHandlingCost"] = option.packageHandlingCost.model_dump()
+            if option.rateTableId:
+                option_data["rateTableId"] = option.rateTableId
+            if option.shippingDiscountProfileId:
+                option_data["shippingDiscountProfileId"] = option.shippingDiscountProfileId
+            if option.shippingPromotionOffered is not None:
+                option_data["shippingPromotionOffered"] = option.shippingPromotionOffered
             
             shipping_options.append(option_data)
         
         policy_data["shippingOptions"] = shipping_options
     
-    if policy_input.ship_to_locations:
-        policy_data["shipToLocations"] = policy_input.ship_to_locations.model_dump()
+    if policy_input.shipToLocations:
+        policy_data["shipToLocations"] = policy_input.shipToLocations.model_dump()
     
-    if policy_input.local_pickup is not None:
-        policy_data["localPickup"] = policy_input.local_pickup
-    if policy_input.pickup_drop_off is not None:
-        policy_data["pickupDropOff"] = policy_input.pickup_drop_off
-    if policy_input.freight_shipping is not None:
-        policy_data["freightShipping"] = policy_input.freight_shipping
-    if policy_input.global_shipping is not None:
-        policy_data["globalShipping"] = policy_input.global_shipping
+    if policy_input.localPickup is not None:
+        policy_data["localPickup"] = policy_input.localPickup
+    if policy_input.pickupDropOff is not None:
+        policy_data["pickupDropOff"] = policy_input.pickupDropOff
+    if policy_input.freightShipping is not None:
+        policy_data["freightShipping"] = policy_input.freightShipping
+    if policy_input.globalShipping is not None:
+        policy_data["globalShipping"] = policy_input.globalShipping
     
     return policy_data
 
@@ -152,10 +152,14 @@ def _api_response_to_pydantic(response_body: Dict[str, Any]) -> Any:
     """Convert eBay API response to response pydantic model."""
     # For now, just return the formatted response
     # In future, can create proper response models
-    return type('Response', (), {
-        'fulfillment_policy_id': response_body.get("fulfillmentPolicyId"),
-        'model_dump': lambda exclude_none=True: _format_policy_response(response_body)
-    })()
+    class Response:
+        def __init__(self):
+            self.fulfillmentPolicyId = response_body.get("fulfillmentPolicyId")
+        
+        def model_dump(self, **kwargs):
+            return _format_policy_response(response_body)
+    
+    return Response()
 
 
 # MCP TOOLS - Using Pydantic Models
@@ -183,7 +187,7 @@ async def create_fulfillment_policy(
         ctx: MCP context
     
     Returns:
-        JSON response with created policy details including policy_id
+        JSON response with created policy details including policyId
     
     OAuth Scope Required: https://api.ebay.com/oauth/api_scope/sell.account
     """
@@ -243,7 +247,7 @@ async def create_fulfillment_policy(
         }
         
         await ctx.report_progress(1.0, "Fulfillment policy created successfully")
-        await ctx.success(f"Created fulfillment policy '{policy_input.name}' with ID: {policy_response.fulfillment_policy_id}")
+        await ctx.success(f"Created fulfillment policy '{policy_input.name}' with ID: {policy_response.fulfillmentPolicyId}")
         
         return success_response(
             data=policy_response.model_dump(exclude_none=True),
@@ -282,7 +286,7 @@ async def create_fulfillment_policy(
 @mcp.tool
 async def get_fulfillment_policies(
     ctx: Context,
-    marketplace_id: MarketplaceIdEnum,
+    marketplaceId: MarketplaceIdEnum,
     limit: Optional[int] = 50,
     offset: Optional[int] = 0
 ) -> str:
@@ -293,7 +297,7 @@ async def get_fulfillment_policies(
     specified eBay marketplace. Use this to review existing shipping configurations.
     
     Args:
-        marketplace_id: eBay marketplace to retrieve policies for
+        marketplaceId: eBay marketplace to retrieve policies for
         limit: Maximum number of policies to return (default: 50)
         offset: Number of policies to skip for pagination (default: 0)
         ctx: MCP context
@@ -303,7 +307,7 @@ async def get_fulfillment_policies(
     
     OAuth Scope Required: https://api.ebay.com/oauth/api_scope/sell.account
     """
-    await ctx.info(f"Retrieving fulfillment policies for marketplace: {marketplace_id.value}")
+    await ctx.info(f"Retrieving fulfillment policies for marketplace: {marketplaceId.value}")
     await ctx.report_progress(0.1, "Validating parameters...")
     
     # Check credentials
@@ -332,7 +336,7 @@ async def get_fulfillment_policies(
         
         # Build query parameters
         params = {
-            "marketplace_id": marketplace_id.value
+            "marketplaceId": marketplaceId.value
         }
         if limit is not None:
             params["limit"] = str(limit)
@@ -358,7 +362,7 @@ async def get_fulfillment_policies(
             "total": response_body.get("total", len(formatted_policies)),
             "limit": limit,
             "offset": offset,
-            "marketplace_id": marketplace_id.value
+            "marketplaceId": marketplaceId.value
         }
         
         # Add pagination links if available
@@ -370,7 +374,7 @@ async def get_fulfillment_policies(
             result["prev"] = response["prev"]
         
         await ctx.report_progress(1.0, f"Retrieved {len(formatted_policies)} fulfillment policies")
-        await ctx.success(f"Found {len(formatted_policies)} fulfillment policies for {marketplace_id.value}")
+        await ctx.success(f"Found {len(formatted_policies)} fulfillment policies for {marketplaceId.value}")
         
         return success_response(
             data=result,
@@ -408,7 +412,7 @@ async def get_fulfillment_policies(
 @mcp.tool
 async def get_fulfillment_policy(
     ctx: Context,
-    policy_id: str
+    policyId: str
 ) -> str:
     """
     Retrieve a specific fulfillment policy by its ID.
@@ -417,7 +421,7 @@ async def get_fulfillment_policy(
     all shipping options, handling time, and service configurations.
     
     Args:
-        policy_id: eBay fulfillment policy ID
+        policyId: eBay fulfillment policy ID
         ctx: MCP context
     
     Returns:
@@ -425,13 +429,13 @@ async def get_fulfillment_policy(
     
     OAuth Scope Required: https://api.ebay.com/oauth/api_scope/sell.account
     """
-    await ctx.info(f"Retrieving fulfillment policy: {policy_id}")
+    await ctx.info(f"Retrieving fulfillment policy: {policyId}")
     await ctx.report_progress(0.1, "Validating parameters...")
     
-    if not policy_id or not policy_id.strip():
+    if not policyId or not policyId.strip():
         return error_response(
             ErrorCode.VALIDATION_ERROR,
-            "policy_id is required and cannot be empty"
+            "policyId is required and cannot be empty"
         ).to_json_string()
     
     # Check credentials
@@ -456,10 +460,10 @@ async def get_fulfillment_policy(
     rest_client = EbayRestClient(oauth_manager, rest_config)
     
     try:
-        await ctx.report_progress(0.5, f"Fetching fulfillment policy {policy_id}...")
+        await ctx.report_progress(0.5, f"Fetching fulfillment policy {policyId}...")
         
         # Make API call
-        response = await rest_client.get(f"/sell/account/v1/fulfillment_policy/{policy_id}")
+        response = await rest_client.get(f"/sell/account/v1/fulfillment_policy/{policyId}")
         response_body = response["body"]
         
         await ctx.report_progress(0.8, "Processing response...")
@@ -506,7 +510,7 @@ async def get_fulfillment_policy(
 @mcp.tool
 async def get_fulfillment_policy_by_name(
     ctx: Context,
-    marketplace_id: MarketplaceIdEnum,
+    marketplaceId: MarketplaceIdEnum,
     name: str
 ) -> str:
     """
@@ -516,7 +520,7 @@ async def get_fulfillment_policy_by_name(
     a specific marketplace. Policy names must be unique per marketplace.
     
     Args:
-        marketplace_id: eBay marketplace where the policy exists
+        marketplaceId: eBay marketplace where the policy exists
         name: Seller-defined name of the fulfillment policy
         ctx: MCP context
     
@@ -525,7 +529,7 @@ async def get_fulfillment_policy_by_name(
     
     OAuth Scope Required: https://api.ebay.com/oauth/api_scope/sell.account
     """
-    await ctx.info(f"Retrieving fulfillment policy '{name}' for marketplace: {marketplace_id.value}")
+    await ctx.info(f"Retrieving fulfillment policy '{name}' for marketplace: {marketplaceId.value}")
     await ctx.report_progress(0.1, "Validating parameters...")
     
     if not name or not name.strip():
@@ -560,7 +564,7 @@ async def get_fulfillment_policy_by_name(
         
         # Build query parameters
         params = {
-            "marketplace_id": marketplace_id.value,
+            "marketplaceId": marketplaceId.value,
             "name": name
         }
         
@@ -577,7 +581,7 @@ async def get_fulfillment_policy_by_name(
         formatted_response = _format_policy_response(response_body)
         
         await ctx.report_progress(1.0, "Fulfillment policy retrieved successfully")
-        await ctx.success(f"Found fulfillment policy '{name}' with ID: {formatted_response.get('policy_id')}")
+        await ctx.success(f"Found fulfillment policy '{name}' with ID: {formatted_response.get('policyId')}")
         
         return success_response(
             data=formatted_response,
@@ -615,7 +619,7 @@ async def get_fulfillment_policy_by_name(
 @mcp.tool
 async def update_fulfillment_policy(
     ctx: Context,
-    policy_id: str,
+    policyId: str,
     policy_input: Union[FulfillmentPolicyInput, str, Dict[str, Any]]
 ) -> str:
     """
@@ -626,7 +630,7 @@ async def update_fulfillment_policy(
     not a partial update.
     
     Args:
-        policy_id: eBay fulfillment policy ID to update
+        policyId: eBay fulfillment policy ID to update
         policy_input: Complete updated fulfillment policy configuration
         ctx: MCP context
     
@@ -635,13 +639,13 @@ async def update_fulfillment_policy(
     
     OAuth Scope Required: https://api.ebay.com/oauth/api_scope/sell.account
     """
-    await ctx.info(f"Updating fulfillment policy: {policy_id}")
+    await ctx.info(f"Updating fulfillment policy: {policyId}")
     await ctx.report_progress(0.1, "Validating parameters...")
     
-    if not policy_id or not policy_id.strip():
+    if not policyId or not policyId.strip():
         return error_response(
             ErrorCode.VALIDATION_ERROR,
-            "policy_id is required and cannot be empty"
+            "policyId is required and cannot be empty"
         ).to_json_string()
     
     # Check credentials
@@ -671,11 +675,11 @@ async def update_fulfillment_policy(
         # Convert Pydantic model to eBay API format
         policy_data = _build_policy_data(policy_input)
         
-        await ctx.report_progress(0.5, f"Updating fulfillment policy {policy_id}...")
+        await ctx.report_progress(0.5, f"Updating fulfillment policy {policyId}...")
         
         # Make API call
         response = await rest_client.put(
-            f"/sell/account/v1/fulfillment_policy/{policy_id}",
+            f"/sell/account/v1/fulfillment_policy/{policyId}",
             json=policy_data
         )
         response_body = response["body"]
@@ -686,7 +690,7 @@ async def update_fulfillment_policy(
         formatted_response = _format_policy_response(response_body)
         
         await ctx.report_progress(1.0, "Fulfillment policy updated successfully")
-        await ctx.success(f"Updated fulfillment policy '{policy_input.name}' (ID: {policy_id})")
+        await ctx.success(f"Updated fulfillment policy '{policy_input.name}' (ID: {policyId})")
         
         return success_response(
             data=formatted_response,
@@ -724,7 +728,7 @@ async def update_fulfillment_policy(
 @mcp.tool
 async def delete_fulfillment_policy(
     ctx: Context,
-    policy_id: str
+    policyId: str
 ) -> str:
     """
     Delete a fulfillment policy from your eBay seller account.
@@ -733,7 +737,7 @@ async def delete_fulfillment_policy(
     it's currently being used by active listings or listing templates.
     
     Args:
-        policy_id: eBay fulfillment policy ID to delete
+        policyId: eBay fulfillment policy ID to delete
         ctx: MCP context
     
     Returns:
@@ -741,13 +745,13 @@ async def delete_fulfillment_policy(
     
     OAuth Scope Required: https://api.ebay.com/oauth/api_scope/sell.account
     """
-    await ctx.info(f"Deleting fulfillment policy: {policy_id}")
+    await ctx.info(f"Deleting fulfillment policy: {policyId}")
     await ctx.report_progress(0.1, "Validating parameters...")
     
-    if not policy_id or not policy_id.strip():
+    if not policyId or not policyId.strip():
         return error_response(
             ErrorCode.VALIDATION_ERROR,
-            "policy_id is required and cannot be empty"
+            "policyId is required and cannot be empty"
         ).to_json_string()
     
     # Check credentials
@@ -772,17 +776,17 @@ async def delete_fulfillment_policy(
     rest_client = EbayRestClient(oauth_manager, rest_config)
     
     try:
-        await ctx.report_progress(0.5, f"Deleting fulfillment policy {policy_id}...")
+        await ctx.report_progress(0.5, f"Deleting fulfillment policy {policyId}...")
         
         # Make API call
-        await rest_client.delete(f"/sell/account/v1/fulfillment_policy/{policy_id}")
+        await rest_client.delete(f"/sell/account/v1/fulfillment_policy/{policyId}")
         
         await ctx.report_progress(1.0, "Fulfillment policy deleted successfully")
-        await ctx.success(f"Fulfillment policy {policy_id} deleted successfully")
+        await ctx.success(f"Fulfillment policy {policyId} deleted successfully")
         
         return success_response(
-            data={"policy_id": policy_id, "deleted": True},
-            message=f"Fulfillment policy {policy_id} deleted successfully"
+            data={"policyId": policyId, "deleted": True},
+            message=f"Fulfillment policy {policyId} deleted successfully"
         ).to_json_string()
         
     except ConsentRequiredException as e:

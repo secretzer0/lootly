@@ -23,6 +23,10 @@ from tools.taxonomy_api import (
     get_expired_categories
 )
 from models.enums import MarketplaceIdEnum
+from models.browse import (
+    GetDefaultCategoryTreeIdInput, GetCategoryTreeInput, GetCategorySubtreeInput,
+    GetCategorySuggestionsInput, GetExpiredCategoriesInput
+)
 
 
 class TestTaxonomyApi(BaseApiTest):
@@ -72,9 +76,10 @@ class TestTaxonomyApi(BaseApiTest):
             print(f"\\nTesting real API call to eBay Taxonomy API...")
             print(f"Marketplace: EBAY_US")
             
+            input_data = GetDefaultCategoryTreeIdInput(marketplaceId=MarketplaceIdEnum.EBAY_US.value)
             result = await get_default_category_tree_id.fn(
                 ctx=mock_context,
-                marketplace_id=MarketplaceIdEnum.EBAY_US
+                input_data=input_data
             )
             response = json.loads(result)
             
@@ -88,8 +93,8 @@ class TestTaxonomyApi(BaseApiTest):
             
             data = response["data"]
             validate_field(data, "category_tree_id", str)
-            validate_field(data, "marketplace_id", str)
-            assert data["marketplace_id"] == "EBAY_US"
+            validate_field(data, "marketplaceId", str)
+            assert data["marketplaceId"] == "EBAY_US"
             
             # US marketplace should have tree ID "0"
             assert data["category_tree_id"] == "0"
@@ -109,15 +114,16 @@ class TestTaxonomyApi(BaseApiTest):
                 with patch('tools.taxonomy_api.mcp.config.app_id', mock_credentials["app_id"]), \
                      patch('tools.taxonomy_api.mcp.config.cert_id', mock_credentials["cert_id"]):
                     
+                    input_data = GetDefaultCategoryTreeIdInput(marketplaceId=MarketplaceIdEnum.EBAY_US.value)
                     result = await get_default_category_tree_id.fn(
                         ctx=mock_context,
-                        marketplace_id=MarketplaceIdEnum.EBAY_US
+                        input_data=input_data
                     )
                     
                     data = assert_api_response_success(result)
                     
-                    assert data["data"]["category_tree_id"] == "0"
-                    assert data["data"]["marketplace_id"] == "EBAY_US"
+                    assert data["data"]["categoryTreeId"] == "0"
+                    assert data["data"]["marketplaceId"] == "EBAY_US"
                     
                     # Verify API was called correctly
                     mock_client.get.assert_called_once()
@@ -352,8 +358,7 @@ class TestTaxonomyApi(BaseApiTest):
             # Integration test
             response = await get_expired_categories.fn(
                 ctx=mock_context,
-                category_tree_id="0",
-                marketplace_id=MarketplaceIdEnum.EBAY_US
+                categoryTreeId="0"
             )
             
             data = assert_api_response_success(response)
@@ -388,8 +393,7 @@ class TestTaxonomyApi(BaseApiTest):
                     
                     response = await get_expired_categories.fn(
                         ctx=mock_context,
-                        category_tree_id="0",
-                        marketplace_id=MarketplaceIdEnum.EBAY_US
+                        categoryTreeId="0"
                     )
                     
                     data = assert_api_response_success(response)
@@ -440,9 +444,10 @@ class TestTaxonomyApi(BaseApiTest):
         with patch('tools.taxonomy_api.mcp.config.app_id', ''), \
              patch('tools.taxonomy_api.mcp.config.cert_id', ''):
             
+            input_data = GetDefaultCategoryTreeIdInput(marketplaceId=MarketplaceIdEnum.EBAY_US.value)
             result = await get_default_category_tree_id.fn(
                 ctx=mock_context,
-                marketplace_id=MarketplaceIdEnum.EBAY_US
+                input_data=input_data
             )
             
             # Should return configuration error

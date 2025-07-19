@@ -36,7 +36,7 @@ from lootly_server import mcp
 @mcp.tool
 async def get_default_category_tree_id(
     ctx: Context,
-    marketplace_id: MarketplaceIdEnum = MarketplaceIdEnum.EBAY_US
+    input_data: GetDefaultCategoryTreeIdInput
 ) -> str:
     """
     Get the default category tree ID for a marketplace.
@@ -46,23 +46,15 @@ async def get_default_category_tree_id(
     to get the tree ID needed for get_category_tree.
     
     Args:
-        marketplace_id: eBay marketplace ID (e.g., EBAY_US, EBAY_GB)
+        input_data: Input containing marketplace ID
         ctx: MCP context
     
     Returns:
         JSON response with the default category tree ID
     """
-    await ctx.info(f"Getting default category tree ID for {marketplace_id.value}")
+    await ctx.info(f"Getting default category tree ID for {input_data.marketplaceId}")
     
-    # Validate input
-    try:
-        input_data = GetDefaultCategoryTreeIdInput(marketplace_id=marketplace_id)
-    except Exception as e:
-        await ctx.error(f"Validation error: {str(e)}")
-        return error_response(
-            ErrorCode.VALIDATION_ERROR,
-            str(e)
-        ).to_json_string()
+    # Input already validated by Pydantic
     
     # Check credentials
     if not mcp.config.app_id or not mcp.config.cert_id:
@@ -89,7 +81,7 @@ async def get_default_category_tree_id(
         # Get default category tree ID
         response = await rest_client.get(
             "/commerce/taxonomy/v1/get_default_category_tree_id",
-            params={"marketplaceId": input_data.marketplaceId.value}
+            params={"marketplaceId": input_data.marketplaceId}
         )
         response_body = response["body"]
         
@@ -99,17 +91,17 @@ async def get_default_category_tree_id(
         
         return success_response(
             data={
-                "category_tree_id": category_tree_id,
-                "marketplaceId": input_data.marketplaceId.value,
-                "data_source": "live_api"
+                "categoryTreeId": category_tree_id,
+                "marketplaceId": input_data.marketplaceId,
+                "dataSource": "live_api"
             },
-            message=f"Default category tree ID for {input_data.marketplaceId.value}"
+            message=f"Default category tree ID for {input_data.marketplaceId}"
         ).to_json_string()
         
     except EbayApiError as e:
         await ctx.error(f"eBay API error: {e.get_comprehensive_message()}")
         error_details = e.get_full_error_details()
-        error_details["marketplaceId"] = input_data.marketplaceId.value
+        error_details["marketplaceId"] = input_data.marketplaceId
         
         return error_response(
             ErrorCode.EXTERNAL_API_ERROR,
@@ -158,7 +150,7 @@ async def get_category_tree(
     
     # Validate input
     try:
-        input_data = GetCategoryTreeInput(category_tree_id=category_tree_id)
+        input_data = GetCategoryTreeInput(categoryTreeId=category_tree_id)
     except Exception as e:
         await ctx.error(f"Validation error: {str(e)}")
         return error_response(
@@ -193,7 +185,7 @@ async def get_category_tree(
             category_tree_json = await get_category_tree_json(
                 oauth_manager, 
                 rest_client, 
-                category_tree_id=input_data.category_tree_id
+                category_tree_id=input_data.categoryTreeId
             )
             
             await ctx.info(f"Retrieved full category tree with {len(str(category_tree_json))} characters")
@@ -244,8 +236,8 @@ async def get_category_subtree(
     # Validate input
     try:
         input_data = GetCategorySubtreeInput(
-            category_tree_id=category_tree_id,
-            category_id=category_id
+            categoryTreeId=category_tree_id,
+            categoryId=category_id
         )
     except Exception as e:
         await ctx.error(f"Validation error: {str(e)}")
@@ -281,22 +273,22 @@ async def get_category_subtree(
             category_tree_json = await get_category_tree_json(
                 oauth_manager, 
                 rest_client, 
-                category_tree_id=input_data.category_tree_id
+                category_tree_id=input_data.categoryTreeId
             )
             
             # Find subtree for specific category
-            subtree_json = find_category_subtree(category_tree_json, input_data.category_id)
+            subtree_json = find_category_subtree(category_tree_json, input_data.categoryId)
             if not subtree_json:
                 return error_response(
                     ErrorCode.NOT_FOUND_ERROR,
-                    f"Category {input_data.category_id} not found in tree"
+                    f"Category {input_data.categoryId} not found in tree"
                 ).to_json_string()
             
-            await ctx.info(f"Retrieved subtree for category {input_data.category_id}")
+            await ctx.info(f"Retrieved subtree for category {input_data.categoryId}")
             
             return success_response(
                 data=subtree_json,  # Raw JSON subtree
-                message=f"Category subtree for {input_data.category_id}"
+                message=f"Category subtree for {input_data.categoryId}"
             ).to_json_string()
         
         finally:
@@ -339,7 +331,7 @@ async def get_category_suggestions(
     # Validate input
     try:
         input_data = GetCategorySuggestionsInput(
-            category_tree_id=category_tree_id,
+            categoryTreeId=category_tree_id,
             q=q
         )
     except Exception as e:
@@ -373,7 +365,7 @@ async def get_category_suggestions(
     try:
         # Get category suggestions
         response = await rest_client.get(
-            f"/commerce/taxonomy/v1/category_tree/{input_data.category_tree_id}/get_category_suggestions",
+            f"/commerce/taxonomy/v1/category_tree/{input_data.categoryTreeId}/get_category_suggestions",
             params={"q": input_data.q}
         )
         response_body = response["body"]
@@ -408,8 +400,7 @@ async def get_category_suggestions(
 @mcp.tool
 async def get_expired_categories(
     ctx: Context,
-    category_tree_id: str,
-    marketplace_id: MarketplaceIdEnum = MarketplaceIdEnum.EBAY_US
+    categoryTreeId: str
 ) -> str:
     """
     Get a list of expired categories for a marketplace.
@@ -423,21 +414,17 @@ async def get_expired_categories(
     2. Then call this tool with the category_tree_id from step 1
     
     Args:
-        category_tree_id: Category tree ID from get_default_category_tree_id
-        marketplace_id: eBay marketplace ID
+        categoryTreeId: Category tree ID from get_default_category_tree_id (usually "0" for most marketplaces)
         ctx: MCP context
     
     Returns:
-        JSON response with expired categories
+        JSON response with expired categories containing fromCategoryId and toCategoryId mappings
     """
-    await ctx.info(f"Getting expired categories for tree {category_tree_id} in {marketplace_id.value}")
+    await ctx.info(f"Getting expired categories for tree {categoryTreeId}")
     
     # Validate input
     try:
-        input_data = GetExpiredCategoriesInput(
-            category_tree_id=category_tree_id,
-            marketplace_id=marketplace_id
-        )
+        input_data = GetExpiredCategoriesInput(categoryTreeId=categoryTreeId)
     except Exception as e:
         await ctx.error(f"Validation error: {str(e)}")
         return error_response(
@@ -469,7 +456,7 @@ async def get_expired_categories(
     try:
         # Get expired categories
         response = await rest_client.get(
-            f"/commerce/taxonomy/v1/category_tree/{input_data.category_tree_id}/get_expired_categories"
+            f"/commerce/taxonomy/v1/category_tree/{input_data.categoryTreeId}/get_expired_categories"
         )
         response_body = response["body"]
         
@@ -484,7 +471,7 @@ async def get_expired_categories(
     except EbayApiError as e:
         await ctx.error(f"eBay API error: {e.get_comprehensive_message()}")
         error_details = e.get_full_error_details()
-        error_details["marketplaceId"] = input_data.marketplaceId.value
+        error_details["categoryTreeId"] = input_data.categoryTreeId
         
         return error_response(
             ErrorCode.EXTERNAL_API_ERROR,

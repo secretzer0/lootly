@@ -19,15 +19,35 @@ from lootly_server import mcp
 
 def _convert_merchandised_product(product_data: Dict[str, Any]) -> Dict[str, Any]:
     """Convert eBay merchandised product response for consistent output."""
+    # Handle nested image URL structure
+    image_url = product_data.get("imageUrl")
+    if not image_url and "image" in product_data:
+        image_url = product_data["image"].get("imageUrl")
+    
+    # Extract price info from market price details
+    price_info = {}
+    market_price_details = product_data.get("marketPriceDetails", [])
+    if market_price_details:
+        price_detail = market_price_details[0]
+        start_price = price_detail.get("estimatedStartPrice", {})
+        end_price = price_detail.get("estimatedEndPrice", {})
+        
+        if start_price.get("value"):
+            price_info["min_price"] = float(start_price["value"])
+        if end_price.get("value"):
+            price_info["max_price"] = float(end_price["value"])
+        if start_price.get("currency"):
+            price_info["currency"] = start_price["currency"]
+    
     formatted = {
         "epid": product_data.get("epid"),
         "title": product_data.get("title"),
-        "imageUrl": product_data.get("imageUrl"),
-        "averageSellingPrice": product_data.get("averageSellingPrice"),
-        "marketPriceDetails": product_data.get("marketPriceDetails", {}),
-        "ratingHistogram": product_data.get("ratingHistogram", {}),
-        "ratingCount": product_data.get("ratingCount"),
-        "reviewCount": product_data.get("reviewCount")
+        "imageUrl": image_url,
+        "average_rating": product_data.get("averageRating", 0),
+        "rating_count": product_data.get("ratingCount", 0),
+        "review_count": product_data.get("reviewCount", 0),
+        "price_info": price_info,
+        "web_url": f"https://www.ebay.com/p/{product_data.get('epid')}" if product_data.get('epid') else None
     }
     
     # Clean up None values except for imageUrl (keep for test compatibility)
@@ -37,9 +57,9 @@ def _convert_merchandised_product(product_data: Dict[str, Any]) -> Dict[str, Any
 @mcp.tool
 async def get_merchandised_products(
     ctx: Context,
-    category_id: str,
+    categoryId: str,
     limit: int = 20,
-    aspect_filter: Optional[str] = None
+    aspectFilter: Optional[str] = None
 ) -> str:
     """
     Get best-selling merchandised products for a specific category.
@@ -48,9 +68,9 @@ async def get_merchandised_products(
     specified category. Currently only supports the BEST_SELLING metric.
     
     Args:
-        category_id: eBay category ID (required, use 9355 for sandbox testing)
+        categoryId: eBay category ID (required, use 9355 for sandbox testing)
         limit: Maximum number of products to return (1-100, default: 20)
-        aspect_filter: Filter by product aspects (e.g., 'Brand:Apple')
+        aspectFilter: Filter by product aspects (e.g., 'Brand:Apple')
         ctx: MCP context
     
     Returns:
@@ -62,23 +82,23 @@ async def get_merchandised_products(
     
     Example:
         Get top smartphones:
-        - category_id: "9355" (Cell Phones & Smartphones)
+        - categoryId: "9355" (Cell Phones & Smartphones)
         - limit: 10
         
         Get top Apple products in category:
-        - category_id: "9355"
-        - aspect_filter: "Brand:Apple"
+        - categoryId: "9355"
+        - aspectFilter: "Brand:Apple"
     """
-    await ctx.info(f"🛒 Getting merchandised products for category: {category_id}")
+    await ctx.info(f"🛒 Getting merchandised products for category: {categoryId}")
     await ctx.report_progress(0.1, "✅ Validating input...")
     
     # Validate input
     try:
         input_data = MerchandisedProductsInput(
-            category_id=category_id,
-            metric_name="BEST_SELLING",  # Currently the only supported metric
+            categoryId=categoryId,
+            metricName="BEST_SELLING",  # Currently the only supported metric
             limit=limit,
-            aspect_filter=aspect_filter
+            aspectFilter=aspectFilter
         )
     except Exception as e:
         await ctx.error(f"Invalid input: {str(e)}")
@@ -112,15 +132,15 @@ async def get_merchandised_products(
     try:
         await ctx.report_progress(0.3, "🌐 Calling eBay Marketing API...")
         
-        # Build query parameters
+        # Build query parameters (use camelCase for eBay API)
         params = {
-            "category_id": input_data.category_id,
-            "metric_name": input_data.metric_name,
+            "categoryId": input_data.categoryId,
+            "metricName": input_data.metricName,
             "limit": input_data.limit
         }
         
-        if input_data.aspect_filter:
-            params["aspect_filter"] = input_data.aspect_filter
+        if input_data.aspectFilter:
+            params["aspectFilter"] = input_data.aspectFilter
         
         # Make API request
         response = await rest_client.get(
@@ -144,10 +164,10 @@ async def get_merchandised_products(
             data={
                 "merchandised_products": converted_products,
                 "total": len(converted_products),
-                "category_id": input_data.category_id,
-                "metric_name": input_data.metric_name,
+                "categoryId": input_data.categoryId,
+                "metricName": input_data.metricName,
                 "limit": input_data.limit,
-                "aspect_filter": input_data.aspect_filter
+                "aspectFilter": input_data.aspectFilter
             },
             message=f"Retrieved {len(converted_products)} merchandised products. Please provide a helpful summary of the top products and their key details."
         ).to_json_string()
@@ -160,7 +180,7 @@ async def get_merchandised_products(
         if e.status_code == 404:
             return error_response(
                 ErrorCode.RESOURCE_NOT_FOUND,
-                f"Category {input_data.category_id} not found or has no merchandised products",
+                f"Category {input_data.categoryId} not found or has no merchandised products",
                 e.get_full_error_details()
             ).to_json_string()
         elif e.status_code == 400:

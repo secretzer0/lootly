@@ -34,37 +34,34 @@ def _convert_to_api_format(policy_input: ReturnPolicyInput) -> Dict[str, Any]:
     """Convert Pydantic ReturnPolicyInput to eBay API format."""
     policy_data = {
         "name": policy_input.name,
-        "marketplaceId": policy_input.marketplace_id.value,
-        "categoryTypes": [cat_type.model_dump(mode='json') for cat_type in policy_input.category_types]
+        "marketplaceId": policy_input.marketplaceId.value,
+        "categoryTypes": [cat_type.model_dump(mode='json') for cat_type in policy_input.categoryTypes]
     }
     
     # Add optional fields
     if policy_input.description:
         policy_data["description"] = policy_input.description
     
-    if policy_input.returns_accepted is not None:
-        policy_data["returnsAccepted"] = policy_input.returns_accepted
+    if policy_input.returnsAccepted is not None:
+        policy_data["returnsAccepted"] = policy_input.returnsAccepted
     
-    if policy_input.return_period:
-        policy_data["returnPeriod"] = policy_input.return_period.model_dump()
+    if policy_input.returnPeriod:
+        policy_data["returnPeriod"] = policy_input.returnPeriod.model_dump(mode='json')
     
-    if policy_input.return_method:
-        policy_data["returnMethod"] = policy_input.return_method.value
+    if policy_input.returnMethod:
+        policy_data["returnMethod"] = policy_input.returnMethod.value
     
-    if policy_input.return_shipping_cost_payer:
-        policy_data["returnShippingCostPayer"] = policy_input.return_shipping_cost_payer.value
+    if policy_input.returnShippingCostPayer:
+        policy_data["returnShippingCostPayer"] = policy_input.returnShippingCostPayer.value
     
-    if policy_input.refund_method:
-        policy_data["refundMethod"] = policy_input.refund_method.value
+    if policy_input.refundMethod:
+        policy_data["refundMethod"] = policy_input.refundMethod.value
     
-    if policy_input.return_instructions:
-        policy_data["returnInstructions"] = policy_input.return_instructions
+    if policy_input.returnInstructions:
+        policy_data["returnInstructions"] = policy_input.returnInstructions
     
-    if policy_input.restocking_fee_percentage is not None:
-        policy_data["restockingFeePercentage"] = policy_input.restocking_fee_percentage
-    
-    if policy_input.international_override:
-        policy_data["internationalOverride"] = policy_input.international_override.model_dump()
+    if policy_input.internationalOverride:
+        policy_data["internationalOverride"] = policy_input.internationalOverride.model_dump(mode='json')
     
     return policy_data
 
@@ -83,7 +80,6 @@ def _format_policy_response(policy_data: Dict[str, Any]) -> Dict[str, Any]:
         "returnShippingCostPayer": policy_data.get("returnShippingCostPayer"),
         "refundMethod": policy_data.get("refundMethod"),
         "returnInstructions": policy_data.get("returnInstructions"),
-        "restockingFeePercentage": policy_data.get("restockingFeePercentage"),
         "internationalOverride": policy_data.get("internationalOverride"),
         "warnings": policy_data.get("warnings", [])
     }
@@ -155,7 +151,7 @@ async def create_return_policy(
         formatted_response = _format_policy_response(response_body)
         
         await ctx.report_progress(1.0, "Complete")
-        await ctx.info(f"Return policy created successfully with ID: {formatted_response['policy_id']}")
+        await ctx.info(f"Return policy created successfully with ID: {formatted_response['returnPolicyId']}")
         
         return success_response(
             data=formatted_response,
@@ -191,7 +187,7 @@ async def create_return_policy(
 @mcp.tool
 async def get_return_policies(
     ctx: Context,
-    marketplace_id: MarketplaceIdEnum,
+    marketplaceId: MarketplaceIdEnum,
     limit: int = 20,
     offset: int = 0
 ) -> str:
@@ -202,7 +198,7 @@ async def get_return_policies(
     the specified marketplace in your seller account.
     
     Args:
-        marketplace_id: eBay marketplace
+        marketplaceId: eBay marketplace
         limit: Number of policies to return (1-100, default 20)
         offset: Number of policies to skip for pagination (default 0)
         ctx: MCP context
@@ -210,7 +206,7 @@ async def get_return_policies(
     Returns:
         JSON response with list of return policies and pagination info
     """
-    await ctx.info(f"Getting return policies for {marketplace_id.value}")
+    await ctx.info(f"Getting return policies for {marketplaceId.value}")
     
     if limit < 1 or limit > 100:
         return error_response(
@@ -250,7 +246,7 @@ async def get_return_policies(
         
         # Make API request
         params = {
-            "marketplace_id": marketplace_id.value,
+            "marketplaceId": marketplaceId.value,
             "limit": limit,
             "offset": offset
         }
@@ -313,7 +309,7 @@ async def get_return_policies(
 @mcp.tool
 async def get_return_policy(
     ctx: Context,
-    return_policy_id: str
+    returnPolicyId: str
 ) -> str:
     """
     Get a specific return policy by its ID.
@@ -322,15 +318,15 @@ async def get_return_policy(
     using its unique policy ID.
     
     Args:
-        return_policy_id: The unique identifier of the return policy
+        returnPolicyId: The unique identifier of the return policy
         ctx: MCP context
     
     Returns:
         JSON response with complete policy details
     """
-    await ctx.info(f"Getting return policy: {return_policy_id}")
+    await ctx.info(f"Getting return policy: {returnPolicyId}")
     
-    if not return_policy_id:
+    if not returnPolicyId:
         return error_response(
             ErrorCode.VALIDATION_ERROR,
             "Return policy ID is required"
@@ -362,7 +358,7 @@ async def get_return_policy(
         
         # Make API request
         response = await rest_client.get(
-            f"/sell/account/v1/return_policy/{return_policy_id}"
+            f"/sell/account/v1/return_policy/{returnPolicyId}"
         )
         response_body = response["body"]
         
@@ -408,7 +404,7 @@ async def get_return_policy(
 @mcp.tool
 async def get_return_policy_by_name(
     ctx: Context,
-    marketplace_id: MarketplaceIdEnum,
+    marketplaceId: MarketplaceIdEnum,
     name: str
 ) -> str:
     """
@@ -418,7 +414,7 @@ async def get_return_policy_by_name(
     Policy names must be unique within a marketplace.
     
     Args:
-        marketplace_id: eBay marketplace where the policy exists
+        marketplaceId: eBay marketplace where the policy exists
         name: The exact name of the return policy
         ctx: MCP context
     
@@ -459,7 +455,7 @@ async def get_return_policy_by_name(
         
         # Make API request
         params = {
-            "marketplace_id": marketplace_id.value,
+            "marketplaceId": marketplaceId.value,
             "name": name
         }
         
@@ -490,7 +486,7 @@ async def get_return_policy_by_name(
         if e.status_code == 404:
             return error_response(
                 ErrorCode.RESOURCE_NOT_FOUND,
-                f"No return policy found with name '{name}' in marketplace {marketplace_id.value}",
+                f"No return policy found with name '{name}' in marketplace {marketplaceId.value}",
                 e.get_full_error_details()
             ).to_json_string()
         
@@ -518,7 +514,7 @@ UpdateReturnPolicyInput = ReturnPolicyInput
 @mcp.tool
 async def update_return_policy(
     ctx: Context,
-    return_policy_id: str,
+    returnPolicyId: str,
     policy_input: UpdateReturnPolicyInput
 ) -> str:
     """
@@ -528,17 +524,17 @@ async def update_return_policy(
     all fields, not just the ones you want to change.
     
     Args:
-        return_policy_id: The ID of the policy to update
+        returnPolicyId: The ID of the policy to update
         policy_input: Complete updated policy configuration
         ctx: MCP context
     
     Returns:
         JSON response with updated policy details
     """
-    await ctx.info(f"Updating return policy: {return_policy_id}")
+    await ctx.info(f"Updating return policy: {returnPolicyId}")
     await ctx.report_progress(0.1, "Validating input parameters...")
     
-    if not return_policy_id:
+    if not returnPolicyId:
         return error_response(
             ErrorCode.VALIDATION_ERROR,
             "Return policy ID is required"
@@ -575,7 +571,7 @@ async def update_return_policy(
         
         # Make API request
         response = await rest_client.put(
-            f"/sell/account/v1/return_policy/{return_policy_id}",
+            f"/sell/account/v1/return_policy/{returnPolicyId}",
             json=policy_data
         )
         response_body = response["body"]
@@ -622,7 +618,7 @@ async def update_return_policy(
 @mcp.tool
 async def delete_return_policy(
     ctx: Context,
-    return_policy_id: str
+    returnPolicyId: str
 ) -> str:
     """
     Delete a return policy.
@@ -631,15 +627,15 @@ async def delete_return_policy(
     The policy must not be associated with any active listings.
     
     Args:
-        return_policy_id: The ID of the policy to delete
+        returnPolicyId: The ID of the policy to delete
         ctx: MCP context
     
     Returns:
         JSON response confirming deletion
     """
-    await ctx.info(f"Deleting return policy: {return_policy_id}")
+    await ctx.info(f"Deleting return policy: {returnPolicyId}")
     
-    if not return_policy_id:
+    if not returnPolicyId:
         return error_response(
             ErrorCode.VALIDATION_ERROR,
             "Return policy ID is required"
@@ -671,7 +667,7 @@ async def delete_return_policy(
         
         # Make API request
         await rest_client.delete(
-            f"/sell/account/v1/return_policy/{return_policy_id}"
+            f"/sell/account/v1/return_policy/{returnPolicyId}"
         )
         
         await ctx.report_progress(0.8, "Processing response...")
@@ -681,8 +677,8 @@ async def delete_return_policy(
         await ctx.info(f"Return policy deleted successfully")
         
         return success_response(
-            data={"deleted": True, "policy_id": return_policy_id},
-            message=f"Return policy {return_policy_id} deleted successfully"
+            data={"deleted": True, "returnPolicyId": returnPolicyId},
+            message=f"Return policy {returnPolicyId} deleted successfully"
         ).to_json_string()
         
     except EbayApiError as e:
@@ -693,7 +689,7 @@ async def delete_return_policy(
         if e.status_code == 404:
             return error_response(
                 ErrorCode.RESOURCE_NOT_FOUND,
-                f"Return policy {return_policy_id} not found",
+                f"Return policy {returnPolicyId} not found",
                 e.get_full_error_details()
             ).to_json_string()
         elif e.status_code == 409:

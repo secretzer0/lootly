@@ -11,6 +11,7 @@ All models follow the Pydantic-First Development methodology with strong typing
 and validation through Pydantic models only.
 """
 from typing import Optional
+from decimal import Decimal
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 
@@ -28,6 +29,10 @@ class BrowseSearchInput(BaseModel):
     # FILTERING FIELDS
     categoryIds: Optional[str] = Field(None, description="Comma-separated category IDs")
     filter: Optional[str] = Field(None, description="Advanced filter string")
+    priceMin: Optional[Decimal] = Field(None, description="Minimum price filter")
+    priceMax: Optional[Decimal] = Field(None, description="Maximum price filter")
+    conditions: Optional[str] = Field(None, description="Item condition filter (e.g., NEW,USED_EXCELLENT)")
+    sellers: Optional[str] = Field(None, description="Seller filter")
     
     # SORTING AND PAGINATION
     sort: str = Field(default="BestMatch", description="Sort order")
@@ -47,6 +52,7 @@ class ItemDetailsInput(BaseModel):
         "SUMMARY,DETAILS,PRIMARY_PHOTO,ADDITIONAL_PHOTOS", 
         description="Comma-separated list of field groups to include"
     )
+    includeDescription: bool = Field(default=True, description="Whether to include full item description")
     
     @field_validator('itemId')
     @classmethod
@@ -78,6 +84,8 @@ class CategoryBrowseInput(BaseModel):
     limit: int = Field(default=50, ge=1, le=200, description="Number of items to return")
     offset: int = Field(default=0, ge=0, description="Number of items to skip")
     filter: Optional[str] = Field(None, description="Additional filters for category browsing")
+    priceMin: Optional[Decimal] = Field(None, description="Minimum price filter")
+    priceMax: Optional[Decimal] = Field(None, description="Maximum price filter")
     
     @field_validator('categoryId')
     @classmethod
@@ -96,11 +104,11 @@ class ItemSalesSearchInput(BaseModel):
     """Input validation for marketplace insights sales search."""
     model_config = ConfigDict(str_strip_whitespace=True)
     
-    # REQUIRED FIELDS
-    q: str = Field(..., min_length=1, max_length=350, description="Search query")
+    # OPTIONAL FIELDS  
+    q: Optional[str] = Field(None, min_length=1, max_length=100, description="Search query")
     
     # OPTIONAL FIELDS
-    category_ids: Optional[str] = Field(None, description="Comma-separated category IDs")
+    categoryIds: Optional[str] = Field(None, description="Comma-separated category IDs")
     filter: Optional[str] = Field(None, description="Advanced filter string")
     sort: Optional[str] = Field(None, description="Sort criteria")
     limit: int = Field(default=50, ge=1, le=200, description="Number of results")
@@ -113,6 +121,11 @@ class ItemSalesSearchInput(BaseModel):
         if v > 200:
             raise ValueError("Limit cannot exceed 200")
         return v
+    
+    def validate_search_criteria(self):
+        """Validate that at least one search criterion is provided."""
+        if not self.q and not self.categoryIds and not self.filter:
+            raise ValueError("At least one search criterion is required (q, categoryIds, or filter)")
 
 
 # =============================================================================
@@ -169,6 +182,14 @@ class MerchandisedProductsInput(BaseModel):
     metricName: Optional[str] = Field(None, description="Metric for product ranking")
     limit: int = Field(default=8, ge=1, le=100, description="Number of products to return")
     aspectFilter: Optional[str] = Field(None, description="Aspect-based filtering")
+    
+    @field_validator('categoryId')
+    @classmethod
+    def validate_category_id(cls, v):
+        """Validate category ID format."""
+        if v and not v.isdigit():
+            raise ValueError("Category ID must be numeric")
+        return v
     
     @field_validator('limit')
     @classmethod

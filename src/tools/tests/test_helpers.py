@@ -288,8 +288,8 @@ def assert_api_response_success(response: Union[str, Dict[str, Any]]) -> Dict[st
 def assert_list_response_structure(
     response_data: Dict[str, Any],
     item_validator: callable,
-    min_items: int = 0,
-    max_items: Optional[int] = None
+    min_length: int = 0,
+    max_length: Optional[int] = None
 ) -> None:
     """
     Validate a list response structure (like search results).
@@ -297,8 +297,8 @@ def assert_list_response_structure(
     Args:
         response_data: The 'data' portion of the response
         item_validator: Function to validate each item
-        min_items: Minimum expected items
-        max_items: Maximum expected items
+        min_length: Minimum expected items
+        max_length: Maximum expected items
     """
     # Common list response fields
     validate_field(response_data, "total", int, required=False,
@@ -310,6 +310,6 @@ def assert_list_response_structure(
     
     # Validate items list
     validate_list_field(response_data, "items", 
-                       min_length=min_items, 
-                       max_length=max_items,
+                       min_length=min_length, 
+                       max_length=max_length,
                        item_validator=item_validator)

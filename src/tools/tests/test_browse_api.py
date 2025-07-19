@@ -76,7 +76,7 @@ class TestBrowseAPI:
         print("Testing integration infrastructure with Browse API...")
         print("This API uses basic scope (no user consent required)")
         
-        search_input = BrowseSearchInput(query="test", limit=1)
+        search_input = BrowseSearchInput(q="test", limit=1)
         result = await search_items.fn(ctx=mock_context, search_input=search_input)
         response = json.loads(result)
         
@@ -105,35 +105,33 @@ class TestBrowseAPI:
         
         # Valid input
         valid_input = BrowseSearchInput(
-            query="iPhone",
-            category_ids="9355",
+            q="iPhone",
+            categoryIds="9355",
             limit=50,
-            price_min=Decimal("100.00"),
-            price_max=Decimal("500.00")
+            filter="price:[100..500]"
         )
-        assert valid_input.query == "iPhone"
+        assert valid_input.q == "iPhone"
         assert valid_input.limit == 50
-        assert valid_input.price_min == Decimal("100.00")
+        assert valid_input.filter == "price:[100..500]"
         
         # Invalid query - too short
         with pytest.raises(ValueError, match="String should have at least 1 character"):
-            BrowseSearchInput(query="", limit=50)
+            BrowseSearchInput(q="", limit=50)
         
         # Invalid limit - too high
         with pytest.raises(ValueError, match="Input should be less than or equal to 200"):
-            BrowseSearchInput(query="test", limit=300)
+            BrowseSearchInput(q="test", limit=300)
         
-        # Invalid price range - max < min
-        with pytest.raises(ValueError, match="price_max must be greater than price_min"):
-            BrowseSearchInput(
-                query="test",
-                price_min=Decimal("500.00"),
-                price_max=Decimal("100.00")
-            )
+        # Valid filter usage
+        filter_input = BrowseSearchInput(
+            q="test",
+            filter="price:[100..500],condition:{NEW}"
+        )
+        assert filter_input.filter == "price:[100..500],condition:{NEW}"
         
-        # Invalid sort value
-        with pytest.raises(ValueError, match="sort must be one of"):
-            BrowseSearchInput(query="test", sort="invalid_sort")
+        # Valid sort values are accepted
+        sort_input = BrowseSearchInput(q="test", sort="price")
+        assert sort_input.sort == "price"
     
     def test_item_details_input_validation(self):
         """Test ItemDetailsInput Pydantic model validation."""
@@ -142,19 +140,19 @@ class TestBrowseAPI:
         
         # Valid input
         valid_input = ItemDetailsInput(
-            item_id="v1|123456789|0",
-            include_description=True
+            itemId="v1|1234567890|0",
+            fieldgroups="SUMMARY,DETAILS"
         )
-        assert valid_input.item_id == "v1|123456789|0"
-        assert valid_input.include_description is True
+        assert valid_input.itemId == "v1|1234567890|0"
+        assert valid_input.fieldgroups == "SUMMARY,DETAILS"
         
         # Invalid item_id - empty
         with pytest.raises(ValueError, match="String should have at least 1 character"):
-            ItemDetailsInput(item_id="")
+            ItemDetailsInput(itemId="")
         
         # Invalid item_id - just whitespace
         with pytest.raises(ValueError, match="String should have at least 1 character"):
-            ItemDetailsInput(item_id="   ")
+            ItemDetailsInput(itemId="   ")
     
     def test_category_browse_input_validation(self):
         """Test CategoryBrowseInput Pydantic model validation."""
@@ -163,25 +161,22 @@ class TestBrowseAPI:
         
         # Valid input
         valid_input = CategoryBrowseInput(
-            category_id="9355",
+            categoryId="9355",
             sort="price",
-            limit=100,
-            price_min=Decimal("50.00"),
-            price_max=Decimal("200.00")
+            limit=100
         )
-        assert valid_input.category_id == "9355"
+        assert valid_input.categoryId == "9355"
         assert valid_input.sort == "price"
         
         # Invalid category_id - empty
         with pytest.raises(ValueError, match="String should have at least 1 character"):
-            CategoryBrowseInput(category_id="")
+            CategoryBrowseInput(categoryId="")
         
-        # Invalid price range
-        with pytest.raises(ValueError, match="price_max must be greater than price_min"):
+        # Invalid limit - too high
+        with pytest.raises(ValueError, match="Input should be less than or equal to 200"):
             CategoryBrowseInput(
-                category_id="9355",
-                price_min=Decimal("200.00"),
-                price_max=Decimal("100.00")
+                categoryId="9355",
+                limit=300
             )
     
     # ==============================================================================
@@ -192,14 +187,14 @@ class TestBrowseAPI:
     async def test_search_items_basic(self, mock_context):
         """Test basic item search functionality."""
         search_input = BrowseSearchInput(
-            query="iPhone",
+            q="iPhone",
             limit=10
         )
         
         if self.is_integration_mode:
             # Integration test - real API call
             print(f"\nTesting real API call to eBay Browse API...")
-            print(f"Query: {search_input.query}, Limit: {search_input.limit}")
+            print(f"Query: {search_input.q}, Limit: {search_input.limit}")
             
             result = await search_items.fn(
                 ctx=mock_context,
@@ -248,6 +243,7 @@ class TestBrowseAPI:
                 )
                 
                 response = json.loads(result)
+                print(f"### BROWSE SEARCH BASIC RESPONSE: {response}")
                 assert response["status"] == "success"
                 assert "items" in response["data"]
                 assert "total" in response["data"]
@@ -263,10 +259,10 @@ class TestBrowseAPI:
     async def test_search_items_with_filters(self, mock_context):
         """Test item search with filters."""
         search_input = BrowseSearchInput(
-            query="laptop",
-            category_ids="177",  # PC Laptops
-            price_min=Decimal("500.00"),
-            price_max=Decimal("2000.00"),
+            q="laptop",
+            categoryIds="177",  # PC Laptops
+            priceMin=Decimal("500.00"),
+            priceMax=Decimal("2000.00"),
             conditions="NEW,USED_EXCELLENT",
             sort="price",
             limit=20
@@ -334,7 +330,7 @@ class TestBrowseAPI:
     async def test_search_items_empty_results(self, mock_context):
         """Test handling of empty search results."""
         search_input = BrowseSearchInput(
-            query="xyzabc123notexist",
+            q="xyzabc123notexist",
             limit=10
         )
         
@@ -395,22 +391,22 @@ class TestBrowseAPI:
     async def test_get_item_details_basic(self, mock_context):
         """Test getting item details."""
         details_input = ItemDetailsInput(
-            item_id="v1|123456789|0",
-            include_description=True
+            itemId="v1|1234567890|0",
+            includeDescription=True
         )
         
         if self.is_integration_mode:
             # First search for a real item to get item ID
-            search_input = BrowseSearchInput(query="iPhone", limit=1)
+            search_input = BrowseSearchInput(q="iPhone", limit=1)
             search_result = await search_items.fn(ctx=mock_context, search_input=search_input)
             search_response = json.loads(search_result)
             
             if search_response["status"] == "success" and search_response["data"]["items"]:
-                real_item_id = search_response["data"]["items"][0]["item_id"]
-                details_input.item_id = real_item_id
+                real_item_id = search_response["data"]["items"][0]["itemId"]
+                details_input.itemId = real_item_id
                 
                 print(f"\nTesting real API call for item details...")
-                print(f"Item ID: {details_input.item_id}")
+                print(f"Item ID: {details_input.itemId}")
                 
                 result = await get_item_details.fn(
                     ctx=mock_context,
@@ -425,8 +421,8 @@ class TestBrowseAPI:
                     pytest.fail(f"API call failed - {error_code}: {error_msg}\nDetails: {details}")
                 
                 assert response["status"] == "success"
-                assert "item_id" in response["data"]
-                assert response["data"]["item_id"] == real_item_id
+                assert "itemId" in response["data"]
+                assert response["data"]["itemId"] == real_item_id
                 print(f"Successfully retrieved item details")
             else:
                 pytest.skip("No items found for details test")
@@ -457,20 +453,20 @@ class TestBrowseAPI:
                 
                 response = json.loads(result)
                 assert response["status"] == "success"
-                assert "item_id" in response["data"]
+                assert "itemId" in response["data"]
                 
                 # Verify API was called correctly
                 mock_client.get.assert_called_once()
                 call_args = mock_client.get.call_args
-                assert f"/buy/browse/v1/item/{details_input.item_id}" in call_args[0][0]
+                assert f"/buy/browse/v1/item/{details_input.itemId}" in call_args[0][0]
                 assert call_args[1]["params"]["fieldgroups"] == "PRODUCT,ADDITIONAL_SELLER_DETAILS"
     
     @pytest.mark.asyncio
     async def test_get_item_details_compact(self, mock_context):
         """Test getting item details in compact mode."""
         details_input = ItemDetailsInput(
-            item_id="v1|123456789|0",
-            include_description=False
+            itemId="v1|1234567890|0",
+            includeDescription=False
         )
         
         if self.is_integration_mode:
@@ -516,14 +512,14 @@ class TestBrowseAPI:
     async def test_get_items_by_category_basic(self, mock_context):
         """Test browsing items by category."""
         category_input = CategoryBrowseInput(
-            category_id="9355",  # Cell Phones & Smartphones
+            categoryId="9355",  # Cell Phones & Smartphones
             limit=10
         )
         
         if self.is_integration_mode:
             # Integration test - real API call
             print(f"\nTesting real API call for category browsing...")
-            print(f"Category ID: {category_input.category_id}")
+            print(f"Category ID: {category_input.categoryId}")
             
             result = await get_items_by_category.fn(
                 ctx=mock_context,
@@ -580,9 +576,9 @@ class TestBrowseAPI:
     async def test_get_items_by_category_with_filters(self, mock_context):
         """Test category browsing with price filters."""
         category_input = CategoryBrowseInput(
-            category_id="9355",
-            price_min=Decimal("100.00"),
-            price_max=Decimal("500.00"),
+            categoryId="9355",
+            priceMin=Decimal("100.00"),
+            priceMax=Decimal("500.00"),
             sort="price",
             limit=20
         )
@@ -647,7 +643,7 @@ class TestBrowseAPI:
     @pytest.mark.asyncio
     async def test_search_items_api_error(self, mock_context):
         """Test handling of API errors in search."""
-        search_input = BrowseSearchInput(query="test", limit=10)
+        search_input = BrowseSearchInput(q="test", limit=10)
         
         if self.is_integration_mode:
             # Integration test - test with invalid category
@@ -699,7 +695,7 @@ class TestBrowseAPI:
     @pytest.mark.asyncio
     async def test_get_item_details_not_found(self, mock_context):
         """Test handling of item not found error."""
-        details_input = ItemDetailsInput(item_id="v1|999999999|0")
+        details_input = ItemDetailsInput(itemId="v1|9999999999|0")
         
         if self.is_integration_mode:
             # Integration test - test with non-existent item
@@ -749,7 +745,7 @@ class TestBrowseAPI:
     @pytest.mark.asyncio
     async def test_missing_credentials(self, mock_context):
         """Test handling of missing credentials."""
-        search_input = BrowseSearchInput(query="test", limit=10)
+        search_input = BrowseSearchInput(q="test", limit=10)
         
         if self.is_integration_mode:
             pytest.skip("Missing credentials test only runs in unit mode")

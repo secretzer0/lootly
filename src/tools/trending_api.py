@@ -58,7 +58,7 @@ async def get_most_watched_items(
             data={
                 "items": [],
                 "total_count": 0,
-                "category_id": trending_input.category_id,
+                "categoryId": trending_input.categoryId,
                 "note": "eBay API credentials not configured. Please set EBAY_APP_ID and EBAY_CERT_ID."
             },
             message="eBay API credentials not available"
@@ -92,9 +92,9 @@ async def get_most_watched_items(
             rest_client, 
             ctx,
             "trending popular hot new",
-            input_data.category_id,
+            input_data.categoryId,
             "newlyListed",
-            max_results=input_data.max_results // 2
+            max_results=input_data.maxResults // 2
         )
         all_items.extend(items_1)
         
@@ -103,9 +103,9 @@ async def get_most_watched_items(
             rest_client,
             ctx,
             "must have popular trending viral",
-            input_data.category_id,
+            input_data.categoryId,
             "relevance",
-            max_results=input_data.max_results - len(items_1)
+            max_results=input_data.maxResults - len(items_1)
         )
         all_items.extend(items_2)
         
@@ -119,7 +119,7 @@ async def get_most_watched_items(
                 unique_items.append(item)
         
         # Limit to requested number
-        trending_items = unique_items[:input_data.max_results]
+        trending_items = unique_items[:input_data.maxResults]
         
         await ctx.report_progress(1.0, "✅ Complete")
         await ctx.info(f"🎆 Found {len(trending_items)} trending items")
@@ -128,7 +128,7 @@ async def get_most_watched_items(
             data={
                 "items": trending_items,
                 "total_count": len(trending_items),
-                "category_id": input_data.category_id,
+                "category_id": input_data.categoryId,
                 "search_strategy": "multi_search_trending",
                 "api_used": "browse_api_strategic"
             },
@@ -188,16 +188,16 @@ async def get_trending_items_by_category(
         trending_input = TrendingItemsInput(**parsed_data)
     
     # Validate that category_id is provided for this tool
-    if not trending_input.category_id:
+    if not trending_input.categoryId:
         return error_response(
             ErrorCode.VALIDATION_ERROR,
-            "category_id is required for get_trending_items_by_category"
+            "categoryId is required for get_trending_items_by_category"
         ).to_json_string()
     
-    await ctx.info(f"🔥 Getting trending items for category: {trending_input.category_id}")
+    await ctx.info(f"🔥 Getting trending items for category: {trending_input.categoryId}")
     
     # Use the same implementation as get_most_watched_items
-    return await get_most_watched_items(
+    return await get_most_watched_items.fn(
         ctx=ctx,
         trending_input=trending_input
     )

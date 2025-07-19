@@ -127,7 +127,7 @@ async def get_opted_in_programs(ctx: Context) -> str:
 @mcp.tool
 async def opt_in_to_program(
     ctx: Context,
-    program_type: ProgramTypeEnum
+    programType: ProgramTypeEnum
 ) -> str:
     """
     Opt into an eBay seller program.
@@ -136,17 +136,17 @@ async def opt_in_to_program(
     different benefits and features for sellers.
     
     Args:
-        program_type: Type of program to opt into
+        programType: Type of program to opt into
         ctx: MCP context
     
     Returns:
         JSON response confirming opt-in status
     """
-    await ctx.info(f"Opting into program: {program_type.value}")
+    await ctx.info(f"Opting into program: {programType.value}")
     
     # Validate input
     try:
-        input_data = OptInOutInput(program_type=program_type)
+        input_data = OptInOutInput(programType=programType)
     except Exception as e:
         await ctx.error(f"Validation error: {str(e)}")
         return error_response(
@@ -227,7 +227,7 @@ async def opt_in_to_program(
 @mcp.tool
 async def opt_out_of_program(
     ctx: Context,
-    program_type: ProgramTypeEnum
+    programType: ProgramTypeEnum
 ) -> str:
     """
     Opt out of an eBay seller program.
@@ -236,17 +236,17 @@ async def opt_out_of_program(
     longer have access to the program's features and benefits.
     
     Args:
-        program_type: Type of program to opt out of
+        programType: Type of program to opt out of
         ctx: MCP context
     
     Returns:
         JSON response confirming opt-out status
     """
-    await ctx.info(f"Opting out of program: {program_type.value}")
+    await ctx.info(f"Opting out of program: {programType.value}")
     
     # Validate input
     try:
-        input_data = OptInOutInput(program_type=program_type)
+        input_data = OptInOutInput(programType=programType)
     except Exception as e:
         await ctx.error(f"Validation error: {str(e)}")
         return error_response(

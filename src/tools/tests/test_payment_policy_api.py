@@ -43,8 +43,9 @@ from models.policies import (
     DepositDueIn,
     FullPaymentDueIn
 )
-from models.common import CategoryType
+from models.common import Amount, CategoryType
 from models.enums import (
+    CurrencyCodeEnum,
     MarketplaceIdEnum,
     CategoryTypeEnum,
     PaymentMethodTypeEnum,
@@ -124,11 +125,11 @@ class TestPaymentPolicyAPI:
         # Prepare test data
         policy_input = PaymentPolicyInput(
             name="Standard Payment Policy",
-            marketplace_id=self.marketplace_id,
-            category_types=[
+            marketplaceId=self.marketplace_id,
+            categoryTypes=[
                 CategoryType(name=CategoryTypeEnum.ALL_EXCLUDING_MOTORS_VEHICLES)
             ],
-            immediate_pay=True,
+            immediatePay=True,
             description="Test standard payment policy"
         )
         
@@ -136,7 +137,7 @@ class TestPaymentPolicyAPI:
             # Integration test - real API call
             print(f"\nTesting real API call to eBay sandbox...")
             print(f"Policy name: {policy_input.name}")
-            print(f"Marketplace: {policy_input.marketplace_id.value}")
+            print(f"Marketplace: {policy_input.marketplaceId.value}")
             
             result = await create_payment_policy.fn(
                 ctx=mock_context,
@@ -199,7 +200,7 @@ class TestPaymentPolicyAPI:
                 
                 response = json.loads(result)
                 assert response["status"] == "success"
-                assert response["data"]["policy_id"] == "6196943000"
+                assert response["data"]["paymentPolicyId"] == "6196943000"
                 assert response["data"]["name"] == "New Payment Policy"
                 
                 # Verify API call
@@ -213,19 +214,19 @@ class TestPaymentPolicyAPI:
         # Prepare test data
         policy_input = PaymentPolicyInput(
             name="Motor Vehicle Payment",
-            marketplace_id=self.marketplace_id,
-            category_types=[
+            marketplaceId=self.marketplace_id,
+            categoryTypes=[
                 CategoryType(name=CategoryTypeEnum.MOTORS_VEHICLES)
             ],
-            immediate_pay=False,
+            immediatePay=False,
             deposit=Deposit(
-                due_in=DepositDueIn(value=48, unit=TimeDurationUnitEnum.HOUR),  # Fixed: Use valid 48 hours
-                amount=Decimal("500.00"),
-                payment_methods=[
+                dueIn=DepositDueIn(value=48, unit=TimeDurationUnitEnum.HOUR),
+                amount=Amount(value="500.00", currency=CurrencyCodeEnum.USD),
+                paymentMethods=[
                     PaymentMethod(payment_method_type=PaymentMethodTypeEnum.CASHIER_CHECK)
                 ]
             ),
-            full_payment_due_in=FullPaymentDueIn(
+            fullPaymentDueIn=FullPaymentDueIn(
                 value=7,
                 unit=TimeDurationUnitEnum.DAY
             ),
@@ -302,7 +303,7 @@ class TestPaymentPolicyAPI:
                 response = json.loads(result)
                 assert response["status"] == "success"
                 assert response["data"]["deposit"] is not None
-                assert response["data"]["full_payment_due_in"] is not None
+                assert response["data"]["fullPaymentDueIn"] is not None
     
     @pytest.mark.asyncio
     async def test_create_payment_policy_validation_errors(self):
@@ -311,29 +312,29 @@ class TestPaymentPolicyAPI:
         with pytest.raises(ValueError) as exc_info:
             PaymentPolicyInput(
                 name="Invalid Motor Policy",
-                marketplace_id=self.marketplace_id,
-                category_types=[
+                marketplaceId=self.marketplace_id,
+                categoryTypes=[
                     CategoryType(name=CategoryTypeEnum.MOTORS_VEHICLES)
                 ],
-                immediate_pay=True  # Invalid for motors
+                immediatePay=True  # Invalid for motors
             )
-        assert "immediate_pay cannot be true for motor vehicle listings" in str(exc_info.value)
+        assert "immediatePay cannot be true for motor vehicle listings" in str(exc_info.value)
         
         # Test 2: Motor vehicle with deposit but no full_payment_due_in
         with pytest.raises(ValueError) as exc_info:
             PaymentPolicyInput(
                 name="Invalid Motor Policy 2",
-                marketplace_id=self.marketplace_id,
-                category_types=[
+                marketplaceId=self.marketplace_id,
+                categoryTypes=[
                     CategoryType(name=CategoryTypeEnum.MOTORS_VEHICLES)
                 ],
                 deposit=Deposit(
-                    due_in=3,
-                    amount=Decimal("500.00")
+                    dueIn=DepositDueIn(value=24, unit=TimeDurationUnitEnum.HOUR),
+                    amount=Amount(value="500.00", currency=CurrencyCodeEnum.USD)
                 )
                 # Missing full_payment_due_in
             )
-        assert "full_payment_due_in is required when deposit is specified" in str(exc_info.value)
+        assert "fullPaymentDueIn is required when deposit is specified" in str(exc_info.value)
     
     # ==============================================================================
     # GET PAYMENT POLICIES TESTS
@@ -347,7 +348,7 @@ class TestPaymentPolicyAPI:
             print(f"\nRetrieving payment policies for {self.marketplace_id.value}")
             result = await get_payment_policies.fn(
                 ctx=mock_context,
-                marketplace_id=self.marketplace_id
+                marketplaceId=self.marketplace_id
             )
             response = json.loads(result)
             
@@ -401,7 +402,7 @@ class TestPaymentPolicyAPI:
                 
                 result = await get_payment_policies.fn(
                     ctx=mock_context,
-                    marketplace_id=self.marketplace_id,
+                    marketplaceId=self.marketplace_id,
                     limit=20,
                     offset=0
                 )
@@ -415,7 +416,7 @@ class TestPaymentPolicyAPI:
                 mock_client.get.assert_called_once_with(
                     "/sell/account/v1/payment_policy",
                     params={
-                        "marketplace_id": "EBAY_US",
+                        "marketplaceId": "EBAY_US",
                         "limit": 20,
                         "offset": 0
                     }
@@ -488,8 +489,9 @@ class TestPaymentPolicyAPI:
                 )
                 
                 response = json.loads(result)
+                print(f"### GET POLICY RESPONSE: {response}")
                 assert response["status"] == "success"
-                assert response["data"]["policy_id"] == self.test_policy_id
+                assert response["data"]["paymentPolicyId"] == self.test_policy_id
                 
                 # Verify API call
                 mock_client.get.assert_called_once_with(
@@ -571,7 +573,7 @@ class TestPaymentPolicyAPI:
             # Integration test - real API call
             result = await get_payment_policy_by_name.fn(
                 ctx=mock_context,
-                marketplace_id=self.marketplace_id,
+                marketplaceId=self.marketplace_id,
                 name=self.test_policy_name
             )
             response = json.loads(result)
@@ -623,7 +625,7 @@ class TestPaymentPolicyAPI:
                 
                 result = await get_payment_policy_by_name.fn(
                     ctx=mock_context,
-                    marketplace_id=self.marketplace_id,
+                    marketplaceId=self.marketplace_id,
                     name=self.test_policy_name
                 )
                 
@@ -637,7 +639,7 @@ class TestPaymentPolicyAPI:
                 mock_client.get.assert_called_once_with(
                     "/sell/account/v1/payment_policy/get_by_policy_name",
                     params={
-                        "marketplace_id": "EBAY_US",
+                        "marketplaceId": "EBAY_US",
                         "name": self.test_policy_name
                     }
                 )
@@ -663,7 +665,7 @@ class TestPaymentPolicyAPI:
                 
                 result = await get_payment_policy_by_name.fn(
                     ctx=mock_context,
-                    marketplace_id=self.marketplace_id,
+                    marketplaceId=self.marketplace_id,
                     name="Nonexistent Policy"
                 )
                 
@@ -681,13 +683,14 @@ class TestPaymentPolicyAPI:
         """Test updating an existing payment policy."""
         # Prepare update data
         update_input = UpdatePaymentPolicyInput(
+            paymentPolicyId=self.test_policy_id,
             name="Updated Payment Policy",
-            marketplace_id=self.marketplace_id,
-            category_types=[
+            marketplaceId=self.marketplace_id,
+            categoryTypes=[
                 CategoryType(name=CategoryTypeEnum.ALL_EXCLUDING_MOTORS_VEHICLES)
             ],
-            immediate_pay=False,
-            payment_instrument_brands=[
+            immediatePay=False,
+            paymentInstrumentBrands=[
                 PaymentInstrumentBrandEnum.VISA,
                 PaymentInstrumentBrandEnum.MASTERCARD
             ]
@@ -757,7 +760,7 @@ class TestPaymentPolicyAPI:
                 response = json.loads(result)
                 assert response["status"] == "success"
                 assert response["data"]["name"] == "Updated Payment Policy"
-                assert response["data"]["immediate_pay"] is False
+                assert response["data"]["immediatePay"] is False
                 
                 # Verify API call
                 mock_client.put.assert_called_once()
@@ -924,7 +927,7 @@ class TestPaymentPolicyAPI:
             
             result = await get_payment_policies.fn(
                 ctx=mock_context,
-                marketplace_id=self.marketplace_id
+                marketplaceId=self.marketplace_id
             )
             
             response = json.loads(result)
@@ -954,7 +957,7 @@ class TestPaymentPolicyAPI:
             
             result = await get_payment_policies.fn(
                 ctx=mock_context,
-                marketplace_id=self.marketplace_id
+                marketplaceId=self.marketplace_id
             )
             
             response = json.loads(result)
@@ -987,7 +990,7 @@ class TestPaymentPolicyAPI:
                 
                 result = await get_payment_policies.fn(
                     ctx=mock_context,
-                    marketplace_id=self.marketplace_id
+                    marketplaceId=self.marketplace_id
                 )
                 
                 response = json.loads(result)
