@@ -16,358 +16,162 @@ OAuth Scope Required: https://api.ebay.com/oauth/api_scope/sell.inventory
 """
 from typing import Optional, Dict, Any, List
 from fastmcp import Context
-from pydantic import BaseModel, Field, model_validator, ConfigDict
-from decimal import Decimal
 
 from api.oauth import OAuthManager, OAuthConfig, ConsentRequiredException
 from api.rest_client import EbayRestClient, RestConfig
 from api.errors import EbayApiError, extract_ebay_error_details
-from models.enums import (
-    ConditionEnum,
-    AvailabilityTypeEnum,
-    LocaleEnum,
-    LengthUnitOfMeasureEnum,
-    WeightUnitOfMeasureEnum,
-    PackageTypeEnum
+from models.inventory import (
+    InventoryItemInput,
+    BulkInventoryItemInput, BulkPriceQuantityInput
 )
 from data_types import success_response, error_response, ErrorCode
 from lootly_server import mcp
 
 
-# PYDANTIC MODELS - API Documentation → Pydantic Models → MCP Tools
+# HELPER FUNCTIONS
 
-
-class Dimension(BaseModel):
-    """Physical dimension with value and unit."""
-    model_config = ConfigDict(str_strip_whitespace=True)
+def _validate_sku_format(sku: str) -> None:
+    """Validate SKU format requirements."""
+    if not sku or not sku.strip():
+        raise ValueError("SKU is required")
     
-    value: Decimal = Field(..., description="Dimension value")
-    unit: LengthUnitOfMeasureEnum = Field(..., description="Unit of measurement")
-
-
-class Weight(BaseModel):
-    """Package weight with value and unit."""
-    model_config = ConfigDict(str_strip_whitespace=True)
+    if len(sku) > 50:
+        raise ValueError("SKU cannot exceed 50 characters")
     
-    value: Decimal = Field(..., description="Weight value")
-    unit: WeightUnitOfMeasureEnum = Field(..., description="Unit of measurement")
+    # Allow alphanumeric, hyphens, and underscores
+    import re
+    if not re.match(r'^[a-zA-Z0-9_-]+$', sku):
+        raise ValueError("SKU can only contain alphanumeric characters, hyphens, and underscores")
 
 
-class PackageWeightAndSize(BaseModel):
-    """Package dimensions and weight for shipping calculation."""
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
-    # OPTIONAL FIELDS
-    dimensions: Optional[Dict[str, Dimension]] = Field(None, description="Package dimensions (length, width, height)")
-    package_type: Optional[PackageTypeEnum] = Field(None, description="Type of package")
-    weight: Optional[Weight] = Field(None, description="Package weight")
-
-
-class PickupAtLocationAvailability(BaseModel):
-    """Local pickup availability settings."""
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
-    availability_type: AvailabilityTypeEnum = Field(..., description="Availability type")
-    fulfillment_time: Optional[Dict[str, Any]] = Field(None, description="Pickup fulfillment time")
-    merchant_location_key: Optional[str] = Field(None, description="Merchant location identifier")
-
-
-class ShipToLocationAvailability(BaseModel):
-    """Ship-to-home availability settings."""
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
-    # OPTIONAL FIELDS
-    allocation_by_format: Optional[Dict[str, int]] = Field(None, description="Quantity allocation by listing format")
-    availability_distributions: Optional[List[Dict[str, Any]]] = Field(None, description="Inventory location distributions")
-    quantity: Optional[int] = Field(None, ge=0, description="Total available quantity")
-
-
-class Availability(BaseModel):
-    """Inventory availability configuration."""
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
-    # OPTIONAL FIELDS
-    pickup_at_location_availability: Optional[List[PickupAtLocationAvailability]] = Field(None, description="Local pickup availability")
-    ship_to_location_availability: Optional[ShipToLocationAvailability] = Field(None, description="Ship-to-home availability")
-
-
-class Product(BaseModel):
-    """Product information and details."""
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
-    # OPTIONAL FIELDS (required for publishing offers)
-    title: Optional[str] = Field(None, max_length=80, description="Product title")
-    description: Optional[str] = Field(None, max_length=4000, description="Product description")
-    aspects: Optional[Dict[str, List[str]]] = Field(None, description="Product aspects/attributes")
-    brand: Optional[str] = Field(None, description="Product brand")
-    mpn: Optional[str] = Field(None, description="Manufacturer Part Number")
-    
-    # PRODUCT IDENTIFIERS
-    upc: Optional[List[str]] = Field(None, description="UPC codes")
-    ean: Optional[List[str]] = Field(None, description="EAN codes")
-    isbn: Optional[List[str]] = Field(None, description="ISBN codes")
-    epid: Optional[str] = Field(None, description="eBay Product ID")
-    gtin: Optional[List[str]] = Field(None, description="GTIN codes")
-    
-    # MEDIA
-    image_urls: Optional[List[str]] = Field(None, description="Product image URLs (HTTPS required)")
-    video_ids: Optional[List[str]] = Field(None, description="eBay video IDs")
-    
-    # ADDITIONAL DETAILS
-    subtitle: Optional[str] = Field(None, max_length=55, description="Product subtitle")
-    
-    @model_validator(mode='after')
-    def validate_image_urls(self):
-        """Validate that all image URLs use HTTPS."""
-        if self.image_urls:
-            for url in self.image_urls:
-                if not url.startswith("https://"):
-                    raise ValueError(f"Image URLs must use HTTPS: {url}")
-        return self
-
-
-class InventoryItemInput(BaseModel):
-    """
-    Complete input validation for inventory item operations.
-    
-    Maps ALL fields from eBay API createOrReplaceInventoryItem Request Fields exactly.
-    Documentation: https://developer.ebay.com/api-docs/sell/inventory/resources/inventory_item/methods/createOrReplaceInventoryItem
-    """
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
-    # SKU is passed as path parameter, not in body
-    
-    # CONDITIONAL FIELDS (required for publishing offers)
-    availability: Optional[Availability] = Field(None, description="Availability and quantity settings")
-    condition: Optional[ConditionEnum] = Field(None, description="Item condition")
-    condition_description: Optional[str] = Field(None, max_length=1000, description="Detailed condition description")
-    package_weight_and_size: Optional[PackageWeightAndSize] = Field(None, description="Package dimensions and weight")
-    product: Optional[Product] = Field(None, description="Product information and details")
-    
-    # LOCALE SETTINGS
-    locale: Optional[LocaleEnum] = Field(None, description="Locale for item details")
-
-
-class BulkInventoryItemRequest(BaseModel):
-    """Single inventory item request for bulk operations."""
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
-    sku: str = Field(..., max_length=50, description="Unique SKU identifier")
-    inventory_item: InventoryItemInput = Field(..., description="Inventory item data")
-
-
-class BulkInventoryItemInput(BaseModel):
-    """Bulk inventory item creation/update input."""
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
-    requests: List[BulkInventoryItemRequest] = Field(..., max_length=25, description="Inventory item requests (max 25)")
-    
-    @model_validator(mode='after')
-    def validate_unique_skus(self):
-        """Validate that all SKUs in the bulk request are unique."""
-        skus = [req.sku for req in self.requests]
-        if len(skus) != len(set(skus)):
-            raise ValueError("All SKUs in bulk request must be unique")
-        return self
-
-
-class PriceQuantity(BaseModel):
-    """Price and quantity update for bulk operations."""
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
-    # OPTIONAL FIELDS
-    offers: Optional[List[Dict[str, Any]]] = Field(None, description="Offer-specific price/quantity updates")
-    ship_to_location_availability: Optional[ShipToLocationAvailability] = Field(None, description="Quantity updates")
-
-
-class BulkPriceQuantityRequest(BaseModel):
-    """Single price/quantity update request for bulk operations."""
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
-    sku: str = Field(..., max_length=50, description="Unique SKU identifier")
-    price_quantity: PriceQuantity = Field(..., description="Price and quantity updates")
-
-
-class BulkPriceQuantityInput(BaseModel):
-    """Bulk price and quantity update input."""
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
-    requests: List[BulkPriceQuantityRequest] = Field(..., max_length=25, description="Price/quantity update requests (max 25)")
-    
-    @model_validator(mode='after')
-    def validate_unique_skus(self):
-        """Validate that all SKUs in the bulk request are unique."""
-        skus = [req.sku for req in self.requests]
-        if len(skus) != len(set(skus)):
-            raise ValueError("All SKUs in bulk request must be unique")
-        return self
-
-
-# HELPER FUNCTIONS - Convert between Pydantic models and eBay API format
-
-
-def _build_inventory_item_data(input_data: InventoryItemInput) -> Dict[str, Any]:
-    """
-    Convert Pydantic model to eBay API request format.
-    
-    This follows the exact field mapping from eBay's createOrReplaceInventoryItem API.
-    """
+def _build_inventory_item_data(inventory_item: InventoryItemInput) -> Dict[str, Any]:
+    """Convert Pydantic InventoryItemInput to eBay API format."""
     item_data = {}
     
     # Add availability
-    if input_data.availability:
+    if inventory_item.availability:
         availability_data = {}
         
-        if input_data.availability.pickup_at_location_availability:
-            availability_data["pickupAtLocationAvailability"] = [
-                {
-                    "availabilityType": pickup.availability_type.value,
-                    **({"fulfillmentTime": pickup.fulfillment_time} if pickup.fulfillment_time else {}),
-                    **({"merchantLocationKey": pickup.merchant_location_key} if pickup.merchant_location_key else {})
-                }
-                for pickup in input_data.availability.pickup_at_location_availability
-            ]
+        if inventory_item.availability.pickup_at_location_availability:
+            pickup = inventory_item.availability.pickup_at_location_availability
+            pickup_data = {}
+            if pickup.availability_type:
+                pickup_data["availabilityType"] = pickup.availability_type.value
+            if pickup.fulfillment_time:
+                pickup_data["fulfillmentTime"] = pickup.fulfillment_time
+            if pickup.merchant_location_key:
+                pickup_data["merchantLocationKey"] = pickup.merchant_location_key
+            if pickup.quantity is not None:
+                pickup_data["quantity"] = pickup.quantity
+            availability_data["pickupAtLocationAvailability"] = [pickup_data]
         
-        if input_data.availability.ship_to_location_availability:
+        if inventory_item.availability.ship_to_location_availability:
+            ship = inventory_item.availability.ship_to_location_availability
             ship_data = {}
-            ship_avail = input_data.availability.ship_to_location_availability
-            
-            if ship_avail.allocation_by_format:
-                ship_data["allocationByFormat"] = ship_avail.allocation_by_format
-            if ship_avail.availability_distributions:
-                ship_data["availabilityDistributions"] = ship_avail.availability_distributions
-            if ship_avail.quantity is not None:
-                ship_data["quantity"] = ship_avail.quantity
-            
-            if ship_data:
-                availability_data["shipToLocationAvailability"] = ship_data
+            if ship.allocation_by_format:
+                ship_data["allocationByFormat"] = ship.allocation_by_format
+            if ship.availability_distributions:
+                ship_data["availabilityDistributions"] = ship.availability_distributions
+            if ship.quantity is not None:
+                ship_data["quantity"] = ship.quantity
+            availability_data["shipToLocationAvailability"] = ship_data
         
         if availability_data:
             item_data["availability"] = availability_data
     
     # Add condition
-    if input_data.condition:
-        item_data["condition"] = input_data.condition.value
+    if inventory_item.condition:
+        item_data["condition"] = inventory_item.condition.value
     
-    if input_data.condition_description:
-        item_data["conditionDescription"] = input_data.condition_description
+    if inventory_item.condition_description:
+        item_data["conditionDescription"] = inventory_item.condition_description
     
     # Add package weight and size
-    if input_data.package_weight_and_size:
+    if inventory_item.package_weight_and_size:
         package_data = {}
-        pkg = input_data.package_weight_and_size
+        pkg = inventory_item.package_weight_and_size
         
         if pkg.dimensions:
-            package_data["dimensions"] = {
-                key: {
-                    "value": str(dim.value),
-                    "unit": dim.unit.value
-                }
-                for key, dim in pkg.dimensions.items()
-            }
+            dims = {}
+            if pkg.dimensions.height is not None:
+                dims["height"] = pkg.dimensions.height
+            if pkg.dimensions.length is not None:
+                dims["length"] = pkg.dimensions.length
+            if pkg.dimensions.width is not None:
+                dims["width"] = pkg.dimensions.width
+            if pkg.dimensions.unit:
+                dims["unit"] = pkg.dimensions.unit.value
+            package_data["dimensions"] = dims
         
         if pkg.package_type:
             package_data["packageType"] = pkg.package_type.value
         
         if pkg.weight:
-            package_data["weight"] = {
-                "value": str(pkg.weight.value),
-                "unit": pkg.weight.unit.value
-            }
+            weight_data = {}
+            if pkg.weight.unit:
+                weight_data["unit"] = pkg.weight.unit.value
+            if pkg.weight.value is not None:
+                weight_data["value"] = pkg.weight.value
+            package_data["weight"] = weight_data
         
         if package_data:
             item_data["packageWeightAndSize"] = package_data
     
-    # Add product information
-    if input_data.product:
+    # Add product
+    if inventory_item.product:
         product_data = {}
-        prod = input_data.product
+        prod = inventory_item.product
         
-        # Basic product fields
-        if prod.title:
-            product_data["title"] = prod.title
-        if prod.description:
-            product_data["description"] = prod.description
         if prod.aspects:
             product_data["aspects"] = prod.aspects
         if prod.brand:
             product_data["brand"] = prod.brand
+        if prod.description:
+            product_data["description"] = prod.description
+        if prod.ean:
+            product_data["ean"] = prod.ean
+        if prod.epid:
+            product_data["epid"] = prod.epid
+        if prod.image_urls:
+            product_data["imageUrls"] = prod.image_urls
+        if prod.isbn:
+            product_data["isbn"] = prod.isbn
         if prod.mpn:
             product_data["mpn"] = prod.mpn
         if prod.subtitle:
             product_data["subtitle"] = prod.subtitle
-        
-        # Product identifiers
+        if prod.title:
+            product_data["title"] = prod.title
         if prod.upc:
             product_data["upc"] = prod.upc
-        if prod.ean:
-            product_data["ean"] = prod.ean
-        if prod.isbn:
-            product_data["isbn"] = prod.isbn
-        if prod.epid:
-            product_data["epid"] = prod.epid
-        if prod.gtin:
-            product_data["gtin"] = prod.gtin
-        
-        # Media
-        if prod.image_urls:
-            product_data["imageUrls"] = prod.image_urls
         if prod.video_ids:
             product_data["videoIds"] = prod.video_ids
         
         if product_data:
             item_data["product"] = product_data
     
-    # Add locale
-    if input_data.locale:
-        item_data["locale"] = input_data.locale.value
-    
     return item_data
 
 
-def _format_inventory_item_response(item: Dict[str, Any]) -> Dict[str, Any]:
-    """Format API response for consistent output."""
+def _format_inventory_item_response(item_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Format eBay inventory item response for consistent output."""
     formatted = {
-        "sku": item.get("sku"),
-        "locale": item.get("locale")
+        "sku": item_data.get("sku"),
+        "locale": item_data.get("locale"),
+        "availability": item_data.get("availability"),
+        "condition": item_data.get("condition"),
+        "conditionDescription": item_data.get("conditionDescription"),
+        "packageWeightAndSize": item_data.get("packageWeightAndSize"),
+        "product": item_data.get("product")
     }
     
-    # Add availability
-    if item.get("availability"):
-        formatted["availability"] = item["availability"]
-    
-    # Add condition
-    if item.get("condition"):
-        formatted["condition"] = item["condition"]
-    if item.get("conditionDescription"):
-        formatted["condition_description"] = item["conditionDescription"]
-    
-    # Add package info
-    if item.get("packageWeightAndSize"):
-        formatted["package_weight_and_size"] = item["packageWeightAndSize"]
-    
-    # Add product info
-    if item.get("product"):
-        formatted["product"] = item["product"]
-    
-    return formatted
+    # Clean up None values
+    return {k: v for k, v in formatted.items() if v is not None}
 
 
-def _validate_sku_format(sku: str) -> None:
-    """Validate SKU format according to eBay requirements."""
-    if not sku or not sku.strip():
-        raise ValueError("SKU is required and cannot be empty")
-    
-    if len(sku) > 50:
-        raise ValueError("SKU cannot exceed 50 characters")
-    
-    # eBay allows alphanumeric characters, hyphens, and underscores
-    if not all(c.isalnum() or c in ['-', '_'] for c in sku):
-        raise ValueError("SKU can only contain alphanumeric characters, hyphens, and underscores")
 
 
-# MCP TOOLS - Using Pydantic Models
-
+# MCP TOOLS - Using imported models from models.inventory
 
 @mcp.tool
 async def create_or_replace_inventory_item(

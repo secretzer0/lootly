@@ -24,7 +24,6 @@ import json
 import sys
 import logging
 from pathlib import Path
-from datetime import datetime
 
 # Enable debug logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -34,10 +33,9 @@ logging.getLogger('api.oauth').setLevel(logging.DEBUG)
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from api.oauth import OAuthManager, OAuthConfig, ConsentRequiredException
-from api.rest_client import EbayRestClient, RestConfig
-from models import MarketplaceIdEnum
 # Import the MCP tools - these are FunctionTool objects
 import tools.oauth_consent as oauth_consent_tools
+import tools.account_privileges_api as account_privileges_tools
 from lootly_server import mcp
 from fastmcp import Context
 
@@ -104,7 +102,7 @@ async def test_oauth_flow():
     print("=" * 60)
     
     # First, test the OAuth architecture directly
-    has_valid_token = await test_oauth_architecture()
+    await test_oauth_architecture()
     
     # Step 1: Check current consent status via MCP tools
     print("\n1️⃣ Checking current consent status via MCP tools...")
@@ -125,8 +123,11 @@ async def test_oauth_flow():
                 await oauth_consent_tools.revoke_user_consent.fn(ctx)
                 print("✅ Consent revoked. Starting fresh OAuth flow...")
             else:
-                print("\n✅ Using existing consent. Skipping to API tests...")
-                return await test_apis_with_consent(ctx)
+                print("\n✅ Using existing consent. Testing token...")
+                success = await test_apis_with_consent(ctx)
+                if success:
+                    print("\n🎉 OAuth token validation successful!")
+                return
         else:
             print("⚠️  No valid consent found. Starting OAuth flow...")
             
@@ -213,119 +214,47 @@ async def test_oauth_flow():
         print(f"❌ Error completing OAuth: {str(e)}")
         return
     
-    # Step 5: Test APIs that require consent
-    await test_apis_with_consent(ctx)
+    # Step 5: Test that the OAuth token works
+    success = await test_apis_with_consent(ctx)
+    if success:
+        print("\n🎉 Complete OAuth flow and token validation successful!")
 
 
 async def test_apis_with_consent(ctx):
     """Test APIs that require user consent."""
     print("\n5️⃣ Testing APIs with user consent...")
     
-    # Test 1: Account API via MCP tool
-    print("\n🔧 Testing Account API via MCP tool...")
+    # Test: Verify OAuth token works with MCP tools
+    print("\n🔧 Testing OAuth token with Account Privileges API...")
     try:
-        result = await get_seller_standards.fn(ctx, program="PROGRAM_US", cycle="CURRENT")
+        result = await account_privileges_tools.get_privileges.fn(ctx)
         data = json.loads(result)
         if data["status"] == "success":
-            seller_level = data["data"]["seller_standards"]["seller_level"]
-            data_source = data["data"]["seller_standards"].get("data_source", "unknown")
-            print(f"✅ Account API: Seller level: {seller_level} (source: {data_source})")
+            seller_registration = data["data"].get("seller_registration_completed", False)
+            selling_limit = data["data"].get("selling_limit")
+            print(f"✅ OAuth token works! Registration completed: {seller_registration}")
+            if selling_limit:
+                amount = selling_limit.get("amount", {})
+                quantity = selling_limit.get("quantity")
+                print(f"   Selling limit: {amount.get('value', 'N/A')} {amount.get('currency', '')} / {quantity} items")
+            else:
+                print("   No selling limits configured")
+            print("   ✅ MCP tools can successfully use the authenticated token")
         else:
-            print(f"❌ Account API: {data['error_message']}")
+            print(f"❌ OAuth token test failed: {data['error_message']}")
+            return False
     except Exception as e:
-        print(f"❌ Account API error: {str(e)}")
+        print(f"❌ OAuth token test error: {str(e)}")
+        return False
     
-    # Test 2: Payment Policy API via REST client directly
-    print("\n💳 Testing Payment Policy API via REST client...")
-    try:
-        # Initialize OAuth manager and REST client
-        oauth_config = OAuthConfig(
-            client_id=mcp.config.app_id,
-            client_secret=mcp.config.cert_id,
-            sandbox=mcp.config.sandbox_mode
-        )
-        oauth_manager = OAuthManager(oauth_config)
-        
-        rest_config = RestConfig(
-            sandbox=mcp.config.sandbox_mode,
-            rate_limit_per_day=mcp.config.rate_limit_per_day
-        )
-        rest_client = EbayRestClient(oauth_manager, rest_config)
-        
-        # Test API call
-        params = {
-            "marketplace_id": MarketplaceIdEnum.EBAY_US.value,
-            "limit": 5,
-            "offset": 0
-        }
-        
-        result = await rest_client.get(
-            "/sell/account/v1/payment_policy",
-            params=params
-        )
-        
-        policies = result.get('paymentPolicies', [])
-        print(f"✅ Payment Policy API: Found {len(policies)} policies")
-        
-        # Show policy details
-        for i, policy in enumerate(policies[:3]):  # Show first 3 policies
-            print(f"   Policy {i+1}: {policy.get('name', 'Unknown')} (ID: {policy.get('paymentPolicyId', 'N/A')})")
-        
-        await rest_client.close()
-        
-    except ConsentRequiredException as e:
-        print(f"⚠️  Payment Policy API: User consent required: {e}")
-    except Exception as e:
-        print(f"❌ Payment Policy API error: {str(e)}")
-    
-    # Test 3: Return Policy API via REST client directly
-    print("\n🔄 Testing Return Policy API via REST client...")
-    try:
-        oauth_config = OAuthConfig(
-            client_id=mcp.config.app_id,
-            client_secret=mcp.config.cert_id,
-            sandbox=mcp.config.sandbox_mode
-        )
-        oauth_manager = OAuthManager(oauth_config)
-        
-        rest_config = RestConfig(
-            sandbox=mcp.config.sandbox_mode,
-            rate_limit_per_day=mcp.config.rate_limit_per_day
-        )
-        rest_client = EbayRestClient(oauth_manager, rest_config)
-        
-        # Test API call
-        params = {
-            "marketplace_id": MarketplaceIdEnum.EBAY_US.value,
-            "limit": 5,
-            "offset": 0
-        }
-        
-        result = await rest_client.get(
-            "/sell/account/v1/return_policy",
-            params=params
-        )
-        
-        policies = result.get('returnPolicies', [])
-        print(f"✅ Return Policy API: Found {len(policies)} policies")
-        
-        # Show policy details
-        for i, policy in enumerate(policies[:3]):  # Show first 3 policies
-            print(f"   Policy {i+1}: {policy.get('name', 'Unknown')} (ID: {policy.get('returnPolicyId', 'N/A')})")
-        
-        await rest_client.close()
-        
-    except ConsentRequiredException as e:
-        print(f"⚠️  Return Policy API: User consent required: {e}")
-    except Exception as e:
-        print(f"❌ Return Policy API error: {str(e)}")
-    
-    print("\n🎉 OAuth flow and API testing complete!")
-    print("✅ All tests used the NEW OAuth architecture:")
+    print("\n🎉 OAuth flow and token validation complete!")
+    print("✅ Successfully tested NEW OAuth architecture:")
     print("   - Centralized OAuthManager in oauth.py")
     print("   - ConsentRequiredException for proper error handling")
     print("   - MCP tools as thin wrappers around OAuthManager")
     print("   - Single source of truth for token management")
+    
+    return True
 
 
 async def main():

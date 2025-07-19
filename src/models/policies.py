@@ -223,24 +223,20 @@ class ReturnPolicyInput(BaseModel):
     
     # REQUIRED FIELDS
     name: str = Field(..., min_length=1, max_length=64, description="Policy name")
-    marketplace_id: MarketplaceIdEnum = Field(..., description="eBay marketplace ID")
-    category_types: List[CategoryType] = Field(..., description="Category types this policy applies to")
-    returns_accepted: bool = Field(..., description="Whether returns are accepted")
+    marketplaceId: MarketplaceIdEnum = Field(..., description="eBay marketplace ID")
+    categoryTypes: List[CategoryType] = Field(..., description="Category types this policy applies to")
+    returnsAccepted: bool = Field(..., description="Whether returns are accepted")
     
-    # CONDITIONAL FIELDS (required when returns_accepted=true)
-    return_period: Optional[TimeDuration] = Field(None, description="Return window duration")
-    return_shipping_cost_payer: Optional[ReturnShippingCostPayerEnum] = Field(None, description="Who pays return shipping")
+    # CONDITIONAL FIELDS (required when returnsAccepted=true)
+    returnPeriod: Optional[TimeDuration] = Field(None, description="Return window duration")
+    returnShippingCostPayer: Optional[ReturnShippingCostPayerEnum] = Field(None, description="Who pays return shipping")
     
     # OPTIONAL FIELDS
     description: Optional[str] = Field(None, max_length=250, description="Internal policy description")
-    refund_method: Optional[RefundMethodEnum] = Field(RefundMethodEnum.MONEY_BACK, description="Type of refund offered")
-    return_method: Optional[ReturnMethodEnum] = Field(None, description="Return method offered")
-    return_instructions: Optional[str] = Field(None, max_length=5000, description="Instructions for buyers on how to return items")
-    international_override: Optional[InternationalReturnOverride] = Field(None, description="International return policy override")
-    
-    # DEPRECATED FIELDS (still included per PRP requirements)
-    extended_holiday_returns_offered: Optional[bool] = Field(None, description="Deprecated - no longer supported")
-    restocking_fee_percentage: Optional[str] = Field(None, description="Deprecated - no longer supported")
+    refundMethod: Optional[RefundMethodEnum] = Field(RefundMethodEnum.MONEY_BACK, description="Type of refund offered")
+    returnMethod: Optional[ReturnMethodEnum] = Field(None, description="Return method offered")
+    returnInstructions: Optional[str] = Field(None, max_length=5000, description="Instructions for buyers on how to return items")
+    internationalOverride: Optional[InternationalReturnOverride] = Field(None, description="International return policy override")
     
     @model_validator(mode='after')
     def validate_conditional_fields(self):

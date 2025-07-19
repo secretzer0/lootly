@@ -23,11 +23,15 @@ from tools.return_policy_api import (
     get_return_policy,
     get_return_policy_by_name,
     update_return_policy,
-    delete_return_policy,
+    delete_return_policy
+)
+from models.policies import (
     ReturnPolicyInput,
-    CategoryType,
-    TimeDuration,
     InternationalReturnOverride
+)
+from models.common import (
+    CategoryType,
+    TimeDuration
 )
 from models.enums import (
     MarketplaceIdEnum,

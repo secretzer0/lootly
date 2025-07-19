@@ -33,15 +33,17 @@ from tools.payment_policy_api import (
     get_payment_policy,
     get_payment_policy_by_name,
     update_payment_policy,
-    delete_payment_policy,
+    delete_payment_policy
+)
+from models.policies import (
     PaymentPolicyInput,
     UpdatePaymentPolicyInput,
-    CategoryType,
     PaymentMethod,
     Deposit,
     DepositDueIn,
     FullPaymentDueIn
 )
+from models.common import CategoryType
 from models.enums import (
     MarketplaceIdEnum,
     CategoryTypeEnum,

@@ -11,10 +11,8 @@ IMPLEMENTATION FOLLOWS: PYDANTIC-FIRST DEVELOPMENT METHODOLOGY
 - Validation through Pydantic models only
 - Zero manual validation code
 """
-from typing import Optional, Dict, Any, Union
-from decimal import Decimal
+from typing import Dict, Any, Union
 from fastmcp import Context
-from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 from api.oauth import OAuthManager, OAuthConfig
 from api.rest_client import EbayRestClient, RestConfig
@@ -23,83 +21,6 @@ from data_types import success_response, error_response, ErrorCode
 from models.browse import BrowseSearchInput, ItemDetailsInput, CategoryBrowseInput
 from lootly_server import mcp
 
-
-# PYDANTIC MODELS - API Documentation → Pydantic Models → MCP Tools
-
-
-class BrowseSearchInput(BaseModel):
-    """Complete input validation for Browse API search operations."""
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
-    # REQUIRED FIELDS
-    query: str = Field(..., min_length=1, max_length=350, description="Search query")
-    
-    # OPTIONAL FIELDS
-    category_ids: Optional[str] = Field(None, description="Comma-separated category IDs")
-    price_min: Optional[Decimal] = Field(None, ge=0, description="Minimum price filter")
-    price_max: Optional[Decimal] = Field(None, ge=0, description="Maximum price filter")
-    conditions: Optional[str] = Field(None, description="Comma-separated condition IDs")
-    sellers: Optional[str] = Field(None, description="Comma-separated seller usernames")
-    sort: str = Field("relevance", description="Sort order")
-    limit: int = Field(50, ge=1, le=200, description="Results per page")
-    offset: int = Field(0, ge=0, description="Result offset for pagination")
-    
-    @field_validator('price_max')
-    @classmethod
-    def validate_price_range(cls, v, info):
-        """Validate price range logic."""
-        if v is not None and 'price_min' in info.data:
-            price_min = info.data.get('price_min')
-            if price_min is not None and v <= price_min:
-                raise ValueError("price_max must be greater than price_min")
-        return v
-    
-    @field_validator('sort')
-    @classmethod
-    def validate_sort_values(cls, v):
-        """Validate sort parameter values."""
-        valid_sorts = ["relevance", "price", "distance", "newlyListed"]
-        if v not in valid_sorts:
-            raise ValueError(f"sort must be one of: {', '.join(valid_sorts)}")
-        return v
-
-
-class ItemDetailsInput(BaseModel):
-    """Input validation for item details requests."""
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
-    item_id: str = Field(..., min_length=1, description="eBay item ID")
-    include_description: bool = Field(True, description="Include full item description")
-    
-    @field_validator('item_id')
-    @classmethod
-    def validate_item_id(cls, v):
-        """Validate item ID format."""
-        if not v or len(v.strip()) == 0:
-            raise ValueError("item_id cannot be empty")
-        return v
-
-
-class CategoryBrowseInput(BaseModel):
-    """Input validation for category browsing."""
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
-    category_id: str = Field(..., min_length=1, description="eBay category ID")
-    sort: str = Field("relevance", description="Sort order")
-    limit: int = Field(50, ge=1, le=200, description="Results per page")
-    offset: int = Field(0, ge=0, description="Result offset")
-    price_min: Optional[Decimal] = Field(None, ge=0, description="Minimum price filter")
-    price_max: Optional[Decimal] = Field(None, ge=0, description="Maximum price filter")
-    
-    @field_validator('price_max')
-    @classmethod
-    def validate_price_range(cls, v, info):
-        """Validate price range logic."""
-        if v is not None and 'price_min' in info.data:
-            price_min = info.data.get('price_min')
-            if price_min is not None and v <= price_min:
-                raise ValueError("price_max must be greater than price_min")
-        return v
 
 
 # CONVERSION FUNCTIONS
@@ -145,22 +66,22 @@ def _format_search_response(response: Dict[str, Any]) -> Dict[str, Any]:
     
     for item_summary in response.get("itemSummaries", []):
         formatted_item = {
-            "item_id": item_summary.get("itemId"),
+            "itemId": item_summary.get("itemId"),
             "title": item_summary.get("title"),
             "price": item_summary.get("price", {}),
             "condition": item_summary.get("condition"),
             "seller": item_summary.get("seller", {}),
-            "item_location": item_summary.get("itemLocation", {}),
-            "shipping_options": item_summary.get("shippingOptions", []),
-            "item_web_url": item_summary.get("itemWebUrl"),
+            "itemLocation": item_summary.get("itemLocation", {}),
+            "shippingOptions": item_summary.get("shippingOptions", []),
+            "itemWebUrl": item_summary.get("itemWebUrl"),
             "image": item_summary.get("image", {}),
             "categories": item_summary.get("categories", [])
         }
         
         # Add computed fields
-        formatted_item["free_shipping"] = any(
+        formatted_item["freeShipping"] = any(
             opt.get("shippingCost", {}).get("value") == "0.0"
-            for opt in formatted_item["shipping_options"]
+            for opt in formatted_item["shippingOptions"]
         )
         
         items.append(formatted_item)
@@ -178,35 +99,35 @@ def _format_search_response(response: Dict[str, Any]) -> Dict[str, Any]:
 def _format_item_details_response(item_data: Dict[str, Any]) -> Dict[str, Any]:
     """Format Browse API item details response."""
     formatted = {
-        "item_id": item_data.get("itemId"),
+        "itemId": item_data.get("itemId"),
         "title": item_data.get("title"),
         "subtitle": item_data.get("shortDescription"),
         "description": item_data.get("description"),
         "price": item_data.get("price", {}),
         "condition": item_data.get("condition"),
-        "condition_description": item_data.get("conditionDescription"),
+        "conditionDescription": item_data.get("conditionDescription"),
         "seller": item_data.get("seller", {}),
-        "item_location": item_data.get("itemLocation", {}),
-        "shipping_options": item_data.get("shippingOptions", []),
-        "item_web_url": item_data.get("itemWebUrl"),
+        "itemLocation": item_data.get("itemLocation", {}),
+        "shippingOptions": item_data.get("shippingOptions", []),
+        "itemWebUrl": item_data.get("itemWebUrl"),
         "images": item_data.get("image", {}),
-        "additional_images": item_data.get("additionalImages", []),
+        "additionalImages": item_data.get("additionalImages", []),
         "categories": item_data.get("categories", []),
         "brand": item_data.get("brand"),
         "mpn": item_data.get("mpn"),
         "gtin": item_data.get("gtin"),
-        "estimated_availabilities": item_data.get("estimatedAvailabilities", []),
-        "return_terms": item_data.get("returnTerms", {}),
+        "estimatedAvailabilities": item_data.get("estimatedAvailabilities", []),
+        "returnTerms": item_data.get("returnTerms", {}),
         "product": item_data.get("product", {}),
-        "local_pickup": item_data.get("localPickup", False),
-        "available_coupons": item_data.get("availableCoupons", False),
-        "addon_services": item_data.get("addonServices", [])
+        "localPickup": item_data.get("localPickup", False),
+        "availableCoupons": item_data.get("availableCoupons", False),
+        "addonServices": item_data.get("addonServices", [])
     }
     
     # Add computed fields
-    formatted["free_shipping"] = any(
+    formatted["freeShipping"] = any(
         opt.get("shippingCost", {}).get("value") == "0.0"
-        for opt in formatted["shipping_options"]
+        for opt in formatted["shippingOptions"]
     )
     
     # Get quantity if available

@@ -11,21 +11,16 @@ IMPLEMENTATION FOLLOWS: PYDANTIC-FIRST DEVELOPMENT METHODOLOGY
 - Validation through Pydantic models only
 - Zero manual validation code
 """
-from typing import Optional, Dict, Any, List
+from typing import Dict, Any
 from fastmcp import Context
-from pydantic import BaseModel, Field, model_validator, ConfigDict
 
 from api.oauth import OAuthManager, OAuthConfig, ConsentRequiredException
 from api.rest_client import EbayRestClient, RestConfig
 from api.errors import EbayApiError
 from models.enums import (
-    MarketplaceIdEnum,
-    CategoryTypeEnum,
-    RefundMethodEnum,
-    ReturnMethodEnum,
-    ReturnShippingCostPayerEnum,
-    TimeDurationUnitEnum
+    MarketplaceIdEnum
 )
+from models.policies import ReturnPolicyInput, UpdateReturnPolicyInput
 from data_types import success_response, error_response, ErrorCode
 from lootly_server import mcp
 
@@ -33,183 +28,69 @@ from lootly_server import mcp
 # PYDANTIC MODELS - API Documentation → Pydantic Models → MCP Tools
 
 
-class CategoryType(BaseModel):
-    """Category type for a business policy."""
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
-    name: CategoryTypeEnum = Field(..., description="Category type name")
-    default: Optional[bool] = Field(None, description="Deprecated - no longer used")
+# HELPER FUNCTIONS
 
-
-class TimeDuration(BaseModel):
-    """Time duration for return periods."""
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
-    value: int = Field(..., gt=0, le=365, description="Number of time units")
-    unit: TimeDurationUnitEnum = Field(..., description="Time unit")
-
-
-class InternationalReturnOverride(BaseModel):
-    """International return policy override settings."""
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
-    returns_accepted: bool = Field(..., description="Whether international returns are accepted")
-    return_period: Optional[TimeDuration] = Field(None, description="Return period for international buyers")
-    return_shipping_cost_payer: Optional[ReturnShippingCostPayerEnum] = Field(None, description="Who pays international return shipping")
-    return_method: Optional[ReturnMethodEnum] = Field(None, description="Return method for international buyers")
-    
-    @model_validator(mode='after')
-    def validate_conditional_fields(self):
-        """Validate conditional requirements for international returns."""
-        if self.returns_accepted:
-            if not self.return_period:
-                raise ValueError("return_period is required when returns_accepted is true for international override")
-            if not self.return_shipping_cost_payer:
-                raise ValueError("return_shipping_cost_payer is required when returns_accepted is true for international override")
-        return self
-
-
-class ReturnPolicyInput(BaseModel):
-    """
-    Complete input validation for return policy operations.
-    
-    Maps ALL fields from eBay API createReturnPolicy Request Fields exactly.
-    """
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
-    # REQUIRED FIELDS
-    name: str = Field(..., min_length=1, max_length=64, description="Policy name")
-    marketplace_id: MarketplaceIdEnum = Field(..., description="eBay marketplace ID")
-    category_types: List[CategoryType] = Field(..., description="Category types this policy applies to")
-    returns_accepted: bool = Field(..., description="Whether returns are accepted")
-    
-    # CONDITIONAL FIELDS (required when returns_accepted=true)
-    return_period: Optional[TimeDuration] = Field(None, description="Return window duration")
-    return_shipping_cost_payer: Optional[ReturnShippingCostPayerEnum] = Field(None, description="Who pays return shipping")
-    
-    # OPTIONAL FIELDS
-    description: Optional[str] = Field(None, max_length=250, description="Internal policy description")
-    refund_method: Optional[RefundMethodEnum] = Field(RefundMethodEnum.MONEY_BACK, description="Type of refund offered")
-    return_method: Optional[ReturnMethodEnum] = Field(None, description="Return method offered")
-    return_instructions: Optional[str] = Field(None, max_length=5000, description="Instructions for buyers on how to return items")
-    international_override: Optional[InternationalReturnOverride] = Field(None, description="International return policy override")
-    
-    # DEPRECATED FIELDS (still included per PRP requirements)
-    extended_holiday_returns_offered: Optional[bool] = Field(None, description="Deprecated - no longer supported")
-    restocking_fee_percentage: Optional[str] = Field(None, description="Deprecated - no longer supported")
-    
-    @model_validator(mode='after')
-    def validate_conditional_fields(self):
-        """Validate conditional requirements based on returns_accepted."""
-        if self.returns_accepted:
-            if not self.return_period:
-                raise ValueError("return_period is required when returns_accepted is true")
-            if not self.return_shipping_cost_payer:
-                raise ValueError("return_shipping_cost_payer is required when returns_accepted is true")
-        return self
-
-
-# CONVERSION FUNCTIONS
-
-def _convert_to_api_format(input_data: ReturnPolicyInput) -> Dict[str, Any]:
-    """Convert Pydantic model to eBay API format."""
+def _convert_to_api_format(policy_input: ReturnPolicyInput) -> Dict[str, Any]:
+    """Convert Pydantic ReturnPolicyInput to eBay API format."""
     policy_data = {
-        "name": input_data.name,
-        "marketplaceId": input_data.marketplace_id.value,
-        "categoryTypes": [
-            {"name": ct.name.value, "default": ct.default} 
-            for ct in input_data.category_types
-        ],
-        "returnsAccepted": input_data.returns_accepted
+        "name": policy_input.name,
+        "marketplaceId": policy_input.marketplace_id.value,
+        "categoryTypes": [cat_type.model_dump(mode='json') for cat_type in policy_input.category_types]
     }
     
     # Add optional fields
-    if input_data.description:
-        policy_data["description"] = input_data.description
+    if policy_input.description:
+        policy_data["description"] = policy_input.description
     
-    if input_data.return_instructions:
-        policy_data["returnInstructions"] = input_data.return_instructions
+    if policy_input.returns_accepted is not None:
+        policy_data["returnsAccepted"] = policy_input.returns_accepted
     
-    if input_data.refund_method:
-        policy_data["refundMethod"] = input_data.refund_method.value
+    if policy_input.return_period:
+        policy_data["returnPeriod"] = policy_input.return_period.model_dump()
     
-    if input_data.return_method:
-        policy_data["returnMethod"] = input_data.return_method.value
+    if policy_input.return_method:
+        policy_data["returnMethod"] = policy_input.return_method.value
     
-    # Add deprecated fields if provided
-    if input_data.extended_holiday_returns_offered is not None:
-        policy_data["extendedHolidayReturnsOffered"] = input_data.extended_holiday_returns_offered
+    if policy_input.return_shipping_cost_payer:
+        policy_data["returnShippingCostPayer"] = policy_input.return_shipping_cost_payer.value
     
-    if input_data.restocking_fee_percentage is not None:
-        policy_data["restockingFeePercentage"] = input_data.restocking_fee_percentage
+    if policy_input.refund_method:
+        policy_data["refundMethod"] = policy_input.refund_method.value
     
-    # Add conditional fields
-    if input_data.returns_accepted and input_data.return_period:
-        policy_data["returnPeriod"] = {
-            "value": input_data.return_period.value,
-            "unit": input_data.return_period.unit.value
-        }
-        policy_data["returnShippingCostPayer"] = input_data.return_shipping_cost_payer.value
+    if policy_input.return_instructions:
+        policy_data["returnInstructions"] = policy_input.return_instructions
     
-    # Add international override if provided
-    if input_data.international_override:
-        intl = input_data.international_override
-        policy_data["internationalOverride"] = {
-            "returnsAccepted": intl.returns_accepted
-        }
-        if intl.returns_accepted and intl.return_period:
-            policy_data["internationalOverride"]["returnPeriod"] = {
-                "value": intl.return_period.value,
-                "unit": intl.return_period.unit.value
-            }
-            policy_data["internationalOverride"]["returnShippingCostPayer"] = intl.return_shipping_cost_payer.value
-            if intl.return_method:
-                policy_data["internationalOverride"]["returnMethod"] = intl.return_method.value
+    if policy_input.restocking_fee_percentage is not None:
+        policy_data["restockingFeePercentage"] = policy_input.restocking_fee_percentage
+    
+    if policy_input.international_override:
+        policy_data["internationalOverride"] = policy_input.international_override.model_dump()
     
     return policy_data
 
 
-def _format_policy_response(policy: Dict[str, Any]) -> Dict[str, Any]:
-    """Format API response for consistent output."""
+def _format_policy_response(policy_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Format eBay return policy response for consistent output."""
     formatted = {
-        "policy_id": policy.get("returnPolicyId"),
-        "name": policy.get("name"),
-        "marketplace_id": policy.get("marketplaceId"),
-        "returns_accepted": policy.get("returnsAccepted", False),
-        "category_types": policy.get("categoryTypes", [])
+        "returnPolicyId": policy_data.get("returnPolicyId"),
+        "name": policy_data.get("name"),
+        "description": policy_data.get("description"),
+        "marketplaceId": policy_data.get("marketplaceId"),
+        "categoryTypes": policy_data.get("categoryTypes", []),
+        "returnsAccepted": policy_data.get("returnsAccepted"),
+        "returnPeriod": policy_data.get("returnPeriod"),
+        "returnMethod": policy_data.get("returnMethod"),
+        "returnShippingCostPayer": policy_data.get("returnShippingCostPayer"),
+        "refundMethod": policy_data.get("refundMethod"),
+        "returnInstructions": policy_data.get("returnInstructions"),
+        "restockingFeePercentage": policy_data.get("restockingFeePercentage"),
+        "internationalOverride": policy_data.get("internationalOverride"),
+        "warnings": policy_data.get("warnings", [])
     }
     
-    # Add return details if returns are accepted
-    if policy.get("returnsAccepted"):
-        if policy.get("returnPeriod"):
-            formatted["return_period"] = policy["returnPeriod"]
-        if policy.get("returnShippingCostPayer"):
-            formatted["return_shipping_cost_payer"] = policy["returnShippingCostPayer"]
-        if policy.get("refundMethod"):
-            formatted["refund_method"] = policy["refundMethod"]
-        if policy.get("returnMethod"):
-            formatted["return_method"] = policy["returnMethod"]
-    
-    # Add optional fields
-    if policy.get("description"):
-        formatted["description"] = policy["description"]
-    
-    if policy.get("returnInstructions"):
-        formatted["return_instructions"] = policy["returnInstructions"]
-    
-    if policy.get("internationalOverride"):
-        formatted["international_override"] = policy["internationalOverride"]
-    
-    # Add timestamps if available
-    if policy.get("createdAt"):
-        formatted["created_at"] = policy["createdAt"]
-    if policy.get("updatedAt"):
-        formatted["updated_at"] = policy["updatedAt"]
-    
-    return formatted
+    # Clean up None values
+    return {k: v for k, v in formatted.items() if v is not None}
 
-
-# MCP TOOLS - Using Pydantic Models
 
 @mcp.tool
 async def create_return_policy(

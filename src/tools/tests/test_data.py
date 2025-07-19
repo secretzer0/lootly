@@ -887,10 +887,8 @@ class TestDataPaymentPolicy:
 
 
 from typing import Optional
-from tools.fulfillment_policy_api import (
-    FulfillmentPolicyInput, CategoryType, TimeDuration, ShippingOption, 
-    ShippingService, Amount, Region, RegionSet
-)
+from models.policies import FulfillmentPolicyInput, ShippingOption, ShippingService
+from models.common import CategoryType, TimeDuration, Amount, Region, RegionSet
 from models.enums import (
     MarketplaceIdEnum, CategoryTypeEnum, ShippingCostTypeEnum,
     ShippingOptionTypeEnum, TimeDurationUnitEnum, CurrencyCodeEnum

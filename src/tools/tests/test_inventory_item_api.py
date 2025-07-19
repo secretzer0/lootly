@@ -26,6 +26,9 @@ from tools.inventory_item_api import (
     bulk_create_or_replace_inventory_item,
     bulk_get_inventory_item,
     bulk_update_price_quantity,
+    _validate_sku_format
+)
+from models.inventory import (
     InventoryItemInput,
     Product,
     Availability,
@@ -38,8 +41,7 @@ from tools.inventory_item_api import (
     BulkInventoryItemRequest,
     BulkPriceQuantityInput,
     BulkPriceQuantityRequest,
-    PriceQuantity,
-    _validate_sku_format
+    PriceQuantity
 )
 from models.enums import (
     ConditionEnum,

@@ -16,82 +16,21 @@ API Documentation: https://developer.ebay.com/api-docs/commerce/taxonomy/resourc
 OAuth Scope Required: https://api.ebay.com/oauth/api_scope/commerce.taxonomy (basic scope)
 """
 from fastmcp import Context
-from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 from api.oauth import OAuthManager, OAuthConfig
 from api.rest_client import EbayRestClient, RestConfig
 from api.errors import EbayApiError
 from api.category_cache import get_category_tree_json, find_category_subtree
 from models.enums import MarketplaceIdEnum
+from models.browse import (
+    GetDefaultCategoryTreeIdInput, GetCategoryTreeInput, GetCategorySubtreeInput,
+    GetCategorySuggestionsInput, GetExpiredCategoriesInput
+)
 from data_types import success_response, error_response, ErrorCode
 from lootly_server import mcp
 
 
 # PYDANTIC MODELS - API Documentation → Pydantic Models → MCP Tools
-
-
-class GetDefaultCategoryTreeIdInput(BaseModel):
-    """Input validation for getting default category tree ID."""
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
-    marketplace_id: MarketplaceIdEnum = Field(
-        default=MarketplaceIdEnum.EBAY_US,
-        description="eBay marketplace ID"
-    )
-
-
-class GetCategoryTreeInput(BaseModel):
-    """Input validation for getting category tree."""
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
-    category_tree_id: str = Field(
-        default="0",
-        description="Category tree ID (default '0' for US marketplace)"
-    )
-
-
-class GetCategorySubtreeInput(BaseModel):
-    """Input validation for getting category subtree."""
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
-    category_tree_id: str = Field(..., description="Category tree ID")
-    category_id: str = Field(..., description="Parent category ID to get subtree from")
-    
-    @field_validator('category_id')
-    @classmethod
-    def validate_category_id(cls, v):
-        if not v or not v.strip():
-            raise ValueError("Category ID cannot be empty")
-        return v.strip()
-
-
-class GetCategorySuggestionsInput(BaseModel):
-    """Input validation for getting category suggestions."""
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
-    category_tree_id: str = Field(..., description="Category tree ID")
-    q: str = Field(..., description="Query string for category search", min_length=1)
-    
-    @field_validator('q')
-    @classmethod
-    def validate_query(cls, v):
-        if not v or not v.strip():
-            raise ValueError("Query string cannot be empty")
-        return v.strip()
-
-
-class GetExpiredCategoriesInput(BaseModel):
-    """Input validation for getting expired categories."""
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
-    category_tree_id: str = Field(..., description="Category tree ID")
-    marketplace_id: MarketplaceIdEnum = Field(
-        default=MarketplaceIdEnum.EBAY_US,
-        description="eBay marketplace ID"
-    )
-
-
-# MCP TOOLS - Pydantic Models → MCP Tools → API Integration
 
 
 @mcp.tool
@@ -150,7 +89,7 @@ async def get_default_category_tree_id(
         # Get default category tree ID
         response = await rest_client.get(
             "/commerce/taxonomy/v1/get_default_category_tree_id",
-            params={"marketplace_id": input_data.marketplace_id.value}
+            params={"marketplaceId": input_data.marketplaceId.value}
         )
         response_body = response["body"]
         
@@ -161,16 +100,16 @@ async def get_default_category_tree_id(
         return success_response(
             data={
                 "category_tree_id": category_tree_id,
-                "marketplace_id": input_data.marketplace_id.value,
+                "marketplaceId": input_data.marketplaceId.value,
                 "data_source": "live_api"
             },
-            message=f"Default category tree ID for {input_data.marketplace_id.value}"
+            message=f"Default category tree ID for {input_data.marketplaceId.value}"
         ).to_json_string()
         
     except EbayApiError as e:
         await ctx.error(f"eBay API error: {e.get_comprehensive_message()}")
         error_details = e.get_full_error_details()
-        error_details["marketplace_id"] = input_data.marketplace_id.value
+        error_details["marketplaceId"] = input_data.marketplaceId.value
         
         return error_response(
             ErrorCode.EXTERNAL_API_ERROR,
@@ -530,8 +469,7 @@ async def get_expired_categories(
     try:
         # Get expired categories
         response = await rest_client.get(
-            f"/commerce/taxonomy/v1/category_tree/{input_data.category_tree_id}/get_expired_categories",
-            params={"marketplace_id": input_data.marketplace_id.value}
+            f"/commerce/taxonomy/v1/category_tree/{input_data.category_tree_id}/get_expired_categories"
         )
         response_body = response["body"]
         
@@ -546,7 +484,7 @@ async def get_expired_categories(
     except EbayApiError as e:
         await ctx.error(f"eBay API error: {e.get_comprehensive_message()}")
         error_details = e.get_full_error_details()
-        error_details["marketplace_id"] = input_data.marketplace_id.value
+        error_details["marketplaceId"] = input_data.marketplaceId.value
         
         return error_response(
             ErrorCode.EXTERNAL_API_ERROR,

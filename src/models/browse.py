@@ -11,7 +11,6 @@ All models follow the Pydantic-First Development methodology with strong typing
 and validation through Pydantic models only.
 """
 from typing import Optional
-from decimal import Decimal
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 

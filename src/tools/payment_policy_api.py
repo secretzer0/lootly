@@ -11,21 +11,16 @@ IMPLEMENTATION FOLLOWS: PYDANTIC-FIRST DEVELOPMENT METHODOLOGY
 - Validation through Pydantic models only
 - Zero manual validation code
 """
-from typing import Optional, Dict, Any, List
-from decimal import Decimal
+from typing import Dict, Any
 from fastmcp import Context
-from pydantic import BaseModel, Field, model_validator, ConfigDict
 
 from api.oauth import OAuthManager, OAuthConfig, ConsentRequiredException
 from api.rest_client import EbayRestClient, RestConfig
 from api.errors import EbayApiError
 from models.enums import (
-    MarketplaceIdEnum,
-    CategoryTypeEnum,
-    PaymentInstrumentBrandEnum,
-    PaymentMethodTypeEnum,
-    TimeDurationUnitEnum
+    MarketplaceIdEnum
 )
+from models.policies import PaymentPolicyInput, UpdatePaymentPolicyInput
 from data_types import success_response, error_response, ErrorCode
 from lootly_server import mcp
 
@@ -33,272 +28,66 @@ from lootly_server import mcp
 # PYDANTIC MODELS - API Documentation → Pydantic Models → MCP Tools
 
 
-class CategoryType(BaseModel):
-    """Category type for a business policy."""
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
-    name: CategoryTypeEnum = Field(..., description="Category type name")
-    default: bool = Field(False, description="Whether this is the default category type")
+# HELPER FUNCTIONS
 
-
-class PaymentMethod(BaseModel):
-    """Offline payment method configuration."""
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
-    payment_method_type: PaymentMethodTypeEnum = Field(..., description="Type of offline payment method")
-    
-    # Recipient account only for certain types
-    recipient_account_reference: Optional[Dict[str, str]] = Field(
-        None, 
-        description="Recipient account info for certain payment types"
-    )
-    
-    @model_validator(mode='after')
-    def validate_recipient_account(self):
-        """Validate recipient account requirements."""
-        # PayPal and other electronic methods may require recipient account
-        # For now, no strict validation as requirements vary by marketplace
-        return self
-
-
-class DepositDueIn(BaseModel):
-    """When deposit payment is due for motor vehicles."""
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
-    value: int = Field(..., description="Number of hours (24, 48, or 72)")
-    unit: TimeDurationUnitEnum = Field(default=TimeDurationUnitEnum.HOUR, description="Time unit (must be HOUR)")
-    
-    @model_validator(mode='after')
-    def validate_deposit_due_in(self):
-        """Validate deposit due_in requirements per eBay API."""
-        if self.unit != TimeDurationUnitEnum.HOUR:
-            raise ValueError("Deposit due_in unit must be HOUR")
-        if self.value not in [24, 48, 72]:
-            raise ValueError("Deposit due_in value must be 24, 48, or 72 hours")
-        return self
-
-
-class Deposit(BaseModel):
-    """Deposit configuration for motor vehicle listings."""
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
-    # Required fields
-    due_in: DepositDueIn = Field(..., description="When deposit payment is due (24, 48, or 72 hours)")
-    amount: Decimal = Field(..., ge=0, decimal_places=2, description="Deposit amount")
-    
-    # Optional payment methods for deposit
-    payment_methods: Optional[List[PaymentMethod]] = Field(
-        None,
-        description="Accepted payment methods for deposit"
-    )
-    
-    @model_validator(mode='after')
-    def validate_deposit_amount(self):
-        """Ensure deposit amount is reasonable."""
-        if self.amount > Decimal('50000'):
-            raise ValueError("Deposit amount seems unreasonably high")
-        return self
-
-
-class FullPaymentDueIn(BaseModel):
-    """Full payment due configuration."""
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
-    value: int = Field(..., ge=0, le=999, description="Number of time units")
-    unit: TimeDurationUnitEnum = Field(..., description="Time unit")
-
-
-class PaymentPolicyInput(BaseModel):
-    """
-    Complete input validation for payment policy operations.
-    
-    Maps ALL fields from eBay API createPaymentPolicy Request Fields exactly.
-    """
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
-    # REQUIRED FIELDS
-    name: str = Field(..., min_length=1, max_length=64, description="Policy name")
-    marketplace_id: MarketplaceIdEnum = Field(..., description="eBay marketplace ID")
-    category_types: List[CategoryType] = Field(..., description="Category types this policy applies to")
-    
-    # OPTIONAL FIELDS
-    description: Optional[str] = Field(None, max_length=250, description="Internal policy description")
-    
-    # Immediate payment flag
-    immediate_pay: Optional[bool] = Field(
-        False, 
-        description="Whether immediate payment is required"
-    )
-    
-    # Payment methods - typically managed by eBay
-    payment_methods: Optional[List[PaymentMethod]] = Field(
-        None,
-        description="Offline payment methods accepted"
-    )
-    
-    # Motor vehicle specific fields
-    deposit: Optional[Deposit] = Field(
-        None,
-        description="Deposit requirements for motor vehicles"
-    )
-    
-    full_payment_due_in: Optional[FullPaymentDueIn] = Field(
-        None,
-        description="When full payment is due for motor vehicles"
-    )
-    
-    # Accepted payment instruments (cards)
-    payment_instrument_brands: Optional[List[PaymentInstrumentBrandEnum]] = Field(
-        None,
-        description="Credit card brands accepted"
-    )
-    
-    @model_validator(mode='after')
-    def validate_motor_vehicle_requirements(self):
-        """Validate motor vehicle category requirements."""
-        has_motors_category = any(
-            ct.name == CategoryTypeEnum.MOTORS_VEHICLES 
-            for ct in self.category_types
-        )
-        
-        # If motor vehicles category and has deposit, validate full payment due
-        if has_motors_category and self.deposit and not self.full_payment_due_in:
-            raise ValueError(
-                "full_payment_due_in is required when deposit is specified for motor vehicle listings"
-            )
-        
-        # Validate immediate pay restrictions
-        if has_motors_category and self.immediate_pay:
-            raise ValueError(
-                "immediate_pay cannot be true for motor vehicle listings"
-            )
-        
-        return self
-    
-    @model_validator(mode='after')
-    def validate_payment_methods(self):
-        """Validate payment method configurations."""
-        # If payment methods specified, ensure they're appropriate
-        if self.payment_methods:
-            # Check for duplicate payment method types
-            method_types = [m.payment_method_type for m in self.payment_methods]
-            if len(method_types) != len(set(method_types)):
-                raise ValueError("Duplicate payment method types are not allowed")
-        
-        return self
-
-
-# CONVERSION FUNCTIONS
-
-def _convert_to_api_format(input_data: PaymentPolicyInput) -> Dict[str, Any]:
-    """Convert Pydantic model to eBay API format."""
+def _convert_to_api_format(policy_input: PaymentPolicyInput) -> Dict[str, Any]:
+    """Convert Pydantic PaymentPolicyInput to eBay API format."""
     policy_data = {
-        "name": input_data.name,
-        "marketplaceId": input_data.marketplace_id.value,
-        "categoryTypes": [
-            {
-                "name": ct.name.value,
-                "default": ct.default
-            }
-            for ct in input_data.category_types
-        ]
+        "name": policy_input.name,
+        "marketplaceId": policy_input.marketplace_id.value,
+        "categoryTypes": [cat_type.model_dump(mode='json') for cat_type in policy_input.category_types]
     }
     
     # Add optional fields
-    if input_data.description:
-        policy_data["description"] = input_data.description
+    if policy_input.description:
+        policy_data["description"] = policy_input.description
     
-    if input_data.immediate_pay is not None:
-        policy_data["immediatePay"] = input_data.immediate_pay
-    
-    # Always include paymentMethods array (even if empty) - might be required by API
-    policy_data["paymentMethods"] = []
-    
-    # Add payment methods if specified
-    if input_data.payment_methods:
-        policy_data["paymentMethods"] = [
-            {
-                "paymentMethodType": pm.payment_method_type.value,
-                **({"recipientAccountReference": pm.recipient_account_reference} 
-                   if pm.recipient_account_reference else {})
+    if policy_input.payment_methods:
+        payment_methods = []
+        for method in policy_input.payment_methods:
+            method_data = {
+                "paymentMethodType": method.payment_method_type.value
             }
-            for pm in input_data.payment_methods
-        ]
+            if method.brands:
+                method_data["brands"] = [brand.value for brand in method.brands]
+            payment_methods.append(method_data)
+        policy_data["paymentMethods"] = payment_methods
     
-    # Add deposit configuration if specified
-    if input_data.deposit:
-        policy_data["deposit"] = {
-            "dueIn": {
-                "value": input_data.deposit.due_in.value,
-                "unit": input_data.deposit.due_in.unit.value
-            },
-            "amount": {
-                "value": str(input_data.deposit.amount),
-                "currency": "USD"  # Currency is marketplace-specific
-            }
-        }
-        if input_data.deposit.payment_methods:
-            policy_data["deposit"]["paymentMethods"] = [
-                {
-                    "paymentMethodType": pm.payment_method_type.value,
-                    **({"recipientAccountReference": pm.recipient_account_reference} 
-                       if pm.recipient_account_reference else {})
-                }
-                for pm in input_data.deposit.payment_methods
-            ]
+    if policy_input.deposit:
+        deposit_data = {}
+        if policy_input.deposit.due_in:
+            deposit_data["dueIn"] = policy_input.deposit.due_in.model_dump()
+        if policy_input.deposit.amount:
+            deposit_data["amount"] = policy_input.deposit.amount.model_dump()
+        policy_data["deposit"] = deposit_data
     
-    # Add full payment due configuration
-    if input_data.full_payment_due_in:
-        policy_data["fullPaymentDueIn"] = {
-            "value": input_data.full_payment_due_in.value,
-            "unit": input_data.full_payment_due_in.unit.value
-        }
+    if policy_input.full_payment_due_in:
+        policy_data["fullPaymentDueIn"] = policy_input.full_payment_due_in.model_dump()
     
-    # Add payment instrument brands
-    if input_data.payment_instrument_brands:
-        policy_data["paymentInstrumentBrands"] = [
-            brand.value for brand in input_data.payment_instrument_brands
-        ]
+    if policy_input.immediate_pay is not None:
+        policy_data["immediatePay"] = policy_input.immediate_pay
     
     return policy_data
 
 
-def _format_policy_response(policy: Dict[str, Any]) -> Dict[str, Any]:
-    """Format API response for consistent output."""
+def _format_policy_response(policy_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Format eBay payment policy response for consistent output."""
     formatted = {
-        "policy_id": policy.get("paymentPolicyId"),
-        "name": policy.get("name"),
-        "marketplace_id": policy.get("marketplaceId"),
-        "category_types": policy.get("categoryTypes", []),
-        "immediate_pay": policy.get("immediatePay", False)
+        "paymentPolicyId": policy_data.get("paymentPolicyId"),
+        "name": policy_data.get("name"),
+        "description": policy_data.get("description"),
+        "marketplaceId": policy_data.get("marketplaceId"),
+        "categoryTypes": policy_data.get("categoryTypes", []),
+        "paymentMethods": policy_data.get("paymentMethods", []),
+        "deposit": policy_data.get("deposit"),
+        "fullPaymentDueIn": policy_data.get("fullPaymentDueIn"),
+        "immediatePay": policy_data.get("immediatePay"),
+        "warnings": policy_data.get("warnings", [])
     }
     
-    # Add optional fields
-    if policy.get("description"):
-        formatted["description"] = policy["description"]
-    
-    if policy.get("paymentMethods"):
-        formatted["payment_methods"] = policy["paymentMethods"]
-    
-    if policy.get("deposit"):
-        formatted["deposit"] = policy["deposit"]
-    
-    if policy.get("fullPaymentDueIn"):
-        formatted["full_payment_due_in"] = policy["fullPaymentDueIn"]
-    
-    if policy.get("paymentInstrumentBrands"):
-        formatted["payment_instrument_brands"] = policy["paymentInstrumentBrands"]
-    
-    # Add timestamps if available
-    if policy.get("createdAt"):
-        formatted["created_at"] = policy["createdAt"]
-    if policy.get("updatedAt"):
-        formatted["updated_at"] = policy["updatedAt"]
-    
-    return formatted
+    # Clean up None values
+    return {k: v for k, v in formatted.items() if v is not None}
 
-
-# MCP TOOLS - Using Pydantic Models
 
 @mcp.tool
 async def create_payment_policy(

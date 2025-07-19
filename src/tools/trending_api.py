@@ -11,7 +11,8 @@ from api.oauth import OAuthManager, OAuthConfig
 from api.rest_client import EbayRestClient, RestConfig
 from api.errors import EbayApiError
 from data_types import success_response, error_response, ErrorCode
-from models.marketplace import TrendingItemsInput
+from models.marketplace import TrendingItemsInput, BuyingOption
+from models.enums import ConditionEnum
 from lootly_server import mcp
 
 
@@ -112,7 +113,7 @@ async def get_most_watched_items(
         seen_ids = set()
         unique_items = []
         for item in all_items:
-            item_id = item.get("item_id")
+            item_id = item.get("itemId")
             if item_id and item_id not in seen_ids:
                 seen_ids.add(item_id)
                 unique_items.append(item)
@@ -228,7 +229,7 @@ async def _search_trending_items(
     # Add quality filters to improve results
     filters.extend([
         "conditions:{1000,1500,2000}",  # New and refurbished items
-        "buyingOptions:{FIXED_PRICE}"   # Fixed price items only
+        f"buyingOptions:{{{BuyingOption.FIXED_PRICE.value}}}"   # Fixed price items only
     ])
     
     if filters:
@@ -286,7 +287,7 @@ def _convert_trending_item(item_data: Dict[str, Any]) -> Dict[str, Any]:
         feedback_percentage = float(feedback_percentage) if feedback_percentage else 100.0
     
     # Extract condition
-    condition = item_data.get("condition", "NEW")
+    condition = item_data.get("condition", ConditionEnum.NEW.value)
     
     # Extract image
     image_data = item_data.get("image", {})
@@ -308,7 +309,7 @@ def _convert_trending_item(item_data: Dict[str, Any]) -> Dict[str, Any]:
     )
     
     return {
-        "item_id": item_id,
+        "itemId": item_id,
         "title": title,
         "price": {
             "value": price_value,
@@ -316,17 +317,17 @@ def _convert_trending_item(item_data: Dict[str, Any]) -> Dict[str, Any]:
         },
         "seller": {
             "username": seller_name,
-            "feedback_score": feedback_score,
-            "positive_feedback_percent": feedback_percentage
+            "feedbackScore": feedback_score,
+            "positiveFeedbackPercent": feedback_percentage
         },
         "condition": condition,
         "url": item_data.get("itemWebUrl", ""),
-        "image_url": image_url,
+        "imageUrl": image_url,
         "category": category_name,
         "location": location.strip(", "),
-        "free_shipping": free_shipping,
-        "watch_count": None,  # Not available in Browse API
-        "trending_score": "high",  # Estimated based on search strategy
-        "listing_date": item_data.get("itemCreationDate"),
-        "end_date": item_data.get("itemEndDate")
+        "freeShipping": free_shipping,
+        "watchCount": None,  # Not available in Browse API
+        "trendingScore": "high",  # Estimated based on search strategy
+        "listingDate": item_data.get("itemCreationDate"),
+        "endDate": item_data.get("itemEndDate")
     }

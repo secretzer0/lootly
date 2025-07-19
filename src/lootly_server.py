@@ -66,7 +66,6 @@ def create_lootly_server():
     import tools.oauth_consent  # noqa: F401
     import tools.marketing_api  # noqa: F401
     import tools.marketplace_insights_api  # noqa: F401
-    import tools.account_api  # noqa: F401
     
     # Resources - imports needed for @mcp.resource decorator registration
     import resources.market_guidance  # noqa: F401

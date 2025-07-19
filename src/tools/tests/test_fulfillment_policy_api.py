@@ -23,12 +23,16 @@ from tools.fulfillment_policy_api import (
     get_fulfillment_policy,
     get_fulfillment_policy_by_name,
     update_fulfillment_policy,
-    delete_fulfillment_policy,
+    delete_fulfillment_policy
+)
+from models.policies import (
     FulfillmentPolicyInput,
+    ShippingOption,
+    ShippingService
+)
+from models.common import (
     CategoryType,
     TimeDuration,
-    ShippingOption,
-    ShippingService,
     Amount
 )
 from models.enums import (

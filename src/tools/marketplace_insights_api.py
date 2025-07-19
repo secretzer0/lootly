@@ -4,384 +4,131 @@ eBay Marketplace Insights API tool for sales data analysis.
 Provides access to eBay's Buy Marketplace Insights API to retrieve
 historical sales data and market trends for specific items.
 """
-from typing import Dict, Any, Optional, List, Union
+from typing import Optional, List, Union, Dict, Any
 from fastmcp import Context
-from pydantic import BaseModel, Field, field_validator, ConfigDict
-from enum import Enum
 
 from api.oauth import OAuthManager, OAuthConfig
 from api.rest_client import EbayRestClient, RestConfig
 from api.errors import EbayApiError
+from models.marketplace import (
+    ConditionID, BuyingOption, DeliveryOption, PriceCurrency, 
+    SellerAccountType, ItemLocationRegion, QualifiedProgram, ItemSalesSearchInput
+)
 from data_types import success_response, error_response, ErrorCode
 from lootly_server import mcp
 
 
-class ConditionID(Enum):
-    """eBay condition IDs with human-readable names."""
-    NEW = ("1000", "New")
-    NEW_OTHER = ("1500", "New other (see details)")
-    NEW_WITH_DEFECTS = ("1750", "New with defects")
-    MANUFACTURER_REFURBISHED = ("2000", "Manufacturer refurbished")
-    SELLER_REFURBISHED = ("2500", "Seller refurbished")
-    USED_LIKE_NEW = ("2750", "Used - Like New / Open Box")
-    USED = ("3000", "Used")
-    VERY_GOOD = ("4000", "Very Good")
-    GOOD = ("5000", "Good")
-    ACCEPTABLE = ("6000", "Acceptable")
-    FOR_PARTS_NOT_WORKING = ("7000", "For parts or not working")
-    
-    def __init__(self, id_value: str, description: str):
-        self.id = id_value
-        self.description = description
-    
-    @classmethod
-    def get_id(cls, name: str) -> Optional[str]:
-        """Get condition ID by name."""
-        try:
-            return cls[name.upper().replace(" ", "_").replace("-", "_")].id
-        except KeyError:
-            return None
-    
-    @classmethod
-    def get_description(cls, condition_id: str) -> Optional[str]:
-        """Get human-readable description for a condition ID."""
-        for condition in cls:
-            if condition.id == condition_id:
-                return condition.description
-        return None
-    
-    @classmethod
-    def get_all_ids(cls) -> List[str]:
-        """Get all valid condition IDs."""
-        return [condition.id for condition in cls]
-    
-    @classmethod
-    def get_mapping(cls) -> Dict[str, str]:
-        """Get mapping of condition IDs to descriptions."""
-        return {condition.id: condition.description for condition in cls}
-
-
-class BuyingOption(Enum):
-    """eBay buying options."""
-    FIXED_PRICE = "FIXED_PRICE"
-    AUCTION = "AUCTION"
-    BEST_OFFER = "BEST_OFFER"
-    CLASSIFIED_AD = "CLASSIFIED_AD"
-    
-    @classmethod
-    def get_all(cls) -> List[str]:
-        """Get all buying option values."""
-        return [option.value for option in cls]
-
-
-
-
-class DeliveryOption(Enum):
-    """Delivery/shipping options."""
-    SELLER_ARRANGED_LOCAL_PICKUP = "SELLER_ARRANGED_LOCAL_PICKUP"
-    
-    @classmethod
-    def get_all(cls) -> List[str]:
-        """Get all delivery option values."""
-        return [option.value for option in cls]
-
-
-class PriceCurrency(Enum):
-    """Common ISO 4217 currency codes."""
-    USD = "USD"  # US Dollar
-    EUR = "EUR"  # Euro
-    GBP = "GBP"  # British Pound
-    CAD = "CAD"  # Canadian Dollar
-    AUD = "AUD"  # Australian Dollar
-    JPY = "JPY"  # Japanese Yen
-    CNY = "CNY"  # Chinese Yuan
-    INR = "INR"  # Indian Rupee
-    MXN = "MXN"  # Mexican Peso
-    BRL = "BRL"  # Brazilian Real
-    CHF = "CHF"  # Swiss Franc
-    SEK = "SEK"  # Swedish Krona
-    NOK = "NOK"  # Norwegian Krone
-    DKK = "DKK"  # Danish Krone
-    PLN = "PLN"  # Polish Zloty
-    SGD = "SGD"  # Singapore Dollar
-    HKD = "HKD"  # Hong Kong Dollar
-    NZD = "NZD"  # New Zealand Dollar
-    ZAR = "ZAR"  # South African Rand
-    RUB = "RUB"  # Russian Ruble
-    
-    @classmethod
-    def get_all(cls) -> List[str]:
-        """Get all currency values."""
-        return [currency.value for currency in cls]
-
-
-class SellerAccountType(Enum):
-    """Seller account types."""
-    INDIVIDUAL = "INDIVIDUAL"
-    BUSINESS = "BUSINESS"
-    
-    @classmethod
-    def get_all(cls) -> List[str]:
-        """Get all account type values."""
-        return [account_type.value for account_type in cls]
-
-
-class ItemLocationRegion(Enum):
-    """Item location regions (from eBay docs)."""
-    WORLDWIDE = "WORLDWIDE"
-    NORTH_AMERICA = "NORTH_AMERICA"
-    ASIA = "ASIA"
-    CONTINENTAL_EUROPE = "CONTINENTAL_EUROPE"
-    EUROPEAN_UNION = "EUROPEAN_UNION"
-    UK_AND_IRELAND = "UK_AND_IRELAND"
-    BORDER_COUNTRIES = "BORDER_COUNTRIES"
-    
-    @classmethod
-    def get_all(cls) -> List[str]:
-        """Get all region values."""
-        return [region.value for region in cls]
-
-
-class QualifiedProgram(Enum):
-    """eBay qualified programs."""
-    EBAY_PLUS = "EBAY_PLUS"
-    AUTHENTICITY_GUARANTEE = "AUTHENTICITY_GUARANTEE"
-    AUTHENTICITY_VERIFICATION = "AUTHENTICITY_VERIFICATION"
-    
-    @classmethod
-    def get_all(cls) -> List[str]:
-        """Get all program values."""
-        return [program.value for program in cls]
-
+# HELPER FUNCTIONS
 
 class FilterBuilder:
-    """Helper class to build eBay filter strings."""
+    """Helper class to build marketplace insight filters."""
     
     def __init__(self):
         self.filters = []
     
-    def add_price_range(self, min_price: Optional[str] = None, max_price: Optional[str] = None, currency: str = "USD") -> "FilterBuilder":
+    def add_price_range(self, min_price=None, max_price=None, currency=None):
         """Add price range filter."""
         if min_price is not None or max_price is not None:
-            price_filter = "price:["
-            if min_price is not None:
-                price_filter += str(min_price)
-            price_filter += ".."
-            if max_price is not None:
-                price_filter += str(max_price)
-            price_filter += "]"
+            price_filter = f"price:[{min_price or '*'}..{max_price or '*'}]"
+            if currency:
+                price_filter += f";currency:{currency}"
             self.filters.append(price_filter)
-            self.filters.append(f"priceCurrency:{currency}")
-        return self
     
-    def add_condition_ids(self, condition_ids: Union[str, List[str]]) -> "FilterBuilder":
-        """Add condition IDs filter."""
-        if isinstance(condition_ids, str):
-            condition_ids = [c.strip() for c in condition_ids.split(",")]
-        if condition_ids:
-            self.filters.append(f"conditionIds:{{{('|'.join(condition_ids))}}}")
-        return self
-    
-    def add_conditions(self, conditions: List[str]) -> "FilterBuilder":
-        """Add conditions filter (NEW, USED, UNSPECIFIED)."""
-        if conditions:
-            self.filters.append(f"conditions:{{{('|'.join(conditions))}}}")
-        return self
-    
-    def add_delivery_options(self, options: List[str]) -> "FilterBuilder":
-        """Add delivery options filter."""
-        if options:
-            self.filters.append(f"deliveryOptions:{{{('|'.join(options))}}}")
-        return self
-    
-    def add_buying_options(self, options: List[str]) -> "FilterBuilder":
-        """Add buying options filter."""
-        if options:
-            self.filters.append(f"buyingOptions:{{{('|'.join(options))}}}")
-        return self
-    
-    def add_item_location_country(self, country: str) -> "FilterBuilder":
+    def add_item_location_country(self, country):
         """Add item location country filter."""
         if country:
             self.filters.append(f"itemLocationCountry:{country}")
-        return self
     
-    def add_sellers(self, sellers: List[str]) -> "FilterBuilder":
-        """Add sellers filter."""
-        if sellers and len(sellers) <= 250:  # eBay limit
-            self.filters.append(f"sellers:{{{('|'.join(sellers))}}}")
-        return self
+    def add_condition_ids(self, condition_ids):
+        """Add condition IDs filter."""
+        if condition_ids:
+            self.filters.append(f"conditionIds:{{{','.join(condition_ids)}}}")
     
-    def add_seller_account_types(self, types: List[str]) -> "FilterBuilder":
-        """Add seller account types filter."""
-        if types:
-            self.filters.append(f"sellerAccountTypes:{{{('|'.join(types))}}}")
-        return self
+    def add_buying_options(self, buying_options):
+        """Add buying options filter."""
+        if buying_options:
+            self.filters.append(f"buyingOptions:{{{','.join(buying_options)}}}")
     
-    def add_delivery_country(self, country: str) -> "FilterBuilder":
+    def add_delivery_options(self, delivery_options):
+        """Add delivery options filter."""
+        if delivery_options:
+            self.filters.append(f"deliveryOptions:{{{','.join(delivery_options)}}}")
+    
+    def add_delivery_country(self, country):
         """Add delivery country filter."""
         if country:
             self.filters.append(f"deliveryCountry:{country}")
-        return self
     
-    def add_max_delivery_cost(self, cost: str) -> "FilterBuilder":
-        """Add max delivery cost filter. Use 0 for free shipping."""
-        if cost is not None:
-            self.filters.append(f"maxDeliveryCost:{cost}")
-        return self
+    def add_max_delivery_cost(self, max_cost):
+        """Add maximum delivery cost filter."""
+        if max_cost is not None:
+            self.filters.append(f"maxDeliveryCost:{max_cost}")
     
-    def add_returns_accepted(self, accepted: bool) -> "FilterBuilder":
+    def add_sellers(self, sellers):
+        """Add sellers filter."""
+        if sellers:
+            self.filters.append(f"sellers:{{{','.join(sellers)}}}")
+    
+    def add_seller_account_types(self, account_types):
+        """Add seller account types filter."""
+        if account_types:
+            self.filters.append(f"sellerAccountTypes:{{{','.join(account_types)}}}")
+    
+    def add_returns_accepted(self, returns_accepted):
         """Add returns accepted filter."""
-        if accepted is not None:
-            self.filters.append(f"returnsAccepted:{str(accepted).lower()}")
-        return self
+        if returns_accepted is not None:
+            self.filters.append(f"returnsAccepted:{str(returns_accepted).lower()}")
     
-    def add_charity_only(self, charity_only: bool) -> "FilterBuilder":
+    def add_charity_only(self, charity_only):
         """Add charity only filter."""
         if charity_only:
             self.filters.append("charityOnly:true")
-        return self
     
-    def add_qualified_programs(self, programs: List[str]) -> "FilterBuilder":
+    def add_qualified_programs(self, programs):
         """Add qualified programs filter."""
         if programs:
-            self.filters.append(f"qualifiedPrograms:{{{('|'.join(programs))}}}")
-        return self
+            self.filters.append(f"qualifiedPrograms:{{{','.join(programs)}}}")
     
-    def add_last_sold_date_range(self, start_date: Optional[str] = None, end_date: Optional[str] = None) -> "FilterBuilder":
+    def add_last_sold_date_range(self, start_date=None, end_date=None):
         """Add last sold date range filter."""
         if start_date or end_date:
-            date_filter = "lastSoldDate:["
-            if start_date:
-                date_filter += start_date
-            date_filter += ".."
-            if end_date:
-                date_filter += end_date
-            date_filter += "]"
-            self.filters.append(date_filter)
-        return self
+            date_range = f"[{start_date or '*'}..{end_date or '*'}]"
+            self.filters.append(f"lastSoldDate:{date_range}")
     
-    def build(self) -> Optional[str]:
-        """Build the filter string."""
-        if not self.filters:
-            return None
-        return ",".join(self.filters)
+    def build(self) -> str:
+        """Build the complete filter string."""
+        return ";".join(self.filters) if self.filters else ""
     
-    def __str__(self) -> str:
-        """String representation of the filter."""
-        return self.build() or ""
+    @staticmethod
+    def build_filters(**kwargs) -> Dict[str, Any]:
+        """Build filter dictionary from keyword arguments."""
+        filters = {}
+        for key, value in kwargs.items():
+            if value is not None:
+                filters[key] = value
+        return filters
 
 
-class ItemSalesSearchInput(BaseModel):
-    """Input validation for item sales search request."""
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
-    q: Optional[str] = Field(None, description="Keyword search query (max 100 chars)")
-    category_ids: Optional[str] = Field(None, description="Comma-separated category IDs")
-    filter: Optional[str] = Field(None, description="Complex filter string (price, condition, location, etc.)")
-    sort: Optional[str] = Field(default=None, description="Sort order: 'price' (ascending) or '-price' (descending). If not specified, results are sorted by Best Match.")
-    limit: int = Field(default=50, ge=1, le=200, description="Number of results to return")
-    offset: int = Field(default=0, ge=0, description="Pagination offset")
-    
-    @field_validator('q')
-    @classmethod
-    def validate_query(cls, v):
-        if v and len(v) > 100:
-            raise ValueError("Query must be 100 characters or less")
-        return v
-    
-    @field_validator('category_ids')
-    @classmethod
-    def validate_category_ids(cls, v):
-        if v:
-            cat_ids = v.split(",")
-            for cat_id in cat_ids:
-                if not cat_id.strip().isdigit():
-                    raise ValueError(f"Invalid category ID: {cat_id}")
-        return v
-    
-    @field_validator('sort')
-    @classmethod
-    def validate_sort(cls, v):
-        if v is None:
-            return v
-        valid_sorts = ["price", "-price"]
-        if v not in valid_sorts:
-            raise ValueError(f"Invalid sort option. Must be one of: {', '.join(valid_sorts)}")
-        return v
-    
-    def validate_search_criteria(self):
-        """Ensure at least one search criterion is provided."""
-        if not any([self.q, self.category_ids, self.filter]):
-            raise ValueError("At least one search criterion is required (q, category_ids, or filter)")
-
-
-def _convert_item_sale(sale: Dict[str, Any]) -> Dict[str, Any]:
-    """Convert API sale response to our format."""
-    # Extract basic info
-    result = {
-        "item_id": sale.get("itemId"),
-        "title": sale.get("title"),
-        "condition": sale.get("condition"),
-        "condition_id": sale.get("conditionId"),
-        "sold_date": sale.get("itemSoldDate"),
-        "category_id": sale.get("categoryId"),
-        "category_path": sale.get("categoryPath")
+def _convert_item_sale(sale_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Convert eBay item sale response for consistent output."""
+    formatted = {
+        "itemId": sale_data.get("itemId"),
+        "transactionId": sale_data.get("transactionId"),
+        "conditionId": sale_data.get("conditionId"),
+        "conditionDisplayName": sale_data.get("conditionDisplayName"),
+        "itemLocation": sale_data.get("itemLocation", {}),
+        "sellingState": sale_data.get("sellingState"),
+        "saleDate": sale_data.get("saleDate"),
+        "totalPrice": sale_data.get("totalPrice", {}),
+        "buyingOptions": sale_data.get("buyingOptions", []),
+        "seller": sale_data.get("seller", {}),
+        "title": sale_data.get("title"),
+        "deliveryOptions": sale_data.get("deliveryOptions", []),
+        "qualifiedPrograms": sale_data.get("qualifiedPrograms", [])
     }
     
-    # Add human-readable condition name if we have condition ID
-    if result["condition_id"]:
-        condition_name = ConditionID.get_description(result["condition_id"])
-        if condition_name:
-            result["condition_name"] = condition_name
-    
-    # Extract price
-    if sale.get("itemPrice"):
-        result["price"] = {
-            "value": float(sale["itemPrice"].get("value", 0)),
-            "currency": sale["itemPrice"].get("currency", "USD")
-        }
-    
-    # Extract seller info
-    if sale.get("seller"):
-        result["seller"] = {
-            "username": sale["seller"].get("username"),
-            "feedback_percentage": sale["seller"].get("feedbackPercentage"),
-            "feedback_score": sale["seller"].get("feedbackScore")
-        }
-    
-    # Extract buying option
-    result["buying_option"] = sale.get("buyingOption")
-    
-    # Extract quantity sold
-    result["quantity_sold"] = sale.get("quantitySold", 1)
-    
-    # Extract item location
-    if sale.get("itemLocation"):
-        result["item_location"] = {
-            "city": sale["itemLocation"].get("city"),
-            "state": sale["itemLocation"].get("stateOrProvince"),
-            "country": sale["itemLocation"].get("country"),
-            "postal_code": sale["itemLocation"].get("postalCode")
-        }
-    
-    # Add item URL if available
-    if sale.get("itemWebUrl"):
-        result["item_url"] = sale["itemWebUrl"]
-    
-    # Extract EPID if available
-    if sale.get("epid"):
-        result["epid"] = sale["epid"]
-    
-    # Extract additional images if available
-    if sale.get("additionalImages"):
-        result["images"] = [img.get("imageUrl") for img in sale["additionalImages"] if img.get("imageUrl")]
-    elif sale.get("image") and sale["image"].get("imageUrl"):
-        result["images"] = [sale["image"]["imageUrl"]]
-    
-    return result
-
-
+    # Clean up None values
+    return {k: v for k, v in formatted.items() if v is not None}
 
 
 @mcp.tool
@@ -871,8 +618,8 @@ async def search_item_sales(
         # Add main search criteria
         if input_data.q:
             params["q"] = input_data.q
-        if input_data.category_ids:
-            params["category_ids"] = input_data.category_ids
+        if input_data.categoryIds:
+            params["categoryIds"] = input_data.categoryIds
         if input_data.filter:
             params["filter"] = input_data.filter
         if input_data.sort is not None:

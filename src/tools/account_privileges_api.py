@@ -14,51 +14,14 @@ IMPLEMENTATION FOLLOWS: PYDANTIC-FIRST DEVELOPMENT METHODOLOGY
 API Documentation: https://developer.ebay.com/api-docs/sell/account/resources/methods#h2-privilege
 OAuth Scope Required: https://api.ebay.com/oauth/api_scope/sell.account
 """
-from typing import Optional
 from fastmcp import Context
-from pydantic import BaseModel, Field, ConfigDict
 
 from api.oauth import OAuthManager, OAuthConfig, ConsentRequiredException
 from api.rest_client import EbayRestClient, RestConfig
 from api.errors import EbayApiError
-from models.enums import CurrencyCodeEnum
+from models.account import PrivilegesResponse
 from data_types import success_response, error_response, ErrorCode
 from lootly_server import mcp
-
-
-# PYDANTIC MODELS - API Documentation → Pydantic Models → MCP Tools
-
-
-class Amount(BaseModel):
-    """Monetary amount with currency."""
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
-    currency: CurrencyCodeEnum = Field(..., description="3-letter ISO 4217 currency code")
-    value: str = Field(..., description="Amount value as a string")
-
-
-class SellingLimit(BaseModel):
-    """Monthly selling limits for the seller account."""
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
-    amount: Optional[Amount] = Field(None, description="Monthly sales amount limit")
-    quantity: Optional[int] = Field(None, description="Monthly quantity limit")
-
-
-class PrivilegesResponse(BaseModel):
-    """Response model for get privileges API."""
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
-    seller_registration_completed: bool = Field(
-        ..., 
-        alias="sellerRegistrationCompleted",
-        description="Whether seller registration is complete"
-    )
-    selling_limit: Optional[SellingLimit] = Field(
-        None, 
-        alias="sellingLimit",
-        description="Monthly selling limits"
-    )
 
 
 # MCP TOOLS - Pydantic Models → MCP Tools → API Integration
@@ -115,19 +78,19 @@ async def get_privileges(ctx: Context) -> str:
         
         # Convert to response format
         result = {
-            "seller_registration_completed": privileges_data.seller_registration_completed,
-            "selling_limit": None
+            "sellerRegistrationCompleted": privileges_data.sellerRegistrationCompleted,
+            "sellingLimit": None
         }
         
-        if privileges_data.selling_limit:
-            result["selling_limit"] = {}
-            if privileges_data.selling_limit.amount:
-                result["selling_limit"]["amount"] = {
-                    "currency": privileges_data.selling_limit.amount.currency.value,
-                    "value": privileges_data.selling_limit.amount.value
+        if privileges_data.sellingLimit:
+            result["sellingLimit"] = {}
+            if privileges_data.sellingLimit.amount:
+                result["sellingLimit"]["amount"] = {
+                    "currency": privileges_data.sellingLimit.amount.currency.value,
+                    "value": privileges_data.sellingLimit.amount.value
                 }
-            if privileges_data.selling_limit.quantity is not None:
-                result["selling_limit"]["quantity"] = privileges_data.selling_limit.quantity
+            if privileges_data.sellingLimit.quantity is not None:
+                result["sellingLimit"]["quantity"] = privileges_data.sellingLimit.quantity
         
         await ctx.info("Successfully retrieved account privileges")
         

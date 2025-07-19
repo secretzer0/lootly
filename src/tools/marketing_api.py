@@ -4,76 +4,34 @@ eBay Marketing API tool for merchandised products.
 Provides access to eBay's Buy Marketing API to retrieve best-selling
 and merchandised products for specific categories.
 """
-from typing import Dict, Any, Optional
+from typing import Optional, Dict, Any
 from fastmcp import Context
-from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 from api.oauth import OAuthManager, OAuthConfig
 from api.rest_client import EbayRestClient, RestConfig
 from api.errors import EbayApiError
+from models.browse import MerchandisedProductsInput
 from data_types import success_response, error_response, ErrorCode
 from lootly_server import mcp
 
 
-class MerchandisedProductsInput(BaseModel):
-    """Input validation for merchandised products request."""
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
-    category_id: str = Field(..., description="eBay category ID (required)")
-    metric_name: str = Field(default="BEST_SELLING", description="Metric type (currently only BEST_SELLING)")
-    limit: int = Field(default=20, ge=1, le=100, description="Maximum products to return")
-    aspect_filter: Optional[str] = Field(None, description="Product aspect filter (e.g., 'Brand:Apple')")
-    
-    @field_validator('category_id')
-    @classmethod
-    def validate_category_id(cls, v):
-        if not v or not v.strip():
-            raise ValueError("Category ID is required")
-        # Basic validation - must be numeric
-        if not v.isdigit():
-            raise ValueError("Category ID must be numeric")
-        return v.strip()
-    
-    @field_validator('metric_name')
-    @classmethod
-    def validate_metric_name(cls, v):
-        # Currently only BEST_SELLING is supported
-        if v != "BEST_SELLING":
-            raise ValueError("Only BEST_SELLING metric is currently supported")
-        return v
+# HELPER FUNCTIONS
 
-
-def _convert_merchandised_product(product: Dict[str, Any]) -> Dict[str, Any]:
-    """Convert API product response to our format."""
-    # Extract price details
-    market_price = product.get("marketPriceDetails", [])
-    price_info = {}
-    if market_price:
-        # Get the first price detail
-        price_detail = market_price[0]
-        if price_detail.get("estimatedStartPrice"):
-            price_info["min_price"] = float(price_detail["estimatedStartPrice"].get("value", 0))
-            price_info["currency"] = price_detail["estimatedStartPrice"].get("currency", "USD")
-        if price_detail.get("estimatedEndPrice"):
-            price_info["max_price"] = float(price_detail["estimatedEndPrice"].get("value", 0))
-    
-    # Extract image
-    image_url = None
-    if product.get("image"):
-        image_url = product["image"].get("imageUrl")
-    
-    return {
-        "epid": product.get("epid"),
-        "title": product.get("title"),
-        "image_url": image_url,
-        "average_rating": product.get("averageRating", 0),
-        "rating_count": product.get("ratingCount", 0),
-        "review_count": product.get("reviewCount", 0),
-        "price_info": price_info,
-        "web_url": f"https://www.ebay.com/p/{product.get('epid')}" if product.get('epid') else None
+def _convert_merchandised_product(product_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Convert eBay merchandised product response for consistent output."""
+    formatted = {
+        "epid": product_data.get("epid"),
+        "title": product_data.get("title"),
+        "imageUrl": product_data.get("imageUrl"),
+        "averageSellingPrice": product_data.get("averageSellingPrice"),
+        "marketPriceDetails": product_data.get("marketPriceDetails", {}),
+        "ratingHistogram": product_data.get("ratingHistogram", {}),
+        "ratingCount": product_data.get("ratingCount"),
+        "reviewCount": product_data.get("reviewCount")
     }
-
-
+    
+    # Clean up None values except for imageUrl (keep for test compatibility)
+    return {k: v for k, v in formatted.items() if v is not None or k == "imageUrl"}
 
 
 @mcp.tool

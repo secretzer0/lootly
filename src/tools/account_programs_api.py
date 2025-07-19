@@ -14,53 +14,18 @@ IMPLEMENTATION FOLLOWS: PYDANTIC-FIRST DEVELOPMENT METHODOLOGY
 API Documentation: https://developer.ebay.com/api-docs/sell/account/resources/methods#h2-program
 OAuth Scope Required: https://api.ebay.com/oauth/api_scope/sell.account
 """
-from typing import List
 from fastmcp import Context
-from pydantic import BaseModel, Field, ConfigDict
 
 from api.oauth import OAuthManager, OAuthConfig, ConsentRequiredException
 from api.rest_client import EbayRestClient, RestConfig
 from api.errors import EbayApiError
 from models.enums import ProgramTypeEnum
+from models.account import ProgramsResponse, OptInOutInput
 from data_types import success_response, error_response, ErrorCode
 from lootly_server import mcp
 
 
 # PYDANTIC MODELS - API Documentation → Pydantic Models → MCP Tools
-
-
-class Program(BaseModel):
-    """Represents an eBay seller program."""
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
-    program_type: ProgramTypeEnum = Field(
-        ..., 
-        alias="programType",
-        description="Type of the eBay program"
-    )
-
-
-class ProgramsResponse(BaseModel):
-    """Response model for getting opted-in programs."""
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
-    programs: List[Program] = Field(
-        default_factory=list,
-        description="List of programs the seller has opted into"
-    )
-
-
-class OptInOutInput(BaseModel):
-    """Input validation for opt-in/opt-out operations."""
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
-    program_type: ProgramTypeEnum = Field(
-        ...,
-        description="Type of program to opt in/out of"
-    )
-
-
-# MCP TOOLS - Pydantic Models → MCP Tools → API Integration
 
 
 @mcp.tool
@@ -118,12 +83,12 @@ async def get_opted_in_programs(ctx: Context) -> str:
         result = {
             "programs": [
                 {
-                    "program_type": program.program_type.value,
-                    "description": ProgramTypeEnum.get_description(program.program_type.value)
+                    "programType": program.programType.value,
+                    "description": ProgramTypeEnum.get_description(program.programType.value)
                 }
                 for program in programs_data.programs
             ],
-            "total_programs": len(programs_data.programs)
+            "totalPrograms": len(programs_data.programs)
         }
         
         await ctx.info(f"Found {len(programs_data.programs)} opted-in programs")
@@ -212,24 +177,24 @@ async def opt_in_to_program(
     rest_client = EbayRestClient(oauth_manager, rest_config)
     
     try:
-        await ctx.info(f"Opting into {input_data.program_type.value} program")
+        await ctx.info(f"Opting into {input_data.programType.value} program")
         
         # Make API request - using user token
         # Note: opt_in_to_program is a POST with programType in body
         await rest_client.post(
             "/sell/account/v1/program/opt_in",
-            json={"programType": input_data.program_type.value}
+            json={"programType": input_data.programType.value}
         )
         
-        await ctx.info(f"Successfully opted into {input_data.program_type.value}")
+        await ctx.info(f"Successfully opted into {input_data.programType.value}")
         
         return success_response(
             data={
-                "program_type": input_data.program_type.value,
-                "description": ProgramTypeEnum.get_description(input_data.program_type.value),
+                "programType": input_data.programType.value,
+                "description": ProgramTypeEnum.get_description(input_data.programType.value),
                 "status": "opted_in"
             },
-            message=f"Successfully opted into {input_data.program_type.value} program"
+            message=f"Successfully opted into {input_data.programType.value} program"
         ).to_json_string()
         
     except ConsentRequiredException as e:
@@ -242,7 +207,7 @@ async def opt_in_to_program(
     except EbayApiError as e:
         await ctx.error(f"eBay API error: {e.get_comprehensive_message()}")
         error_details = e.get_full_error_details()
-        error_details["program_type"] = input_data.program_type.value
+        error_details["programType"] = input_data.programType.value
         
         return error_response(
             ErrorCode.EXTERNAL_API_ERROR,
@@ -312,24 +277,24 @@ async def opt_out_of_program(
     rest_client = EbayRestClient(oauth_manager, rest_config)
     
     try:
-        await ctx.info(f"Opting out of {input_data.program_type.value} program")
+        await ctx.info(f"Opting out of {input_data.programType.value} program")
         
         # Make API request - using user token
         # Note: opt_out_of_program is a POST with programType in body
         await rest_client.post(
             "/sell/account/v1/program/opt_out",
-            json={"programType": input_data.program_type.value}
+            json={"programType": input_data.programType.value}
         )
         
-        await ctx.info(f"Successfully opted out of {input_data.program_type.value}")
+        await ctx.info(f"Successfully opted out of {input_data.programType.value}")
         
         return success_response(
             data={
-                "program_type": input_data.program_type.value,
-                "description": ProgramTypeEnum.get_description(input_data.program_type.value),
+                "programType": input_data.programType.value,
+                "description": ProgramTypeEnum.get_description(input_data.programType.value),
                 "status": "opted_out"
             },
-            message=f"Successfully opted out of {input_data.program_type.value} program"
+            message=f"Successfully opted out of {input_data.programType.value} program"
         ).to_json_string()
         
     except ConsentRequiredException as e:
@@ -342,7 +307,7 @@ async def opt_out_of_program(
     except EbayApiError as e:
         await ctx.error(f"eBay API error: {e.get_comprehensive_message()}")
         error_details = e.get_full_error_details()
-        error_details["program_type"] = input_data.program_type.value
+        error_details["programType"] = input_data.programType.value
         
         return error_response(
             ErrorCode.EXTERNAL_API_ERROR,
