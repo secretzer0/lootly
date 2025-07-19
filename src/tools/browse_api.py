@@ -11,7 +11,7 @@ IMPLEMENTATION FOLLOWS: PYDANTIC-FIRST DEVELOPMENT METHODOLOGY
 - Validation through Pydantic models only
 - Zero manual validation code
 """
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Union
 from decimal import Decimal
 from fastmcp import Context
 from pydantic import BaseModel, Field, field_validator, ConfigDict
@@ -222,7 +222,7 @@ def _format_item_details_response(item_data: Dict[str, Any]) -> Dict[str, Any]:
 @mcp.tool
 async def search_items(
     ctx: Context,
-    search_input: BrowseSearchInput
+    search_input: Union[BrowseSearchInput, str, Dict[str, Any]]
 ) -> str:
     """
     Search for items on eBay using the Browse API.
@@ -237,13 +237,16 @@ async def search_items(
     Returns:
         JSON response with search results and pagination info
     """
-    # Handle JSON string input for MCP compatibility
-    if isinstance(search_input, str):
+    # Handle JSON string or dict input for MCP compatibility
+    if isinstance(search_input, (str, dict)):
         from utils.input_converter import parse_json_string_parameter, preprocess_llm_json, COMMON_FIELD_SPECS
-        await ctx.info("Preprocessing JSON string input...")
+        await ctx.info("Preprocessing input for MCP compatibility...")
         
-        # Parse JSON string
-        parsed_data = parse_json_string_parameter(search_input, 'search_input')
+        # Parse JSON string if needed
+        if isinstance(search_input, str):
+            parsed_data = parse_json_string_parameter(search_input, 'search_input')
+        else:
+            parsed_data = search_input
         
         # Apply field preprocessing
         field_specs = {
