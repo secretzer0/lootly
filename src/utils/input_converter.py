@@ -335,3 +335,31 @@ def mcp_pydantic_preprocessor(func: Callable) -> Callable:
         return await func(*args, **kwargs)
     
     return wrapper
+
+
+def convert_mcp_input(input_value: Union[str, dict, Any], target_class: Type) -> Any:
+    """
+    Helper function to convert MCP input (JSON string or dict) to pydantic model.
+    
+    Args:
+        input_value: The input value (JSON string, dict, or already a pydantic model)
+        target_class: The target pydantic model class
+        
+    Returns:
+        Validated pydantic model instance
+    """
+    # If already the correct type, return as-is
+    if isinstance(input_value, target_class):
+        return input_value
+    
+    # Handle JSON string or dict input
+    if isinstance(input_value, str):
+        # Parse JSON string
+        parsed_data = parse_json_string_parameter(input_value, 'input_value')
+        return target_class(**parsed_data)
+    elif isinstance(input_value, dict):
+        # Convert dict to model
+        return target_class(**input_value)
+    else:
+        # If it's already a compatible object, return as-is
+        return input_value
