@@ -45,7 +45,7 @@ from tools.payment_policy_api import (
     DepositDueIn,
     FullPaymentDueIn
 )
-from api.ebay_enums import (
+from models.enums import (
     MarketplaceIdEnum,
     CategoryTypeEnum,
     PaymentMethodTypeEnum,

@@ -21,7 +21,7 @@ from pydantic import BaseModel, Field, model_validator, ConfigDict
 from api.oauth import OAuthManager, OAuthConfig, ConsentRequiredException
 from api.rest_client import EbayRestClient, RestConfig
 from api.errors import EbayApiError, extract_ebay_error_details
-from api.ebay_enums import (
+from models.enums import (
     MarketplaceIdEnum,
     CategoryTypeEnum,
     ShippingCostTypeEnum,
@@ -30,6 +30,7 @@ from api.ebay_enums import (
     CurrencyCodeEnum,
     RegionTypeEnum
 )
+from models.common import Amount, CategoryType, TimeDuration, Region, RegionSet
 from data_types import success_response, error_response, ErrorCode
 from lootly_server import mcp
 
@@ -37,50 +38,16 @@ from lootly_server import mcp
 # PYDANTIC MODELS - API Documentation → Pydantic Models → MCP Tools
 
 
-class CategoryType(BaseModel):
-    """Category type for a business policy."""
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
-    name: CategoryTypeEnum = Field(..., description="Category type name")
-    default: Optional[bool] = Field(None, description="Deprecated - no longer used")
+# Using consolidated models from models.common
+# These replace the local duplicate definitions:
+# - Amount: Consolidated monetary amount model
+# - CategoryType: Consolidated business policy category type  
+# - TimeDuration: Base time duration (use .for_handling_time() for 30-day constraint)
+# - Region: Geographic region model
+# - RegionSet: Shipping regions configuration
 
-
-class TimeDuration(BaseModel):
-    """Time duration for handling time."""
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
-    value: int = Field(..., gt=0, le=30, description="Number of time units (max 30 days)")
-    unit: TimeDurationUnitEnum = Field(..., description="Time unit")
-
-
-class Amount(BaseModel):
-    """
-    Monetary amount with currency.
-    Used for all monetary values in the API (shipping costs, handling fees, etc).
-    """
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
-    currency: CurrencyCodeEnum = Field(..., description="3-letter ISO 4217 currency code")
-    value: str = Field(..., description="Monetary amount as decimal string")
-
-
-class Region(BaseModel):
-    """
-    Geographic region for shipping locations.
-    Can represent world regions, countries, states/provinces, or special domestic regions.
-    """
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
-    region_name: str = Field(..., description="Name of region as defined by eBay (e.g., 'US', 'Asia', 'CA')")
-    region_type: Optional[RegionTypeEnum] = Field(None, description="Type of region (reserved for future use)")
-
-
-class RegionSet(BaseModel):
-    """Shipping regions configuration for included and excluded locations."""
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
-    region_included: Optional[List[Region]] = Field(None, description="List of regions where shipping is offered")
-    region_excluded: Optional[List[Region]] = Field(None, description="List of regions excluded from shipping")
+# Create specialized TimeDuration for handling time (max 30 days)
+HandlingTimeDuration = TimeDuration.for_handling_time()
 
 
 class ShippingService(BaseModel):
@@ -142,7 +109,7 @@ class FulfillmentPolicyInput(BaseModel):
     category_types: List[CategoryType] = Field(..., description="Category types this policy applies to")
     
     # CONDITIONAL FIELDS (required when offering shipping services)
-    handling_time: Optional[TimeDuration] = Field(None, description="Time to ship after payment")
+    handling_time: Optional[HandlingTimeDuration] = Field(None, description="Time to ship after payment")
     
     # OPTIONAL FIELDS
     description: Optional[str] = Field(None, max_length=250, description="Internal policy description")
@@ -371,7 +338,7 @@ def _api_response_to_pydantic(api_response: Dict[str, Any]) -> FulfillmentPolicy
     # Handle handling time
     if api_response.get("handlingTime"):
         ht = api_response["handlingTime"]
-        response_data["handling_time"] = TimeDuration(
+        response_data["handling_time"] = HandlingTimeDuration(
             value=ht["value"],
             unit=TimeDurationUnitEnum(ht["unit"])
         )

@@ -33,7 +33,7 @@ from tools.fulfillment_policy_api import (
     Region,
     RegionSet
 )
-from api.ebay_enums import (
+from models.enums import (
     MarketplaceIdEnum,
     CategoryTypeEnum,
     ShippingCostTypeEnum,

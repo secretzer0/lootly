@@ -12,31 +12,17 @@ from datetime import datetime
 
 from api.oauth import OAuthManager, OAuthConfig, OAuthScopes
 from api.rest_client import EbayRestClient, RestConfig
-from api.models import MarketplaceId
 from api.errors import EbayApiError, extract_ebay_error_details
 from data_types import success_response, error_response, ErrorCode
+from models.marketplace import TrendingItemsInput
+from utils.input_converter import mcp_pydantic_preprocessor
 from lootly_server import mcp
-
-
-class TrendingItemsInput(BaseModel):
-    """Input validation for trending items."""
-    category_id: Optional[str] = Field(None, description="eBay category ID to filter by")
-    max_results: int = Field(20, ge=1, le=100, description="Maximum number of items to return")
-    marketplace_id: str = Field("EBAY_US", description="eBay marketplace ID")
-    
-    @field_validator('category_id')
-    @classmethod
-    def validate_category_id(cls, v):
-        if v is not None and (not v or not v.strip()):
-            raise ValueError("Category ID cannot be empty if provided")
-        return v.strip() if v else None
 
 
 @mcp.tool
 async def get_most_watched_items(
     ctx: Context,
-    category_id: Optional[str] = None,
-    max_results: int = 20
+    trending_input: TrendingItemsInput
 ) -> str:
     """
     Get the most watched items on eBay using strategic Browse API searches.
@@ -46,13 +32,23 @@ async def get_most_watched_items(
     that are likely to be highly watched.
     
     Args:
-        category_id: Optional eBay category ID to filter results
-        max_results: Maximum number of items to return (1-100, default 20)
+        trending_input: Trending items search configuration
         ctx: MCP context
     
     Returns:
         JSON response with trending items
     """
+    # Handle JSON string input for MCP compatibility
+    if isinstance(trending_input, str):
+        from utils.input_converter import parse_json_string_parameter
+        await ctx.info("Preprocessing JSON string input...")
+        
+        # Parse JSON string
+        parsed_data = parse_json_string_parameter(trending_input, 'trending_input')
+        
+        # Create validated pydantic model
+        trending_input = TrendingItemsInput(**parsed_data)
+    
     await ctx.info("🔥 Getting most watched items using strategic Browse API searches...")
     await ctx.report_progress(0.1, "✅ Validating input parameters...")
     
@@ -62,24 +58,14 @@ async def get_most_watched_items(
             data={
                 "items": [],
                 "total_count": 0,
-                "category_id": category_id,
+                "category_id": trending_input.category_id,
                 "note": "eBay API credentials not configured. Please set EBAY_APP_ID and EBAY_CERT_ID."
             },
             message="eBay API credentials not available"
         ).to_json_string()
     
-    # Validate input
-    try:
-        input_data = TrendingItemsInput(
-            category_id=category_id,
-            max_results=max_results
-        )
-    except Exception as e:
-        await ctx.error(f"Validation error: {str(e)}")
-        return error_response(
-            ErrorCode.VALIDATION_ERROR,
-            str(e)
-        ).to_json_string()
+    # Input already validated by pydantic
+    input_data = trending_input
     
     # Initialize API clients
     oauth_config = OAuthConfig(
@@ -172,8 +158,7 @@ async def get_most_watched_items(
 @mcp.tool
 async def get_trending_items_by_category(
     ctx: Context,
-    category_id: str,
-    max_results: int = 20
+    trending_input: TrendingItemsInput
 ) -> str:
     """
     Get trending items within a specific category.
@@ -182,20 +167,36 @@ async def get_trending_items_by_category(
     which can help identify category-specific trends and hot products.
     
     Args:
-        category_id: eBay category ID (required)
-        max_results: Maximum number of items to return (1-100, default 20)
+        trending_input: Trending items search configuration (category_id required)
         ctx: MCP context
     
     Returns:
         JSON response with trending items from the category
     """
-    await ctx.info(f"🔥 Getting trending items for category: {category_id}")
+    # Handle JSON string input for MCP compatibility
+    if isinstance(trending_input, str):
+        from utils.input_converter import parse_json_string_parameter
+        await ctx.info("Preprocessing JSON string input...")
+        
+        # Parse JSON string
+        parsed_data = parse_json_string_parameter(trending_input, 'trending_input')
+        
+        # Create validated pydantic model
+        trending_input = TrendingItemsInput(**parsed_data)
     
-    # Use the same implementation as get_most_watched_items with category filter
-    return await get_most_watched_items.fn(
+    # Validate that category_id is provided for this tool
+    if not trending_input.category_id:
+        return error_response(
+            ErrorCode.VALIDATION_ERROR,
+            "category_id is required for get_trending_items_by_category"
+        ).to_json_string()
+    
+    await ctx.info(f"🔥 Getting trending items for category: {trending_input.category_id}")
+    
+    # Use the same implementation as get_most_watched_items
+    return await get_most_watched_items(
         ctx=ctx,
-        category_id=category_id,
-        max_results=max_results
+        trending_input=trending_input
     )
 
 

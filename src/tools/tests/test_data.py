@@ -893,7 +893,7 @@ from tools.fulfillment_policy_api import (
     FulfillmentPolicyInput, CategoryType, TimeDuration, ShippingOption, 
     ShippingService, Amount, Region, RegionSet
 )
-from api.ebay_enums import (
+from models.enums import (
     MarketplaceIdEnum, CategoryTypeEnum, ShippingCostTypeEnum,
     ShippingOptionTypeEnum, TimeDurationUnitEnum, CurrencyCodeEnum
 )

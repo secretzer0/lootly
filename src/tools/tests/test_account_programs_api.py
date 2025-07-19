@@ -18,7 +18,7 @@ from tools.account_programs_api import (
     opt_in_to_program,
     opt_out_of_program
 )
-from api.ebay_enums import ProgramTypeEnum
+from models.enums import ProgramTypeEnum
 
 
 class TestAccountProgramsApi(BaseApiTest):

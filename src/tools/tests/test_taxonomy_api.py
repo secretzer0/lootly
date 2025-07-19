@@ -22,7 +22,7 @@ from tools.taxonomy_api import (
     get_category_suggestions,
     get_expired_categories
 )
-from api.ebay_enums import MarketplaceIdEnum
+from models.enums import MarketplaceIdEnum
 
 
 class TestTaxonomyApi(BaseApiTest):

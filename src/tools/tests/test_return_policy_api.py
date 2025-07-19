@@ -29,7 +29,7 @@ from tools.return_policy_api import (
     TimeDuration,
     InternationalReturnOverride
 )
-from api.ebay_enums import (
+from models.enums import (
     MarketplaceIdEnum,
     CategoryTypeEnum,
     RefundMethodEnum,

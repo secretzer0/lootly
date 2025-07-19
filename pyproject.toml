@@ -63,3 +63,11 @@ addopts = "-v --tb=short --strict-markers"
 # Unit tests: uv run python -m pytest (default)
 # Integration tests: uv run python -m pytest --test-mode=integration
 # Specific file: uv run python -m pytest src/tools/tests/test_browse_api.py
+
+[tool.ruff]
+select = ["F401", "F841", "ARG001"]
+fix = true
+line-length = 100
+
+[tool.ruff.lint]
+fixable = ["F401", "F841", "ARG001"]

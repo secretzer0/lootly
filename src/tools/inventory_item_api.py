@@ -22,7 +22,7 @@ from decimal import Decimal
 from api.oauth import OAuthManager, OAuthConfig, ConsentRequiredException
 from api.rest_client import EbayRestClient, RestConfig
 from api.errors import EbayApiError, extract_ebay_error_details
-from api.ebay_enums import (
+from models.enums import (
     MarketplaceIdEnum,
     ConditionEnum,
     CurrencyCodeEnum,

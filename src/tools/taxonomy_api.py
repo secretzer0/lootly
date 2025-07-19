@@ -23,7 +23,7 @@ from api.oauth import OAuthManager, OAuthConfig, OAuthScopes
 from api.rest_client import EbayRestClient, RestConfig
 from api.errors import EbayApiError, extract_ebay_error_details
 from api.category_cache import get_category_tree_json, find_category_subtree
-from api.ebay_enums import MarketplaceIdEnum
+from models.enums import MarketplaceIdEnum
 from data_types import success_response, error_response, ErrorCode
 from lootly_server import mcp
 

@@ -20,6 +20,7 @@ from api.oauth import OAuthManager, OAuthConfig
 from api.rest_client import EbayRestClient, RestConfig
 from api.errors import EbayApiError, extract_ebay_error_details
 from data_types import success_response, error_response, ErrorCode
+from utils.input_converter import mcp_pydantic_preprocessor
 from lootly_server import mcp
 
 
@@ -237,6 +238,25 @@ async def search_items(
     Returns:
         JSON response with search results and pagination info
     """
+    # Handle JSON string input for MCP compatibility
+    if isinstance(search_input, str):
+        from utils.input_converter import parse_json_string_parameter, preprocess_llm_json, COMMON_FIELD_SPECS
+        await ctx.info("Preprocessing JSON string input...")
+        
+        # Parse JSON string
+        parsed_data = parse_json_string_parameter(search_input, 'search_input')
+        
+        # Apply field preprocessing
+        field_specs = {
+            'conditions': COMMON_FIELD_SPECS['conditions'],
+            'category_ids': COMMON_FIELD_SPECS['category_ids'],
+            'sellers': COMMON_FIELD_SPECS['sellers']
+        }
+        processed_data = preprocess_llm_json(parsed_data, field_specs)
+        
+        # Create validated pydantic model
+        search_input = BrowseSearchInput(**processed_data)
+    
     await ctx.info(f"Searching eBay for: {search_input.query}")
     await ctx.report_progress(0.1, "Validating search parameters...")
     

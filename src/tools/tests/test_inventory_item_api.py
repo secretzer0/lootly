@@ -41,7 +41,7 @@ from tools.inventory_item_api import (
     PriceQuantity,
     _validate_sku_format
 )
-from api.ebay_enums import (
+from models.enums import (
     ConditionEnum,
     CurrencyCodeEnum,
     AvailabilityTypeEnum,
