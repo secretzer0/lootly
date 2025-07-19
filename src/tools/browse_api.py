@@ -20,6 +20,7 @@ from api.oauth import OAuthManager, OAuthConfig
 from api.rest_client import EbayRestClient, RestConfig
 from api.errors import EbayApiError, extract_ebay_error_details
 from data_types import success_response, error_response, ErrorCode
+from models.browse import BrowseSearchInput, ItemDetailsInput, CategoryBrowseInput
 from lootly_server import mcp
 
 

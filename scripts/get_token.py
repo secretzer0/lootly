@@ -35,10 +35,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from api.oauth import OAuthManager, OAuthConfig, ConsentRequiredException
 from api.rest_client import EbayRestClient, RestConfig
-from api.ebay_enums import MarketplaceIdEnum
+from models import MarketplaceIdEnum
 # Import the MCP tools - these are FunctionTool objects
 import tools.oauth_consent as oauth_consent_tools
-from tools.account_api import get_seller_standards
 from lootly_server import mcp
 from fastmcp import Context
 

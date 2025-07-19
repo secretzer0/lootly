@@ -18,31 +18,12 @@ Organization:
 from .enums import *
 from .common import *
 
-# Import specific domain models as they're created
-try:
-    from .browse import *
-except ImportError:
-    pass
-
-try:
-    from .marketplace import *
-except ImportError:
-    pass
-
-try:
-    from .policies import *
-except ImportError:
-    pass
-
-try:
-    from .account import *
-except ImportError:
-    pass
-
-try:
-    from .inventory import *
-except ImportError:
-    pass
+# Import specific domain models
+from .marketplace import *
+from .policies import *
+from .browse import *
+from .account import *
+from .inventory import *
 
 __all__ = [
     # Re-export everything from submodules
