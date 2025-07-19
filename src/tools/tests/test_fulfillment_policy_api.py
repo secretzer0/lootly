@@ -29,9 +29,7 @@ from tools.fulfillment_policy_api import (
     TimeDuration,
     ShippingOption,
     ShippingService,
-    Amount,
-    Region,
-    RegionSet
+    Amount
 )
 from models.enums import (
     MarketplaceIdEnum,
@@ -42,8 +40,6 @@ from models.enums import (
     CurrencyCodeEnum
 )
 from api.errors import EbayApiError
-import logging
-import sys
 
 class TestFulfillmentPolicyPydanticModels:
     """Test Pydantic models validation (runs in both modes)."""
@@ -261,7 +257,7 @@ class TestFulfillmentPolicyApi(BaseApiTest):
             if response["status"] == "error":
                 error_code = response["error_code"]
                 error_msg = response["error_message"]
-                status_code = response.get("details", {}).get("status_code")
+                response.get("details", {}).get("status_code")
                 errors = response.get("details", {}).get("errors", [])
                 
                 # Check if we're in sandbox mode
@@ -301,7 +297,7 @@ class TestFulfillmentPolicyApi(BaseApiTest):
         else:
             # Unit test - mocked dependencies
             with patch('tools.fulfillment_policy_api.EbayRestClient') as MockClient, \
-                 patch('tools.fulfillment_policy_api.OAuthManager') as MockOAuth, \
+                 patch('tools.fulfillment_policy_api.OAuthManager'), \
                  patch('tools.fulfillment_policy_api.mcp.config') as MockConfig:
                 
                 # Setup all mocks
@@ -360,7 +356,7 @@ class TestFulfillmentPolicyApi(BaseApiTest):
             if response["status"] == "error":
                 error_code = response["error_code"]
                 error_msg = response["error_message"]
-                status_code = response.get("details", {}).get("status_code")
+                response.get("details", {}).get("status_code")
                 errors = response.get("details", {}).get("errors", [])
                 
                 # Check if we're in sandbox mode
@@ -390,7 +386,7 @@ class TestFulfillmentPolicyApi(BaseApiTest):
         else:
             # Unit test - mocked dependencies
             with patch('tools.fulfillment_policy_api.EbayRestClient') as MockClient, \
-                 patch('tools.fulfillment_policy_api.OAuthManager') as MockOAuth, \
+                 patch('tools.fulfillment_policy_api.OAuthManager'), \
                  patch('tools.fulfillment_policy_api.mcp.config') as MockConfig:
                 
                 # Setup mocks with Pydantic-based test data
@@ -459,7 +455,7 @@ class TestFulfillmentPolicyApi(BaseApiTest):
             if response["status"] == "error":
                 error_code = response["error_code"]
                 error_msg = response["error_message"]
-                status_code = response.get("details", {}).get("status_code")
+                response.get("details", {}).get("status_code")
                 errors = response.get("details", {}).get("errors", [])
                 
                 # Check if we're in sandbox mode
@@ -489,7 +485,7 @@ class TestFulfillmentPolicyApi(BaseApiTest):
         else:
             # Unit test - mocked dependencies
             with patch('tools.fulfillment_policy_api.EbayRestClient') as MockClient, \
-                 patch('tools.fulfillment_policy_api.OAuthManager') as MockOAuth, \
+                 patch('tools.fulfillment_policy_api.OAuthManager'), \
                  patch('tools.fulfillment_policy_api.mcp.config') as MockConfig:
                 
                 # Setup mocks
@@ -575,7 +571,7 @@ class TestFulfillmentPolicyApi(BaseApiTest):
             if response["status"] == "error":
                 error_code = response["error_code"]
                 error_msg = response["error_message"]
-                status_code = response.get("details", {}).get("status_code")
+                response.get("details", {}).get("status_code")
                 errors = response.get("details", {}).get("errors", [])
                 
                 # Check if we're in sandbox mode
@@ -605,7 +601,7 @@ class TestFulfillmentPolicyApi(BaseApiTest):
         else:
             # Unit test - mocked dependencies
             with patch('tools.fulfillment_policy_api.EbayRestClient') as MockClient, \
-                 patch('tools.fulfillment_policy_api.OAuthManager') as MockOAuth, \
+                 patch('tools.fulfillment_policy_api.OAuthManager'), \
                  patch('tools.fulfillment_policy_api.mcp.config') as MockConfig:
                 
                 # Setup mocks
@@ -655,7 +651,7 @@ class TestFulfillmentPolicyApi(BaseApiTest):
             if response["status"] == "error":
                 error_code = response["error_code"]
                 error_msg = response["error_message"]
-                status_code = response.get("details", {}).get("status_code")
+                response.get("details", {}).get("status_code")
                 errors = response.get("details", {}).get("errors", [])
                 
                 # Check if we're in sandbox mode
@@ -678,7 +674,7 @@ class TestFulfillmentPolicyApi(BaseApiTest):
         else:
             # Unit test - mocked dependencies
             with patch('tools.fulfillment_policy_api.EbayRestClient') as MockClient, \
-                 patch('tools.fulfillment_policy_api.OAuthManager') as MockOAuth, \
+                 patch('tools.fulfillment_policy_api.OAuthManager'), \
                  patch('tools.fulfillment_policy_api.mcp.config') as MockConfig:
                 
                 # Setup mocks
@@ -760,7 +756,7 @@ class TestFulfillmentPolicyApi(BaseApiTest):
             pytest.skip("eBay API error simulation only in unit mode")
         
         with patch('tools.fulfillment_policy_api.EbayRestClient') as MockClient, \
-             patch('tools.fulfillment_policy_api.OAuthManager') as MockOAuth, \
+             patch('tools.fulfillment_policy_api.OAuthManager'), \
              patch('tools.fulfillment_policy_api.mcp.config') as MockConfig:
             
             # Setup mocks with API error

@@ -6,13 +6,12 @@ including the infamous Error 25001 and other sandbox-specific issues.
 """
 import asyncio
 import logging
-from typing import Optional, Dict, Any, List, Callable, Awaitable, TypeVar, Union
+from typing import Optional, Dict, Any, Callable, Awaitable, TypeVar, Union
 from datetime import datetime, timezone
 from dataclasses import dataclass
 from enum import Enum
 
-from api.errors import EbayApiError, ErrorCategory, ErrorSeverity, NetworkError
-from data_types import success_response, error_response, ErrorCode
+from api.errors import EbayApiError, NetworkError
 
 logger = logging.getLogger(__name__)
 

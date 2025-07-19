@@ -2,7 +2,6 @@
 
 Tests that all prompt modules can be imported successfully and have expected exports.
 """
-import pytest
 
 
 class TestPromptImports:

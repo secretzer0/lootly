@@ -1,5 +1,4 @@
 """Unit tests for eBay enum types."""
-import pytest
 from models.enums import (
     AvailabilityTypeEnum,
     CategoryTypeEnum,

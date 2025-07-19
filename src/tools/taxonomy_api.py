@@ -15,13 +15,12 @@ IMPLEMENTATION FOLLOWS: PYDANTIC-FIRST DEVELOPMENT METHODOLOGY
 API Documentation: https://developer.ebay.com/api-docs/commerce/taxonomy/resources/methods
 OAuth Scope Required: https://api.ebay.com/oauth/api_scope/commerce.taxonomy (basic scope)
 """
-from typing import Optional
 from fastmcp import Context
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 
-from api.oauth import OAuthManager, OAuthConfig, OAuthScopes
+from api.oauth import OAuthManager, OAuthConfig
 from api.rest_client import EbayRestClient, RestConfig
-from api.errors import EbayApiError, extract_ebay_error_details
+from api.errors import EbayApiError
 from api.category_cache import get_category_tree_json, find_category_subtree
 from models.enums import MarketplaceIdEnum
 from data_types import success_response, error_response, ErrorCode

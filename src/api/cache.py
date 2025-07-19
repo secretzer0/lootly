@@ -6,7 +6,7 @@ intelligent TTL management, and cache invalidation patterns.
 """
 import json
 import logging
-from typing import Any, Dict, Optional, Union, List
+from typing import Any, Dict, Optional
 from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass, field
 from abc import ABC, abstractmethod

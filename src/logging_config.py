@@ -75,7 +75,6 @@ def _setup_structured_logging(
     level: str, service_name: str, version: str
 ) -> logging.Logger:
     """Setup structured logging with structlog."""
-    import io
     
     # CRITICAL: Configure structlog to use stderr for MCP servers
     structlog.configure(

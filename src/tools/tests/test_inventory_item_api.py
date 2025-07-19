@@ -43,7 +43,6 @@ from tools.inventory_item_api import (
 )
 from models.enums import (
     ConditionEnum,
-    CurrencyCodeEnum,
     AvailabilityTypeEnum,
     LocaleEnum,
     LengthUnitOfMeasureEnum,
@@ -303,7 +302,7 @@ class TestInventoryItemApi(BaseApiTest):
         else:
             # Unit test - mocked dependencies
             with patch('tools.inventory_item_api.EbayRestClient') as MockClient, \
-                 patch('tools.inventory_item_api.OAuthManager') as MockOAuth, \
+                 patch('tools.inventory_item_api.OAuthManager'), \
                  patch('tools.inventory_item_api.mcp.config') as MockConfig:
                 
                 # Setup all mocks
@@ -353,7 +352,7 @@ class TestInventoryItemApi(BaseApiTest):
         else:
             # Unit test - mocked dependencies
             with patch('tools.inventory_item_api.EbayRestClient') as MockClient, \
-                 patch('tools.inventory_item_api.OAuthManager') as MockOAuth, \
+                 patch('tools.inventory_item_api.OAuthManager'), \
                  patch('tools.inventory_item_api.mcp.config') as MockConfig:
                 
                 # Setup mocks
@@ -395,7 +394,7 @@ class TestInventoryItemApi(BaseApiTest):
                 error_code = response.get("error_code")
                 error_msg = response.get("error_message", "")
                 details = response.get("details", {})
-                status_code = details.get("status_code")
+                details.get("status_code")
                 errors = details.get("errors", [])
                 
                 # Check if we're in sandbox mode
@@ -418,7 +417,7 @@ class TestInventoryItemApi(BaseApiTest):
         else:
             # Unit test - mocked dependencies
             with patch('tools.inventory_item_api.EbayRestClient') as MockClient, \
-                 patch('tools.inventory_item_api.OAuthManager') as MockOAuth, \
+                 patch('tools.inventory_item_api.OAuthManager'), \
                  patch('tools.inventory_item_api.mcp.config') as MockConfig:
                 
                 # Setup mocks
@@ -466,7 +465,7 @@ class TestInventoryItemApi(BaseApiTest):
         else:
             # Unit test - mocked dependencies
             with patch('tools.inventory_item_api.EbayRestClient') as MockClient, \
-                 patch('tools.inventory_item_api.OAuthManager') as MockOAuth, \
+                 patch('tools.inventory_item_api.OAuthManager'), \
                  patch('tools.inventory_item_api.mcp.config') as MockConfig:
                 
                 # Setup mocks
@@ -517,7 +516,7 @@ class TestInventoryItemApi(BaseApiTest):
                 error_code = response.get("error_code")
                 error_msg = response.get("error_message", "")
                 details = response.get("details", {})
-                status_code = details.get("status_code")
+                details.get("status_code")
                 errors = details.get("errors", [])
                 
                 # Check if we're in sandbox mode
@@ -540,7 +539,7 @@ class TestInventoryItemApi(BaseApiTest):
         else:
             # Unit test - mocked dependencies
             with patch('tools.inventory_item_api.EbayRestClient') as MockClient, \
-                 patch('tools.inventory_item_api.OAuthManager') as MockOAuth, \
+                 patch('tools.inventory_item_api.OAuthManager'), \
                  patch('tools.inventory_item_api.mcp.config') as MockConfig:
                 
                 # Setup mocks
@@ -586,7 +585,7 @@ class TestInventoryItemApi(BaseApiTest):
                 error_code = response.get("error_code")
                 error_msg = response.get("error_message", "")
                 details = response.get("details", {})
-                status_code = details.get("status_code")
+                details.get("status_code")
                 errors = details.get("errors", [])
                 
                 # Check if we're in sandbox mode
@@ -610,7 +609,7 @@ class TestInventoryItemApi(BaseApiTest):
         else:
             # Unit test - mocked dependencies
             with patch('tools.inventory_item_api.EbayRestClient') as MockClient, \
-                 patch('tools.inventory_item_api.OAuthManager') as MockOAuth, \
+                 patch('tools.inventory_item_api.OAuthManager'), \
                  patch('tools.inventory_item_api.mcp.config') as MockConfig:
                 
                 # Setup mocks
@@ -672,7 +671,7 @@ class TestInventoryItemApi(BaseApiTest):
                 error_code = response.get("error_code")
                 error_msg = response.get("error_message", "")
                 details = response.get("details", {})
-                status_code = details.get("status_code")
+                details.get("status_code")
                 errors = details.get("errors", [])
                 
                 # Check if we're in sandbox mode
@@ -695,7 +694,7 @@ class TestInventoryItemApi(BaseApiTest):
         else:
             # Unit test - mocked dependencies
             with patch('tools.inventory_item_api.EbayRestClient') as MockClient, \
-                 patch('tools.inventory_item_api.OAuthManager') as MockOAuth, \
+                 patch('tools.inventory_item_api.OAuthManager'), \
                  patch('tools.inventory_item_api.mcp.config') as MockConfig:
                 
                 # Setup mocks
@@ -804,7 +803,7 @@ class TestInventoryItemApi(BaseApiTest):
             pytest.skip("eBay API error simulation only in unit mode")
         
         with patch('tools.inventory_item_api.EbayRestClient') as MockClient, \
-             patch('tools.inventory_item_api.OAuthManager') as MockOAuth, \
+             patch('tools.inventory_item_api.OAuthManager'), \
              patch('tools.inventory_item_api.mcp.config') as MockConfig:
             
             # Setup mocks with API error

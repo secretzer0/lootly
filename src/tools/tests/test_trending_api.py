@@ -10,7 +10,7 @@ from unittest.mock import patch, AsyncMock
 import json
 
 from tools.tests.base_test import BaseApiTest, TestMode
-from tools.tests.test_data import TestDataGood, TestDataBad, TestDataError
+from tools.tests.test_data import TestDataError
 from lootly_server import mcp
 from tools.tests.test_helpers import (
     FieldValidator,

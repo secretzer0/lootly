@@ -7,7 +7,7 @@ import logging
 from typing import Dict, Any, Optional
 
 from api.cache import get_cache_manager, CacheTTL
-from api.oauth import OAuthManager, OAuthScopes
+from api.oauth import OAuthManager
 from api.rest_client import EbayRestClient
 
 logger = logging.getLogger(__name__)

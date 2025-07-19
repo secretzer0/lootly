@@ -27,8 +27,7 @@ from models.enums import (
     ShippingCostTypeEnum,
     ShippingOptionTypeEnum,
     TimeDurationUnitEnum,
-    CurrencyCodeEnum,
-    RegionTypeEnum
+    CurrencyCodeEnum
 )
 from models.common import Amount, CategoryType, TimeDuration, Region, RegionSet
 from data_types import success_response, error_response, ErrorCode

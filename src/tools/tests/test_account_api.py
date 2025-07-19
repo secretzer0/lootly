@@ -6,7 +6,7 @@ Environment Variables:
     TEST_MODE=integration: Run against real eBay API
 """
 import pytest
-from unittest.mock import patch, AsyncMock, Mock
+from unittest.mock import patch, AsyncMock
 import json
 
 from tools.tests.base_test import BaseApiTest, TestMode

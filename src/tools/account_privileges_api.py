@@ -20,7 +20,7 @@ from pydantic import BaseModel, Field, ConfigDict
 
 from api.oauth import OAuthManager, OAuthConfig, ConsentRequiredException
 from api.rest_client import EbayRestClient, RestConfig
-from api.errors import EbayApiError, extract_ebay_error_details
+from api.errors import EbayApiError
 from models.enums import CurrencyCodeEnum
 from data_types import success_response, error_response, ErrorCode
 from lootly_server import mcp

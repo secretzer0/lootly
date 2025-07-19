@@ -7,8 +7,8 @@ This module provides the foundation for tests that can run in two modes:
 """
 import os
 import pytest
-from unittest.mock import Mock, AsyncMock, patch
-from typing import Dict, Any, Optional, Type, Callable
+from unittest.mock import AsyncMock, patch
+from typing import Dict, Any, Type, Callable
 import json
 from fastmcp import Context
 import logging

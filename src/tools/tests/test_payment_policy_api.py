@@ -24,10 +24,7 @@ import pytest
 import os
 from decimal import Decimal
 from unittest.mock import AsyncMock, patch
-import logging
-import sys
 
-from tools.tests.base_test import TestMode
 from lootly_server import mcp
 
 from tools.payment_policy_api import (
@@ -151,7 +148,7 @@ class TestPaymentPolicyAPI:
                 error_code = response.get("error_code")
                 error_msg = response.get("error_message", "")
                 details = response.get("details", {})
-                status_code = details.get("status_code")
+                details.get("status_code")
                 errors = details.get("errors", [])
                 
                 # Check if we're in sandbox mode
@@ -176,7 +173,7 @@ class TestPaymentPolicyAPI:
         else:
             # Unit test - mocked dependencies
             with patch('tools.payment_policy_api.EbayRestClient') as MockClient, \
-                 patch('tools.payment_policy_api.OAuthManager') as MockOAuth, \
+                 patch('tools.payment_policy_api.OAuthManager'), \
                  patch('tools.payment_policy_api.mcp.config') as MockConfig:
                 
                 # Setup all mocks
@@ -251,7 +248,7 @@ class TestPaymentPolicyAPI:
                 error_code = response.get("error_code")
                 error_msg = response.get("error_message", "")
                 details = response.get("details", {})
-                status_code = details.get("status_code")
+                details.get("status_code")
                 errors = details.get("errors", [])
                 
                 # Check if we're in sandbox mode
@@ -278,7 +275,7 @@ class TestPaymentPolicyAPI:
         else:
             # Unit test - mocked dependencies
             with patch('tools.payment_policy_api.EbayRestClient') as MockClient, \
-                 patch('tools.payment_policy_api.OAuthManager') as MockOAuth, \
+                 patch('tools.payment_policy_api.OAuthManager'), \
                  patch('tools.payment_policy_api.mcp.config') as MockConfig:
                 
                 # Setup all mocks
@@ -358,7 +355,7 @@ class TestPaymentPolicyAPI:
                 error_code = response.get("error_code")
                 error_msg = response.get("error_message", "")
                 details = response.get("details", {})
-                status_code = details.get("status_code")
+                details.get("status_code")
                 errors = details.get("errors", [])
                 
                 # Check if we're in sandbox mode
@@ -383,7 +380,7 @@ class TestPaymentPolicyAPI:
         else:
             # Unit test - mocked dependencies
             with patch('tools.payment_policy_api.EbayRestClient') as MockClient, \
-                 patch('tools.payment_policy_api.OAuthManager') as MockOAuth, \
+                 patch('tools.payment_policy_api.OAuthManager'), \
                  patch('tools.payment_policy_api.mcp.config') as MockConfig:
                 
                 # Setup all mocks
@@ -443,7 +440,7 @@ class TestPaymentPolicyAPI:
                 error_code = response.get("error_code")
                 error_msg = response.get("error_message", "")
                 details = response.get("details", {})
-                status_code = details.get("status_code")
+                details.get("status_code")
                 errors = details.get("errors", [])
                 
                 # Check if we're in sandbox mode
@@ -466,7 +463,7 @@ class TestPaymentPolicyAPI:
         else:
             # Unit test - mocked dependencies
             with patch('tools.payment_policy_api.EbayRestClient') as MockClient, \
-                 patch('tools.payment_policy_api.OAuthManager') as MockOAuth, \
+                 patch('tools.payment_policy_api.OAuthManager'), \
                  patch('tools.payment_policy_api.mcp.config') as MockConfig:
                 
                 # Setup all mocks
@@ -514,7 +511,7 @@ class TestPaymentPolicyAPI:
                 error_code = response.get("error_code")
                 error_msg = response.get("error_message", "")
                 details = response.get("details", {})
-                status_code = details.get("status_code")
+                details.get("status_code")
                 errors = details.get("errors", [])
                 
                 # Check if we're in sandbox mode
@@ -539,7 +536,7 @@ class TestPaymentPolicyAPI:
         else:
             # Unit test - mocked dependencies
             with patch('tools.payment_policy_api.EbayRestClient') as MockClient, \
-                 patch('tools.payment_policy_api.OAuthManager') as MockOAuth, \
+                 patch('tools.payment_policy_api.OAuthManager'), \
                  patch('tools.payment_policy_api.mcp.config') as MockConfig:
                 
                 mock_client = MockClient.return_value
@@ -583,7 +580,7 @@ class TestPaymentPolicyAPI:
                 error_code = response.get("error_code")
                 error_msg = response.get("error_message", "")
                 details = response.get("details", {})
-                status_code = details.get("status_code")
+                details.get("status_code")
                 errors = details.get("errors", [])
                 
                 # Check if we're in sandbox mode
@@ -606,7 +603,7 @@ class TestPaymentPolicyAPI:
         else:
             # Unit test mode
             with patch('tools.payment_policy_api.EbayRestClient') as MockClient, \
-                 patch('tools.payment_policy_api.OAuthManager') as MockOAuth, \
+                 patch('tools.payment_policy_api.OAuthManager'), \
                  patch('tools.payment_policy_api.mcp.config') as MockConfig:
                 
                 mock_client = MockClient.return_value
@@ -649,7 +646,7 @@ class TestPaymentPolicyAPI:
         # Unit test mode
         if not self.is_integration_mode:
             with patch('tools.payment_policy_api.EbayRestClient') as MockClient, \
-                 patch('tools.payment_policy_api.OAuthManager') as MockOAuth, \
+                 patch('tools.payment_policy_api.OAuthManager'), \
                  patch('tools.payment_policy_api.mcp.config') as MockConfig:
                 
                 mock_client = MockClient.return_value
@@ -710,7 +707,7 @@ class TestPaymentPolicyAPI:
                 error_code = response.get("error_code")
                 error_msg = response.get("error_message", "")
                 details = response.get("details", {})
-                status_code = details.get("status_code")
+                details.get("status_code")
                 errors = details.get("errors", [])
                 
                 # Check if we're in sandbox mode
@@ -733,7 +730,7 @@ class TestPaymentPolicyAPI:
         else:
             # Unit test mode
             with patch('tools.payment_policy_api.EbayRestClient') as MockClient, \
-                 patch('tools.payment_policy_api.OAuthManager') as MockOAuth, \
+                 patch('tools.payment_policy_api.OAuthManager'), \
                  patch('tools.payment_policy_api.mcp.config') as MockConfig:
                 
                 mock_client = MockClient.return_value
@@ -787,7 +784,7 @@ class TestPaymentPolicyAPI:
                 error_code = response.get("error_code")
                 error_msg = response.get("error_message", "")
                 details = response.get("details", {})
-                status_code = details.get("status_code")
+                details.get("status_code")
                 errors = details.get("errors", [])
                 
                 # Check if we're in sandbox mode
@@ -812,7 +809,7 @@ class TestPaymentPolicyAPI:
         else:
             # Unit test mode
             with patch('tools.payment_policy_api.EbayRestClient') as MockClient, \
-                 patch('tools.payment_policy_api.OAuthManager') as MockOAuth, \
+                 patch('tools.payment_policy_api.OAuthManager'), \
                  patch('tools.payment_policy_api.mcp.config') as MockConfig:
                 
                 mock_client = MockClient.return_value
@@ -867,7 +864,7 @@ class TestPaymentPolicyAPI:
             error_code = response.get("error_code")
             error_msg = response.get("error_message", "")
             details = response.get("details", {})
-            status_code = details.get("status_code")
+            details.get("status_code")
             errors = details.get("errors", [])
             
             # Check if we're in sandbox mode
@@ -889,7 +886,7 @@ class TestPaymentPolicyAPI:
         else:
             # Unit test mode
             with patch('tools.payment_policy_api.EbayRestClient') as MockClient, \
-                 patch('tools.payment_policy_api.OAuthManager') as MockOAuth, \
+                 patch('tools.payment_policy_api.OAuthManager'), \
                  patch('tools.payment_policy_api.mcp.config') as MockConfig:
                 
                 mock_client = MockClient.return_value
@@ -940,7 +937,7 @@ class TestPaymentPolicyAPI:
             pytest.skip("User consent test only runs in unit mode")
         
         with patch('tools.payment_policy_api.EbayRestClient') as MockClient, \
-             patch('tools.payment_policy_api.OAuthManager') as MockOAuth, \
+             patch('tools.payment_policy_api.OAuthManager'), \
              patch('tools.payment_policy_api.mcp.config') as MockConfig:
             
             # Mock the REST client to raise ConsentRequiredException
@@ -973,7 +970,7 @@ class TestPaymentPolicyAPI:
         else:
             # Unit test mode
             with patch('tools.payment_policy_api.EbayRestClient') as MockClient, \
-                 patch('tools.payment_policy_api.OAuthManager') as MockOAuth, \
+                 patch('tools.payment_policy_api.OAuthManager'), \
                  patch('tools.payment_policy_api.mcp.config') as MockConfig:
                 
                 mock_client = MockClient.return_value

@@ -4,17 +4,14 @@ eBay Marketplace Insights API tool for sales data analysis.
 Provides access to eBay's Buy Marketplace Insights API to retrieve
 historical sales data and market trends for specific items.
 """
-from typing import Dict, Any, Optional, List, Union, Literal
+from typing import Dict, Any, Optional, List, Union
 from fastmcp import Context
 from pydantic import BaseModel, Field, field_validator, ConfigDict
-import json
-from datetime import datetime, timedelta
 from enum import Enum
-from urllib.parse import quote
 
-from api.oauth import OAuthManager, OAuthConfig, OAuthScopes
+from api.oauth import OAuthManager, OAuthConfig
 from api.rest_client import EbayRestClient, RestConfig
-from api.errors import EbayApiError, extract_ebay_error_details, ValidationError as ApiValidationError
+from api.errors import EbayApiError
 from data_types import success_response, error_response, ErrorCode
 from lootly_server import mcp
 

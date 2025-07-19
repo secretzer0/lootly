@@ -54,30 +54,10 @@ def create_lootly_server():
     # This is done inside the function to avoid circular imports
     
     # Tools
-    import tools.browse_api  # New Browse API (replaces Finding API)
-    import tools.taxonomy_api  # New Taxonomy API (dynamic categories)
-    import tools.account_api  # New Account API (business policies)
-    import tools.account_privileges_api  # Account Privileges API for seller privileges
-    import tools.account_programs_api  # Account Programs API for seller program enrollment
-    import tools.oauth_consent  # OAuth consent management
-    import tools.marketing_api  # New Marketing API for merchandising
-    import tools.marketplace_insights_api  # Marketplace Insights API for sales data
-    import tools.trending_api  # Trending items using Browse API
-    import tools.return_policy_api  # Return Policy API for managing return policies
-    import tools.payment_policy_api  # Payment Policy API for managing payment policies
-    import tools.fulfillment_policy_api  # Fulfillment Policy API for managing shipping policies
-    import tools.inventory_item_api  # Inventory Item API for managing product inventory
     
     # Resources
-    import resources.shipping
-    import resources.policy_templates
-    import resources.market_guidance
     
     # Prompts
-    import prompts.search_assistant
-    import prompts.listing_optimizer
-    import prompts.deal_finder
-    import prompts.market_researcher
     
     # Everything is already configured above
     # and registered via decorators in the imported modules

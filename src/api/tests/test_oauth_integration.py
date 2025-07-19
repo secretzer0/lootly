@@ -4,7 +4,6 @@ Integration tests for OAuth enhancements.
 Tests the real OAuth functionality against eBay's OAuth endpoints
 to ensure our enhancements work correctly.
 """
-import pytest
 from datetime import datetime, timedelta, timezone
 import json
 

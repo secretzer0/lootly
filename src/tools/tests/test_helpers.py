@@ -4,7 +4,7 @@ Test helper functions for validating data structures and types.
 These helpers enable the same test to work with both mock data (unit tests)
 and real API responses (integration tests) by validating structure, not values.
 """
-from typing import Any, Dict, List, Optional, Type, Union
+from typing import Any, Dict, Optional, Type, Union
 from decimal import Decimal
 from datetime import datetime
 import re

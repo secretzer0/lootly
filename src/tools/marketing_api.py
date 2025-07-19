@@ -4,14 +4,13 @@ eBay Marketing API tool for merchandised products.
 Provides access to eBay's Buy Marketing API to retrieve best-selling
 and merchandised products for specific categories.
 """
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 from fastmcp import Context
 from pydantic import BaseModel, Field, field_validator, ConfigDict
-import json
 
 from api.oauth import OAuthManager, OAuthConfig
 from api.rest_client import EbayRestClient, RestConfig
-from api.errors import EbayApiError, extract_ebay_error_details, ValidationError as ApiValidationError
+from api.errors import EbayApiError
 from data_types import success_response, error_response, ErrorCode
 from lootly_server import mcp
 

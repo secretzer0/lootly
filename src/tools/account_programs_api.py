@@ -14,13 +14,13 @@ IMPLEMENTATION FOLLOWS: PYDANTIC-FIRST DEVELOPMENT METHODOLOGY
 API Documentation: https://developer.ebay.com/api-docs/sell/account/resources/methods#h2-program
 OAuth Scope Required: https://api.ebay.com/oauth/api_scope/sell.account
 """
-from typing import List, Optional
+from typing import List
 from fastmcp import Context
-from pydantic import BaseModel, Field, field_validator, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict
 
 from api.oauth import OAuthManager, OAuthConfig, ConsentRequiredException
 from api.rest_client import EbayRestClient, RestConfig
-from api.errors import EbayApiError, extract_ebay_error_details
+from api.errors import EbayApiError
 from models.enums import ProgramTypeEnum
 from data_types import success_response, error_response, ErrorCode
 from lootly_server import mcp

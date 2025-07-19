@@ -115,7 +115,7 @@ class TokenStorage:
                 user_id=token_data.get("user_id"),
                 created_at=datetime.fromisoformat(token_data["created_at"])
             )
-        except (KeyError, ValueError) as e:
+        except (KeyError, ValueError):
             # Invalid token data, remove it
             del tokens[app_id]
             self._save_tokens(tokens)

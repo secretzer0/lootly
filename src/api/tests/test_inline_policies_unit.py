@@ -1,6 +1,5 @@
 """Unit tests for inline policies Pydantic models."""
 import pytest
-from unittest.mock import Mock
 from pydantic import ValidationError
 
 from api.inline_policies import (

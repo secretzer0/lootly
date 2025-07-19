@@ -10,11 +10,9 @@ from unittest.mock import patch, AsyncMock
 import json
 
 from tools.tests.base_test import BaseApiTest, TestMode
-from tools.tests.test_data import TestDataGood, TestDataBad
+from tools.tests.test_data import TestDataGood
 from tools.tests.test_helpers import (
-    FieldValidator,
     validate_field,
-    validate_list_field,
     assert_api_response_success
 )
 from tools.marketing_api import (
@@ -294,7 +292,7 @@ class TestMarketingApi(BaseApiTest):
                         aspect_filter="Brand:Apple"
                     )
                     
-                    data = assert_api_response_success(result)
+                    assert_api_response_success(result)
                     
                     # Verify aspect filter was passed
                     call_args = mock_client.get.call_args

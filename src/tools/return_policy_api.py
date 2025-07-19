@@ -14,11 +14,10 @@ IMPLEMENTATION FOLLOWS: PYDANTIC-FIRST DEVELOPMENT METHODOLOGY
 from typing import Optional, Dict, Any, List
 from fastmcp import Context
 from pydantic import BaseModel, Field, model_validator, ConfigDict
-from datetime import datetime, timezone
 
 from api.oauth import OAuthManager, OAuthConfig, ConsentRequiredException
 from api.rest_client import EbayRestClient, RestConfig
-from api.errors import EbayApiError, extract_ebay_error_details
+from api.errors import EbayApiError
 from models.enums import (
     MarketplaceIdEnum,
     CategoryTypeEnum,

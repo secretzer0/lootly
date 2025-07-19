@@ -6,7 +6,7 @@ metrics tracking, and token lifecycle management.
 """
 import pytest
 import asyncio
-from unittest.mock import Mock, MagicMock, patch, AsyncMock
+from unittest.mock import MagicMock, patch, AsyncMock
 from datetime import datetime, timedelta, timezone
 import json
 

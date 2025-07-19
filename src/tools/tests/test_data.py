@@ -8,8 +8,6 @@ Data is organized into:
 - TestDataGood: Valid, complete data for testing successful scenarios
 - TestDataBad: Invalid/edge case data for testing error handling and resilience
 """
-from datetime import datetime, timezone
-from decimal import Decimal
 
 
 class TestDataGood:

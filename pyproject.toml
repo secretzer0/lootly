@@ -65,9 +65,9 @@ addopts = "-v --tb=short --strict-markers"
 # Specific file: uv run python -m pytest src/tools/tests/test_browse_api.py
 
 [tool.ruff]
-select = ["F401", "F841", "ARG001"]
 fix = true
 line-length = 100
 
 [tool.ruff.lint]
+select = ["F401", "F841", "ARG001"]
 fixable = ["F401", "F841", "ARG001"]

@@ -2,7 +2,6 @@
 Tests for Marketplace Filter Builder tool.
 """
 import pytest
-import json
 from unittest.mock import AsyncMock
 
 from tools.marketplace_insights_api import build_marketplace_filter

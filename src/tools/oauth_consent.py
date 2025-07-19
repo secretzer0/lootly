@@ -4,12 +4,10 @@ MCP-native OAuth consent tool for eBay user authorization.
 Handles user consent flow for APIs requiring user tokens (Account).
 Provides an MCP-native experience without web redirects.
 """
-from typing import Optional
 from datetime import datetime, timezone
 from fastmcp import Context
 
 from api.oauth import OAuthManager, OAuthConfig, OAuthScopes
-from api.errors import EbayApiError
 from data_types import success_response, error_response, ErrorCode
 from lootly_server import mcp
 

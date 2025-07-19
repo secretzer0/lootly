@@ -6,16 +6,14 @@ with built-in rate limiting, retry logic, and error handling.
 """
 import asyncio
 import time
-import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Optional, Dict, Any, Union
+from typing import Optional, Dict, Any
 import aiohttp
 from pydantic import BaseModel, Field
 import logging
 from contextlib import asynccontextmanager
-import json as jsonpkg
 
-from .oauth import OAuthManager, ConsentRequiredException
+from .oauth import OAuthManager
 
 logger = logging.getLogger(__name__)
 

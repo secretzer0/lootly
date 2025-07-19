@@ -211,7 +211,7 @@ class TestReturnPolicyApi(BaseApiTest):
                 error_code = response.get("error_code")
                 error_msg = response.get("error_message", "")
                 details = response.get("details", {})
-                status_code = details.get("status_code")
+                details.get("status_code")
                 errors = details.get("errors", [])
                 
                 # Check if we're in sandbox mode
@@ -235,7 +235,7 @@ class TestReturnPolicyApi(BaseApiTest):
         else:
             # Unit test - mocked dependencies
             with patch('tools.return_policy_api.EbayRestClient') as MockClient, \
-                 patch('tools.return_policy_api.OAuthManager') as MockOAuth, \
+                 patch('tools.return_policy_api.OAuthManager'), \
                  patch('tools.return_policy_api.mcp.config') as MockConfig:
                 
                 # Setup all mocks
@@ -855,7 +855,7 @@ class TestReturnPolicyApi(BaseApiTest):
                 error_code = response.get("error_code")
                 error_msg = response.get("error_message", "")
                 details = response.get("details", {})
-                status_code = details.get("status_code")
+                details.get("status_code")
                 errors = details.get("errors", [])
                 
                 # Check if we're in sandbox mode
@@ -937,7 +937,7 @@ class TestReturnPolicyApi(BaseApiTest):
                 error_code = response.get("error_code")
                 error_msg = response.get("error_message", "")
                 details = response.get("details", {})
-                status_code = details.get("status_code")
+                details.get("status_code")
                 errors = details.get("errors", [])
                 
                 # Check if we're in sandbox mode

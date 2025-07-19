@@ -6,16 +6,12 @@ strategic Browse API searches to find trending and popular items.
 """
 from typing import Dict, Any, Optional, List
 from fastmcp import Context
-from pydantic import BaseModel, Field, field_validator
-from decimal import Decimal
-from datetime import datetime
 
-from api.oauth import OAuthManager, OAuthConfig, OAuthScopes
+from api.oauth import OAuthManager, OAuthConfig
 from api.rest_client import EbayRestClient, RestConfig
-from api.errors import EbayApiError, extract_ebay_error_details
+from api.errors import EbayApiError
 from data_types import success_response, error_response, ErrorCode
 from models.marketplace import TrendingItemsInput
-from utils.input_converter import mcp_pydantic_preprocessor
 from lootly_server import mcp
 
 

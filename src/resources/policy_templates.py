@@ -14,7 +14,6 @@ This resource contains:
 
 Note: These are template suggestions. Actual policy creation requires the API tools above.
 """
-from typing import Dict, Any, Optional
 from fastmcp import Context
 from data_types import MCPResourceData
 from lootly_server import mcp

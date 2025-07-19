@@ -5,10 +5,9 @@ Provides structured models for payment, shipping, and return policies
 that can be embedded directly in offers without requiring separate
 Business Policy IDs. This follows the modern eBay REST API patterns.
 """
-from typing import Optional, List, Dict, Any, Union
+from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field, field_validator
 from enum import Enum
-from decimal import Decimal
 
 
 class PaymentMethodType(str, Enum):

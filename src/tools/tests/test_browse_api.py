@@ -360,7 +360,7 @@ class TestBrowseAPI:
         else:
             # Unit test with empty response
             with patch('tools.browse_api.EbayRestClient') as MockClient, \
-                 patch('tools.browse_api.OAuthManager') as MockOAuth, \
+                 patch('tools.browse_api.OAuthManager'), \
                  patch('tools.browse_api.mcp.config') as MockConfig:
                 
                 # Setup all mocks
@@ -670,7 +670,7 @@ class TestBrowseAPI:
         else:
             # Unit test - mock API error
             with patch('tools.browse_api.EbayRestClient') as MockClient, \
-                 patch('tools.browse_api.OAuthManager') as MockOAuth, \
+                 patch('tools.browse_api.OAuthManager'), \
                  patch('tools.browse_api.mcp.config') as MockConfig:
                 
                 # Setup all mocks
@@ -720,7 +720,7 @@ class TestBrowseAPI:
         else:
             # Unit test - mock 404 error
             with patch('tools.browse_api.EbayRestClient') as MockClient, \
-                 patch('tools.browse_api.OAuthManager') as MockOAuth, \
+                 patch('tools.browse_api.OAuthManager'), \
                  patch('tools.browse_api.mcp.config') as MockConfig:
                 
                 # Setup all mocks

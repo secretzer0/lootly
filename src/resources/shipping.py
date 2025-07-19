@@ -19,7 +19,7 @@ This resource contains:
 Note: eBay does not provide a shipping rates API. This reference data helps sellers
 understand their options, but should not be used for final pricing decisions.
 """
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 from fastmcp import Context
 from data_types import MCPResourceData
 from lootly_server import mcp

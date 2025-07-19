@@ -10,11 +10,9 @@ from unittest.mock import patch, AsyncMock
 import json
 
 from tools.tests.base_test import BaseApiTest, TestMode
-from tools.tests.test_data import TestDataGood, TestDataBad
+from tools.tests.test_data import TestDataGood
 from tools.tests.test_helpers import (
-    FieldValidator,
     validate_field,
-    validate_list_field,
     assert_api_response_success
 )
 from tools.marketplace_insights_api import (
@@ -331,7 +329,7 @@ class TestMarketplaceInsightsApi(BaseApiTest):
                 error_code = response.get("error_code")
                 error_msg = response.get("error_message", "")
                 details = response.get("details", {})
-                status_code = details.get("status_code")
+                details.get("status_code")
                 
                 # Check if we're in sandbox mode
                 from lootly_server import mcp

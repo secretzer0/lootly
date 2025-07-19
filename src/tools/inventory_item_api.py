@@ -23,15 +23,12 @@ from api.oauth import OAuthManager, OAuthConfig, ConsentRequiredException
 from api.rest_client import EbayRestClient, RestConfig
 from api.errors import EbayApiError, extract_ebay_error_details
 from models.enums import (
-    MarketplaceIdEnum,
     ConditionEnum,
-    CurrencyCodeEnum,
     AvailabilityTypeEnum,
     LocaleEnum,
     LengthUnitOfMeasureEnum,
     WeightUnitOfMeasureEnum,
-    PackageTypeEnum,
-    TimeDurationUnitEnum
+    PackageTypeEnum
 )
 from data_types import success_response, error_response, ErrorCode
 from lootly_server import mcp
