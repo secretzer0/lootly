@@ -4,7 +4,7 @@ Trending Items API using Browse API for merchandising functionality.
 Since eBay doesn't provide a direct "most watched" API, this module uses
 strategic Browse API searches to find trending and popular items.
 """
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Union
 from fastmcp import Context
 
 from api.oauth import OAuthManager, OAuthConfig
@@ -18,7 +18,7 @@ from lootly_server import mcp
 @mcp.tool
 async def get_most_watched_items(
     ctx: Context,
-    trending_input: TrendingItemsInput
+    trending_input: Union[TrendingItemsInput, str, Dict[str, Any]]
 ) -> str:
     """
     Get the most watched items on eBay using strategic Browse API searches.
@@ -34,13 +34,16 @@ async def get_most_watched_items(
     Returns:
         JSON response with trending items
     """
-    # Handle JSON string input for MCP compatibility
-    if isinstance(trending_input, str):
+    # Handle JSON string or dict input for MCP compatibility
+    if isinstance(trending_input, (str, dict)):
         from utils.input_converter import parse_json_string_parameter
-        await ctx.info("Preprocessing JSON string input...")
+        await ctx.info("Preprocessing input for MCP compatibility...")
         
-        # Parse JSON string
-        parsed_data = parse_json_string_parameter(trending_input, 'trending_input')
+        # Parse JSON string if needed
+        if isinstance(trending_input, str):
+            parsed_data = parse_json_string_parameter(trending_input, 'trending_input')
+        else:
+            parsed_data = trending_input
         
         # Create validated pydantic model
         trending_input = TrendingItemsInput(**parsed_data)
@@ -154,7 +157,7 @@ async def get_most_watched_items(
 @mcp.tool
 async def get_trending_items_by_category(
     ctx: Context,
-    trending_input: TrendingItemsInput
+    trending_input: Union[TrendingItemsInput, str, Dict[str, Any]]
 ) -> str:
     """
     Get trending items within a specific category.
@@ -169,13 +172,16 @@ async def get_trending_items_by_category(
     Returns:
         JSON response with trending items from the category
     """
-    # Handle JSON string input for MCP compatibility
-    if isinstance(trending_input, str):
+    # Handle JSON string or dict input for MCP compatibility
+    if isinstance(trending_input, (str, dict)):
         from utils.input_converter import parse_json_string_parameter
-        await ctx.info("Preprocessing JSON string input...")
+        await ctx.info("Preprocessing input for MCP compatibility...")
         
-        # Parse JSON string
-        parsed_data = parse_json_string_parameter(trending_input, 'trending_input')
+        # Parse JSON string if needed
+        if isinstance(trending_input, str):
+            parsed_data = parse_json_string_parameter(trending_input, 'trending_input')
+        else:
+            parsed_data = trending_input
         
         # Create validated pydantic model
         trending_input = TrendingItemsInput(**parsed_data)

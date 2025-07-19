@@ -334,7 +334,7 @@ async def search_items(
 @mcp.tool
 async def get_item_details(
     ctx: Context,
-    details_input: ItemDetailsInput
+    details_input: Union[ItemDetailsInput, str, Dict[str, Any]]
 ) -> str:
     """
     Get detailed information about a specific eBay item.
@@ -349,6 +349,20 @@ async def get_item_details(
     Returns:
         JSON response with complete item details
     """
+    # Handle JSON string or dict input for MCP compatibility
+    if isinstance(details_input, (str, dict)):
+        from utils.input_converter import parse_json_string_parameter
+        await ctx.info("Preprocessing input for MCP compatibility...")
+        
+        # Parse JSON string if needed
+        if isinstance(details_input, str):
+            parsed_data = parse_json_string_parameter(details_input, 'details_input')
+        else:
+            parsed_data = details_input
+        
+        # Create validated pydantic model
+        details_input = ItemDetailsInput(**parsed_data)
+    
     await ctx.info(f"Getting details for item: {details_input.item_id}")
     await ctx.report_progress(0.1, "Validating item request...")
     
@@ -436,7 +450,7 @@ async def get_item_details(
 @mcp.tool
 async def get_items_by_category(
     ctx: Context,
-    category_input: CategoryBrowseInput
+    category_input: Union[CategoryBrowseInput, str, Dict[str, Any]]
 ) -> str:
     """
     Browse items within a specific eBay category.
@@ -451,6 +465,20 @@ async def get_items_by_category(
     Returns:
         JSON response with items from the category
     """
+    # Handle JSON string or dict input for MCP compatibility
+    if isinstance(category_input, (str, dict)):
+        from utils.input_converter import parse_json_string_parameter
+        await ctx.info("Preprocessing input for MCP compatibility...")
+        
+        # Parse JSON string if needed
+        if isinstance(category_input, str):
+            parsed_data = parse_json_string_parameter(category_input, 'category_input')
+        else:
+            parsed_data = category_input
+        
+        # Create validated pydantic model
+        category_input = CategoryBrowseInput(**parsed_data)
+    
     await ctx.info(f"Browsing category: {category_input.category_id}")
     await ctx.report_progress(0.1, "Validating category request...")
     

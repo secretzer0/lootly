@@ -14,7 +14,7 @@ IMPLEMENTATION FOLLOWS: PYDANTIC-FIRST DEVELOPMENT METHODOLOGY
 API Documentation: https://developer.ebay.com/api-docs/sell/account/resources/methods#h2-fulfillment_policy
 OAuth Scope Required: https://api.ebay.com/oauth/api_scope/sell.account
 """
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Union
 from fastmcp import Context
 from pydantic import BaseModel, Field, model_validator, ConfigDict
 
@@ -413,7 +413,7 @@ def _api_response_to_pydantic(api_response: Dict[str, Any]) -> FulfillmentPolicy
 @mcp.tool
 async def create_fulfillment_policy(
     ctx: Context,
-    policy_input: FulfillmentPolicyInput
+    policy_input: Union[FulfillmentPolicyInput, str, Dict[str, Any]]
 ) -> str:
     """
     Create a new fulfillment policy for your eBay seller account.
@@ -865,7 +865,7 @@ async def get_fulfillment_policy_by_name(
 async def update_fulfillment_policy(
     ctx: Context,
     policy_id: str,
-    policy_input: FulfillmentPolicyInput
+    policy_input: Union[FulfillmentPolicyInput, str, Dict[str, Any]]
 ) -> str:
     """
     Update an existing fulfillment policy.
