@@ -53,31 +53,31 @@ def create_lootly_server():
     # Import all modules to register their decorated functions
     # This is done inside the function to avoid circular imports
     
-    # Tools
-    import tools.browse_api
-    import tools.trending_api
-    import tools.fulfillment_policy_api
-    import tools.payment_policy_api
-    import tools.return_policy_api
-    import tools.inventory_item_api
-    import tools.account_privileges_api
-    import tools.account_programs_api
-    import tools.taxonomy_api
-    import tools.oauth_consent
-    import tools.marketing_api
-    import tools.marketplace_insights_api
-    import tools.account_api
+    # Tools - imports needed for @mcp.tool decorator registration
+    import tools.browse_api  # noqa: F401
+    import tools.trending_api  # noqa: F401
+    import tools.fulfillment_policy_api  # noqa: F401
+    import tools.payment_policy_api  # noqa: F401
+    import tools.return_policy_api  # noqa: F401
+    import tools.inventory_item_api  # noqa: F401
+    import tools.account_privileges_api  # noqa: F401
+    import tools.account_programs_api  # noqa: F401
+    import tools.taxonomy_api  # noqa: F401
+    import tools.oauth_consent  # noqa: F401
+    import tools.marketing_api  # noqa: F401
+    import tools.marketplace_insights_api  # noqa: F401
+    import tools.account_api  # noqa: F401
     
-    # Resources
-    import resources.market_guidance
-    import resources.policy_templates
-    import resources.shipping
+    # Resources - imports needed for @mcp.resource decorator registration
+    import resources.market_guidance  # noqa: F401
+    import resources.policy_templates  # noqa: F401
+    import resources.shipping  # noqa: F401
     
-    # Prompts
-    import prompts.search_assistant
-    import prompts.listing_optimizer
-    import prompts.deal_finder
-    import prompts.market_researcher
+    # Prompts - imports needed for @mcp.prompt decorator registration
+    import prompts.search_assistant  # noqa: F401
+    import prompts.listing_optimizer  # noqa: F401
+    import prompts.deal_finder  # noqa: F401
+    import prompts.market_researcher  # noqa: F401
     
     # Everything is already configured above
     # and registered via decorators in the imported modules
