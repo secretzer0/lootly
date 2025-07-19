@@ -647,7 +647,7 @@ class TestBrowseAPI:
         
         if self.is_integration_mode:
             # Integration test - test with invalid category
-            search_input.category_ids = "99999999"  # Invalid category
+            search_input.categoryIds = "99999999"  # Invalid category
             
             result = await search_items.fn(
                 ctx=mock_context,

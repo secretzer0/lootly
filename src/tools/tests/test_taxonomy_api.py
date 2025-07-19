@@ -46,7 +46,7 @@ class TestTaxonomyApi(BaseApiTest):
         print("Testing integration infrastructure with Browse API...")
         print("This API uses basic scope (no user consent required)")
         
-        search_input = BrowseSearchInput(query="test", limit=1)
+        search_input = BrowseSearchInput(q="test", limit=1)
         result = await search_items.fn(ctx=mock_context, search_input=search_input)
         response = json.loads(result)
         
@@ -92,13 +92,13 @@ class TestTaxonomyApi(BaseApiTest):
                 pytest.fail(f"API call failed - {error_code}: {error_msg}\\nDetails: {details}")
             
             data = response["data"]
-            validate_field(data, "category_tree_id", str)
+            validate_field(data, "categoryTreeId", str)
             validate_field(data, "marketplaceId", str)
             assert data["marketplaceId"] == "EBAY_US"
             
             # US marketplace should have tree ID "0"
-            assert data["category_tree_id"] == "0"
-            print(f"Successfully retrieved category tree ID: {data['category_tree_id']}")
+            assert data["categoryTreeId"] == "0"
+            print(f"Successfully retrieved category tree ID: {data['categoryTreeId']}")
         else:
             # Unit test - mocked response
             with patch('tools.taxonomy_api.EbayRestClient') as MockClient:

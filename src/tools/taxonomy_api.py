@@ -81,7 +81,7 @@ async def get_default_category_tree_id(
         # Get default category tree ID
         response = await rest_client.get(
             "/commerce/taxonomy/v1/get_default_category_tree_id",
-            params={"marketplaceId": input_data.marketplaceId}
+            params={"marketplace_id": input_data.marketplaceId}
         )
         response_body = response["body"]
         

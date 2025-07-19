@@ -8,6 +8,7 @@ Environment Variables:
 import pytest
 from unittest.mock import patch, AsyncMock
 import json
+from pydantic import ValidationError
 
 from tools.tests.base_test import BaseApiTest, TestMode
 from tools.tests.test_data import TestDataError
@@ -431,21 +432,12 @@ class TestTrendingApi(BaseApiTest):
             # Test with invalid input
             try:
                 trending_input = TrendingItemsInput(maxResults=200)  # Over limit
-                response = await get_most_watched_items.fn(
-                    ctx=mock_context,
-                    trending_input=trending_input
-                )
-                
-                data = json.loads(response)
-                if data["status"] == "error":
-                    if data["error_code"] != "VALIDATION_ERROR":
-                        error_msg = data.get("error_message", "")
-                        details = data.get("details", {})
-                        pytest.fail(f"Unexpected error - {data['error_code']}: {error_msg}\nDetails: {details}")
-                else:
-                    pytest.fail(f"Expected validation error for over-limit, but got success: {data}")
+                pytest.fail("Expected ValidationError for maxResults > 100, but model creation succeeded")
+            except ValidationError as e:
+                # This is expected - model should reject maxResults > 100
+                assert "Input should be less than or equal to 100" in str(e)
             except Exception as e:
-                pytest.fail(f"Exception during error handling test: {e}")
+                pytest.fail(f"Unexpected exception type during validation test: {e}")
         else:
             # Unit test error handling
             with patch('tools.trending_api.EbayRestClient') as MockClient:

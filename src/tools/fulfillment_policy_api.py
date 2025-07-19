@@ -59,7 +59,7 @@ def _build_policy_data(policy_input: FulfillmentPolicyInput) -> Dict[str, Any]:
         policy_data["description"] = policy_input.description
     
     if policy_input.handlingTime:
-        policy_data["handlingTime"] = policy_input.handlingTime.model_dump()
+        policy_data["handlingTime"] = policy_input.handlingTime.model_dump(mode='json')
     
     if policy_input.shippingOptions:
         shipping_options = []
@@ -81,13 +81,15 @@ def _build_policy_data(policy_input: FulfillmentPolicyInput) -> Dict[str, Any]:
                     if service.shippingCarrierCode:
                         service_data["shippingCarrierCode"] = service.shippingCarrierCode
                     if service.shippingCost:
-                        service_data["shippingCost"] = service.shippingCost.model_dump()
+                        service_data["shippingCost"] = service.shippingCost.model_dump(mode='json')
                     if service.additionalShippingCost:
-                        service_data["additionalShippingCost"] = service.additionalShippingCost.model_dump()
+                        service_data["additionalShippingCost"] = service.additionalShippingCost.model_dump(mode='json')
                     if service.freeShipping is not None:
                         service_data["freeShipping"] = service.freeShipping
                     if service.shipToLocations:
-                        service_data["shipToLocations"] = service.shipToLocations.model_dump()
+                        ship_to_locations_data = service.shipToLocations.model_dump(mode='json', exclude_none=True)
+                        if ship_to_locations_data:
+                            service_data["shipToLocations"] = ship_to_locations_data
                     if service.sortOrder is not None:
                         service_data["sortOrder"] = service.sortOrder
                     if service.buyerResponsibleForShipping is not None:
@@ -99,7 +101,7 @@ def _build_policy_data(policy_input: FulfillmentPolicyInput) -> Dict[str, Any]:
                 option_data["shippingServices"] = services
             
             if option.packageHandlingCost:
-                option_data["packageHandlingCost"] = option.packageHandlingCost.model_dump()
+                option_data["packageHandlingCost"] = option.packageHandlingCost.model_dump(mode='json')
             if option.rateTableId:
                 option_data["rateTableId"] = option.rateTableId
             if option.shippingDiscountProfileId:
@@ -112,8 +114,10 @@ def _build_policy_data(policy_input: FulfillmentPolicyInput) -> Dict[str, Any]:
         policy_data["shippingOptions"] = shipping_options
     
     if policy_input.shipToLocations:
-        policy_data["shipToLocations"] = policy_input.shipToLocations.model_dump()
-    
+            ship_to_locations_data = policy_input.shipToLocations.model_dump(mode='json', exclude_none=True)
+            if ship_to_locations_data:
+                policy_data["shipToLocations"] = ship_to_locations_data
+
     if policy_input.localPickup is not None:
         policy_data["localPickup"] = policy_input.localPickup
     if policy_input.pickupDropOff is not None:
@@ -222,6 +226,8 @@ async def create_fulfillment_policy(
         
         # Convert Pydantic model to eBay API format
         policy_data = _build_policy_data(policy_input)
+        import json
+        print(f'#########{json.dumps(policy_data)}')
         
         await ctx.report_progress(0.5, "Creating fulfillment policy via eBay API...")
         
@@ -286,9 +292,7 @@ async def create_fulfillment_policy(
 @mcp.tool
 async def get_fulfillment_policies(
     ctx: Context,
-    marketplaceId: MarketplaceIdEnum,
-    limit: Optional[int] = 50,
-    offset: Optional[int] = 0
+    marketplaceId: MarketplaceIdEnum
 ) -> str:
     """
     Retrieve all fulfillment policies for a specific marketplace.
@@ -298,8 +302,6 @@ async def get_fulfillment_policies(
     
     Args:
         marketplaceId: eBay marketplace to retrieve policies for
-        limit: Maximum number of policies to return (default: 50)
-        offset: Number of policies to skip for pagination (default: 0)
         ctx: MCP context
     
     Returns:
@@ -336,18 +338,15 @@ async def get_fulfillment_policies(
         
         # Build query parameters
         params = {
-            "marketplaceId": marketplaceId.value
+            "marketplace_id": marketplaceId.value
         }
-        if limit is not None:
-            params["limit"] = str(limit)
-        if offset is not None:
-            params["offset"] = str(offset)
         
         # Make API call
         response = await rest_client.get(
-            "/sell/account/v1/fulfillment_policy",
+            f"/sell/account/v1/fulfillment_policy",
             params=params
         )
+
         response_body = response["body"]
         
         await ctx.report_progress(0.8, "Processing response...")
@@ -360,8 +359,6 @@ async def get_fulfillment_policies(
         result = {
             "policies": formatted_policies,
             "total": response_body.get("total", len(formatted_policies)),
-            "limit": limit,
-            "offset": offset,
             "marketplaceId": marketplaceId.value
         }
         
@@ -564,7 +561,7 @@ async def get_fulfillment_policy_by_name(
         
         # Build query parameters
         params = {
-            "marketplaceId": marketplaceId.value,
+            "marketplace_id": marketplaceId.value,
             "name": name
         }
         

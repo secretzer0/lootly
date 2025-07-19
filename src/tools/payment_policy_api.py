@@ -56,13 +56,13 @@ def _convert_to_api_format(policy_input: PaymentPolicyInput) -> Dict[str, Any]:
     if policy_input.deposit:
         deposit_data = {}
         if policy_input.deposit.dueIn:
-            deposit_data["dueIn"] = policy_input.deposit.dueIn.model_dump()
+            deposit_data["dueIn"] = policy_input.deposit.dueIn.model_dump(mode='json')
         if policy_input.deposit.amount:
-            deposit_data["amount"] = policy_input.deposit.amount.model_dump()
+            deposit_data["amount"] = policy_input.deposit.amount.model_dump(mode='json')
         policy_data["deposit"] = deposit_data
     
     if policy_input.fullPaymentDueIn:
-        policy_data["fullPaymentDueIn"] = policy_input.fullPaymentDueIn.model_dump()
+        policy_data["fullPaymentDueIn"] = policy_input.fullPaymentDueIn.model_dump(mode='json')
     
     if policy_input.immediatePay is not None:
         policy_data["immediatePay"] = policy_input.immediatePay

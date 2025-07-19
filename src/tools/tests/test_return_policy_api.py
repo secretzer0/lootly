@@ -613,7 +613,7 @@ class TestReturnPolicyApi(BaseApiTest):
         
         try:
             # Make a simple search that should work
-            search_input = BrowseSearchInput(query="iPhone", limit=1)
+            search_input = BrowseSearchInput(q="iPhone", limit=1)
             result = await search_items.fn(
                 ctx=mock_context,
                 search_input=search_input

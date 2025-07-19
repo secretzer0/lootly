@@ -40,7 +40,7 @@ class TestMarketplaceInsightsApi(BaseApiTest):
         print("Testing integration infrastructure with Browse API...")
         print("This API uses basic scope (no user consent required)")
         
-        search_input = BrowseSearchInput(query="test", limit=1)
+        search_input = BrowseSearchInput(q="test", limit=1)
         result = await search_items.fn(ctx=mock_context, search_input=search_input)
         response = json.loads(result)
         

@@ -38,7 +38,7 @@ class CategoryType(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
     
     name: CategoryTypeEnum = Field(..., description="Category type name")
-    default: Optional[bool] = Field(None, description="Whether this is the default category type")
+    default: Optional[bool] = Field(False, description="Whether this is the default category type")
 
 
 class TimeDuration(BaseModel):
