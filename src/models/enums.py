@@ -53,16 +53,16 @@ class AvailabilityTypeEnum(BaseEbayEnum):
     Type of availability for an inventory item.
     Docs: https://developer.ebay.com/api-docs/sell/inventory/types/slr:AvailabilityTypeEnum
     """
-    SHIP_TO_HOME = "SHIP_TO_HOME"
-    PICKUP = "PICKUP"
-    NOT_AVAILABLE = "NOT_AVAILABLE"
+    IN_STOCK = "IN_STOCK"
+    OUT_OF_STOCK = "OUT_OF_STOCK"
+    SHIP_TO_STORE = "SHIP_TO_STORE"
     
     @classmethod
     def _get_descriptions(cls) -> Dict[str, str]:
         return {
-            "SHIP_TO_HOME": "Item is available for shipping to buyer's location",
-            "PICKUP": "Item is available for local pickup only",
-            "NOT_AVAILABLE": "Item is not currently available"
+            "IN_STOCK": "Inventory item has quantity available for purchase",
+            "OUT_OF_STOCK": "Inventory item is out of stock",
+            "SHIP_TO_STORE": "Item is temporarily out of stock, quantity being shipped to store"
         }
 
 
@@ -257,41 +257,59 @@ class LocaleEnum(BaseEbayEnum):
     Docs: https://developer.ebay.com/api-docs/sell/inventory/types/slr:LocaleEnum
     """
     en_US = "en_US"
+    en_CA = "en_CA"
+    fr_CA = "fr_CA"
     en_GB = "en_GB"
     en_AU = "en_AU"
-    en_CA = "en_CA"
+    en_IN = "en_IN"
+    de_AT = "de_AT"
+    fr_BE = "fr_BE"
     fr_FR = "fr_FR"
     de_DE = "de_DE"
     it_IT = "it_IT"
-    es_ES = "es_ES"
-    zh_CN = "zh_CN"
-    zh_HK = "zh_HK"
-    ja_JP = "ja_JP"
-    ko_KR = "ko_KR"
-    pt_BR = "pt_BR"
-    ru_RU = "ru_RU"
+    nl_BE = "nl_BE"
     nl_NL = "nl_NL"
+    es_ES = "es_ES"
+    de_CH = "de_CH"
+    fi_FI = "fi_FI"
+    zh_HK = "zh_HK"
+    hu_HU = "hu_HU"
+    en_PH = "en_PH"
     pl_PL = "pl_PL"
+    pt_PT = "pt_PT"
+    ru_RU = "ru_RU"
+    en_SG = "en_SG"
+    en_IE = "en_IE"
+    en_MY = "en_MY"
     
     @classmethod
     def _get_descriptions(cls) -> Dict[str, str]:
         return {
-            "en_US": "English (United States)",
-            "en_GB": "English (United Kingdom)",
-            "en_AU": "English (Australia)",
-            "en_CA": "English (Canada)",
-            "fr_FR": "French (France)",
-            "de_DE": "German (Germany)",
-            "it_IT": "Italian (Italy)",
-            "es_ES": "Spanish (Spain)",
-            "zh_CN": "Chinese (Simplified, China)",
-            "zh_HK": "Chinese (Traditional, Hong Kong)",
-            "ja_JP": "Japanese (Japan)",
-            "ko_KR": "Korean (South Korea)",
-            "pt_BR": "Portuguese (Brazil)",
-            "ru_RU": "Russian (Russia)",
-            "nl_NL": "Dutch (Netherlands)",
-            "pl_PL": "Polish (Poland)"
+            "en_US": "US English",
+            "en_CA": "Canadian English",
+            "fr_CA": "Canadian French",
+            "en_GB": "UK English",
+            "en_AU": "Australian English",
+            "en_IN": "English for India site",
+            "de_AT": "German for Austria",
+            "fr_BE": "French for Belgium",
+            "fr_FR": "French for France",
+            "de_DE": "German for Germany",
+            "it_IT": "Italian for Italy",
+            "nl_BE": "Dutch for Belgium",
+            "nl_NL": "Dutch for Netherlands",
+            "es_ES": "Spanish for Spain",
+            "de_CH": "German for Switzerland",
+            "fi_FI": "Finnish",
+            "zh_HK": "Chinese for Hong Kong",
+            "hu_HU": "Hungarian",
+            "en_PH": "English for Philippines",
+            "pl_PL": "Polish",
+            "pt_PT": "Portuguese",
+            "ru_RU": "Russian",
+            "en_SG": "English for Singapore",
+            "en_IE": "English for Ireland",
+            "en_MY": "English for Malaysia"
         }
 
 
@@ -323,65 +341,45 @@ class MarketplaceIdEnum(BaseEbayEnum):
     # Americas
     EBAY_US = "EBAY_US"  # United States
     EBAY_CA = "EBAY_CA"  # Canada
-    EBAY_MX = "EBAY_MX"  # Mexico
-    EBAY_BR = "EBAY_BR"  # Brazil
     
     # Europe
-    EBAY_GB = "EBAY_GB"  # United Kingdom
+    EBAY_UK = "EBAY_UK"  # United Kingdom
     EBAY_DE = "EBAY_DE"  # Germany
     EBAY_FR = "EBAY_FR"  # France
     EBAY_IT = "EBAY_IT"  # Italy
     EBAY_ES = "EBAY_ES"  # Spain
-    EBAY_NL = "EBAY_NL"  # Netherlands
-    EBAY_BE = "EBAY_BE"  # Belgium
-    EBAY_AT = "EBAY_AT"  # Austria
-    EBAY_CH = "EBAY_CH"  # Switzerland
-    EBAY_IE = "EBAY_IE"  # Ireland
-    EBAY_PL = "EBAY_PL"  # Poland
-    EBAY_SE = "EBAY_SE"  # Sweden
-    EBAY_FI = "EBAY_FI"  # Finland
-    EBAY_DK = "EBAY_DK"  # Denmark
-    EBAY_NO = "EBAY_NO"  # Norway
-    EBAY_CZ = "EBAY_CZ"  # Czech Republic
-    EBAY_RU = "EBAY_RU"  # Russia
-    EBAY_TR = "EBAY_TR"  # Turkey
     
     # Asia Pacific
     EBAY_AU = "EBAY_AU"  # Australia
-    EBAY_CN = "EBAY_CN"  # China
     EBAY_HK = "EBAY_HK"  # Hong Kong
-    EBAY_IN = "EBAY_IN"  # India
+    EBAY_SG = "EBAY_SG"  # Singapore
     EBAY_MY = "EBAY_MY"  # Malaysia
     EBAY_PH = "EBAY_PH"  # Philippines
-    EBAY_SG = "EBAY_SG"  # Singapore
-    EBAY_TH = "EBAY_TH"  # Thailand
     EBAY_TW = "EBAY_TW"  # Taiwan
+    EBAY_TH = "EBAY_TH"  # Thailand
     EBAY_VN = "EBAY_VN"  # Vietnam
-    EBAY_JP = "EBAY_JP"  # Japan
-    EBAY_ID = "EBAY_ID"  # Indonesia
-    
-    # Middle East & Africa
-    EBAY_IL = "EBAY_IL"  # Israel
-    EBAY_ZA = "EBAY_ZA"  # South Africa
     
     # Motors
-    EBAY_MOTORS_US = "EBAY_MOTORS_US"  # eBay Motors US
+    EBAY_MOTORS_US = "EBAY_MOTORS_US"  # Auto Parts and Vehicles
     
     @classmethod
     def _get_descriptions(cls) -> Dict[str, str]:
         return {
             "EBAY_US": "eBay United States (ebay.com)",
             "EBAY_CA": "eBay Canada (ebay.ca)",
-            "EBAY_GB": "eBay United Kingdom (ebay.co.uk)",
+            "EBAY_UK": "eBay United Kingdom (ebay.co.uk)",
             "EBAY_AU": "eBay Australia (ebay.com.au)",
             "EBAY_DE": "eBay Germany (ebay.de)",
             "EBAY_FR": "eBay France (ebay.fr)",
             "EBAY_IT": "eBay Italy (ebay.it)",
             "EBAY_ES": "eBay Spain (ebay.es)",
-            "EBAY_CN": "eBay China",
             "EBAY_HK": "eBay Hong Kong",
-            "EBAY_IN": "eBay India (ebay.in)",
-            "EBAY_JP": "eBay Japan",
+            "EBAY_SG": "eBay Singapore",
+            "EBAY_MY": "eBay Malaysia",
+            "EBAY_PH": "eBay Philippines",
+            "EBAY_TW": "eBay Taiwan",
+            "EBAY_TH": "eBay Thailand",
+            "EBAY_VN": "eBay Vietnam",
             "EBAY_MOTORS_US": "eBay Motors United States"
         }
 
@@ -450,19 +448,23 @@ class PaymentMethodTypeEnum(BaseEbayEnum):
     CASH_IN_PERSON = "CASH_IN_PERSON"
     CASH_ON_DELIVERY = "CASH_ON_DELIVERY"
     CASH_ON_PICKUP = "CASH_ON_PICKUP"
-    PERSONAL_CHECK = "PERSONAL_CHECK"
-    MONEY_ORDER = "MONEY_ORDER"
     CASHIER_CHECK = "CASHIER_CHECK"
+    ESCROW = "ESCROW"
+    MONEY_ORDER = "MONEY_ORDER"
+    PERSONAL_CHECK = "PERSONAL_CHECK"
+    OTHER = "OTHER"
     
     @classmethod
     def _get_descriptions(cls) -> Dict[str, str]:
         return {
-            "CASH_IN_PERSON": "Cash payment in person",
-            "CASH_ON_DELIVERY": "Cash on delivery (COD)",
-            "CASH_ON_PICKUP": "Cash when item is picked up",
-            "PERSONAL_CHECK": "Personal check payment",
-            "MONEY_ORDER": "Money order payment",
-            "CASHIER_CHECK": "Cashier's check payment"
+            "CASH_IN_PERSON": "Payment made in cash during a direct, in-person transaction",
+            "CASH_ON_DELIVERY": "Payment made in cash upon item delivery",
+            "CASH_ON_PICKUP": "Payment made in cash when buyer picks up the item",
+            "CASHIER_CHECK": "Payment via cashier's check",
+            "ESCROW": "Payment through an escrow service for high-value orders",
+            "MONEY_ORDER": "Payment via money order",
+            "PERSONAL_CHECK": "Payment via personal check",
+            "OTHER": "Any offline payment method not specifically listed"
         }
 
 
@@ -486,13 +488,11 @@ class RefundMethodEnum(BaseEbayEnum):
     Docs: https://developer.ebay.com/api-docs/sell/account/types/api:RefundMethodEnum
     """
     MONEY_BACK = "MONEY_BACK"
-    MERCHANDISE_CREDIT = "MERCHANDISE_CREDIT"
     
     @classmethod
     def _get_descriptions(cls) -> Dict[str, str]:
         return {
-            "MONEY_BACK": "Full monetary refund",
-            "MERCHANDISE_CREDIT": "Store credit or merchandise credit"
+            "MONEY_BACK": "Buyer will get their money back (refund) for a returned item"
         }
 
 
@@ -501,14 +501,12 @@ class ReturnMethodEnum(BaseEbayEnum):
     Return methods for return policies.
     Docs: https://developer.ebay.com/api-docs/sell/account/types/api:ReturnMethodEnum
     """
-    EXCHANGE = "EXCHANGE"
     REPLACEMENT = "REPLACEMENT"
     
     @classmethod
     def _get_descriptions(cls) -> Dict[str, str]:
         return {
-            "EXCHANGE": "Exchange for different item",
-            "REPLACEMENT": "Replace with same item"
+            "REPLACEMENT": "Seller offers a replacement (identical) item as an alternative to money back"
         }
 
 
@@ -553,14 +551,16 @@ class ShippingCostTypeEnum(BaseEbayEnum):
     Shipping cost calculation types.
     Docs: https://developer.ebay.com/api-docs/sell/account/types/api:ShippingCostTypeEnum
     """
-    FLAT_RATE = "FLAT_RATE"
     CALCULATED = "CALCULATED"
+    FLAT_RATE = "FLAT_RATE"
+    NOT_SPECIFIED = "NOT_SPECIFIED"
     
     @classmethod
     def _get_descriptions(cls) -> Dict[str, str]:
         return {
-            "FLAT_RATE": "Fixed shipping cost",
-            "CALCULATED": "Shipping cost calculated based on location"
+            "CALCULATED": "Shipping cost varies based on location, package size, and weight",
+            "FLAT_RATE": "Shipping cost is consistent for all buyers",
+            "NOT_SPECIFIED": "No shipping cost type has been explicitly chosen"
         }
 
 
@@ -589,6 +589,8 @@ class TimeDurationUnitEnum(BaseEbayEnum):
     MONTH = "MONTH"
     DAY = "DAY"
     HOUR = "HOUR"
+    CALENDAR_DAY = "CALENDAR_DAY"
+    BUSINESS_DAY = "BUSINESS_DAY"
     MINUTE = "MINUTE"
     SECOND = "SECOND"
     MILLISECOND = "MILLISECOND"
@@ -596,13 +598,15 @@ class TimeDurationUnitEnum(BaseEbayEnum):
     @classmethod
     def _get_descriptions(cls) -> Dict[str, str]:
         return {
-            "YEAR": "Years",
-            "MONTH": "Months",
-            "DAY": "Days",
-            "HOUR": "Hours",
-            "MINUTE": "Minutes",
-            "SECOND": "Seconds",
-            "MILLISECOND": "Milliseconds"
+            "YEAR": "Time duration based on years",
+            "MONTH": "Time duration based on months",
+            "DAY": "Time duration based on days",
+            "HOUR": "Time duration based on hours",
+            "CALENDAR_DAY": "Time duration including Saturday and Sunday, not excluding holidays",
+            "BUSINESS_DAY": "Time duration based on working days (typically Monday-Friday)",
+            "MINUTE": "Time duration based on minutes",
+            "SECOND": "Time duration based on seconds",
+            "MILLISECOND": "Time duration based on milliseconds"
         }
 
 

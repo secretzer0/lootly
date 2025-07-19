@@ -19,15 +19,13 @@ from .enums import (
     ShippingCostTypeEnum,
     ShippingOptionTypeEnum,
     TimeDurationUnitEnum,
-    CurrencyCodeEnum,
     PaymentInstrumentBrandEnum,
     PaymentMethodTypeEnum,
-    RecipientAccountReferenceTypeEnum,
     RefundMethodEnum,
     ReturnMethodEnum,
     ReturnShippingCostPayerEnum
 )
-from .common import Amount, CategoryType, TimeDuration, Region, RegionSet
+from .common import Amount, CategoryType, TimeDuration, RegionSet
 
 
 # =============================================================================
@@ -39,6 +37,12 @@ class PaymentMethod(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
     
     payment_method_type: PaymentMethodTypeEnum = Field(..., description="Type of offline payment method")
+    
+    # Payment instrument brands (for credit cards, etc)
+    brands: Optional[List[PaymentInstrumentBrandEnum]] = Field(
+        None,
+        description="Accepted payment instrument brands"
+    )
     
     # Recipient account only for certain types
     recipient_account_reference: Optional[Dict[str, str]] = Field(
@@ -111,20 +115,20 @@ class PaymentPolicyInput(BaseModel):
     
     # REQUIRED FIELDS
     name: str = Field(..., min_length=1, max_length=64, description="Policy name")
-    marketplace_id: MarketplaceIdEnum = Field(..., description="eBay marketplace ID")
-    category_types: List[CategoryType] = Field(..., description="Category types this policy applies to")
+    marketplaceId: MarketplaceIdEnum = Field(..., description="eBay marketplace ID")
+    categoryTypes: List[CategoryType] = Field(..., description="Category types this policy applies to")
     
     # OPTIONAL FIELDS
     description: Optional[str] = Field(None, max_length=250, description="Internal policy description")
     
     # Immediate payment flag
-    immediate_pay: Optional[bool] = Field(
+    immediatePay: Optional[bool] = Field(
         False, 
         description="Whether immediate payment is required"
     )
     
     # Payment methods - typically managed by eBay
-    payment_methods: Optional[List[PaymentMethod]] = Field(
+    paymentMethods: Optional[List[PaymentMethod]] = Field(
         None,
         description="Offline payment methods accepted"
     )
@@ -135,13 +139,13 @@ class PaymentPolicyInput(BaseModel):
         description="Deposit requirements for motor vehicles"
     )
     
-    full_payment_due_in: Optional[FullPaymentDueIn] = Field(
+    fullPaymentDueIn: Optional[FullPaymentDueIn] = Field(
         None,
         description="When full payment is due for motor vehicles"
     )
     
     # Accepted payment instruments (cards)
-    payment_instrument_brands: Optional[List[PaymentInstrumentBrandEnum]] = Field(
+    paymentInstrumentBrands: Optional[List[PaymentInstrumentBrandEnum]] = Field(
         None,
         description="Credit card brands accepted"
     )
@@ -151,19 +155,19 @@ class PaymentPolicyInput(BaseModel):
         """Validate motor vehicle category requirements."""
         has_motors_category = any(
             ct.name == CategoryTypeEnum.MOTORS_VEHICLES 
-            for ct in self.category_types
+            for ct in self.categoryTypes
         )
         
         # If motor vehicles category and has deposit, validate full payment due
-        if has_motors_category and self.deposit and not self.full_payment_due_in:
+        if has_motors_category and self.deposit and not self.fullPaymentDueIn:
             raise ValueError(
-                "full_payment_due_in is required when deposit is specified for motor vehicle listings"
+                "fullPaymentDueIn is required when deposit is specified for motor vehicle listings"
             )
         
         # Validate immediate pay restrictions
-        if has_motors_category and self.immediate_pay:
+        if has_motors_category and self.immediatePay:
             raise ValueError(
-                "immediate_pay cannot be true for motor vehicle listings"
+                "immediatePay cannot be true for motor vehicle listings"
             )
         
         return self
@@ -172,9 +176,9 @@ class PaymentPolicyInput(BaseModel):
     def validate_payment_methods(self):
         """Validate payment method configurations."""
         # If payment methods specified, ensure they're appropriate
-        if self.payment_methods:
+        if self.paymentMethods:
             # Check for duplicate payment method types
-            method_types = [m.payment_method_type for m in self.payment_methods]
+            method_types = [m.paymentMethodType for m in self.paymentMethods]
             if len(method_types) != len(set(method_types)):
                 raise ValueError("Duplicate payment method types are not allowed")
         
@@ -240,12 +244,12 @@ class ReturnPolicyInput(BaseModel):
     
     @model_validator(mode='after')
     def validate_conditional_fields(self):
-        """Validate conditional requirements based on returns_accepted."""
-        if self.returns_accepted:
-            if not self.return_period:
-                raise ValueError("return_period is required when returns_accepted is true")
-            if not self.return_shipping_cost_payer:
-                raise ValueError("return_shipping_cost_payer is required when returns_accepted is true")
+        """Validate conditional requirements based on returnsAccepted."""
+        if self.returnsAccepted:
+            if not self.returnPeriod:
+                raise ValueError("returnPeriod is required when returnsAccepted is true")
+            if not self.returnShippingCostPayer:
+                raise ValueError("returnShippingCostPayer is required when returnsAccepted is true")
         return self
 
 
@@ -262,20 +266,17 @@ class ShippingService(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
     
     # Required fields
-    shipping_service_code: str = Field(..., description="eBay shipping service code")
-    shipping_cost: Amount = Field(..., description="Cost for this shipping service")
+    shippingServiceCode: str = Field(..., description="eBay shipping service code")
     
-    # Optional fields
-    additional_shipping_cost: Optional[Amount] = Field(None, description="Additional shipping cost for extra items")
-    shipping_carrier_code: Optional[str] = Field(None, description="Carrier code (USPS, UPS, etc.)")
-    free_shipping: Optional[bool] = Field(False, description="Whether shipping is free")
-    
-    @model_validator(mode='after')
-    def validate_free_shipping_cost(self):
-        """Validate that free shipping has zero cost."""
-        if self.free_shipping and self.shipping_cost.value > 0:
-            raise ValueError("Free shipping must have zero shipping cost")
-        return self
+    # Optional fields - conditionally required based on cost type
+    additionalShippingCost: Optional[Amount] = Field(None, description="Additional shipping cost for extra items")
+    buyerResponsibleForPickup: Optional[bool] = Field(None, description="Buyer responsible for pickup (motor vehicles)")
+    buyerResponsibleForShipping: Optional[bool] = Field(None, description="Buyer responsible for shipping (motor vehicles)")
+    freeShipping: Optional[bool] = Field(None, description="Whether shipping is free")
+    shippingCarrierCode: Optional[str] = Field(None, description="Carrier code (USPS, UPS, etc.)")
+    shippingCost: Optional[Amount] = Field(None, description="Cost for this shipping service")
+    shipToLocations: Optional[RegionSet] = Field(None, description="Geographical shipping regions")
+    sortOrder: Optional[int] = Field(None, ge=1, le=5, description="Display order of shipping options")
 
 
 class ShippingOption(BaseModel):
@@ -283,21 +284,23 @@ class ShippingOption(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
     
     # Required fields
-    option_type: ShippingOptionTypeEnum = Field(..., description="Type of shipping option")
-    cost_type: ShippingCostTypeEnum = Field(..., description="How shipping cost is calculated")
-    shipping_services: List[ShippingService] = Field(..., description="Available shipping services")
+    costType: ShippingCostTypeEnum = Field(..., description="How shipping cost is calculated")
+    optionType: ShippingOptionTypeEnum = Field(..., description="Type of shipping option")
     
-    # Optional fields  
-    package_handling_cost: Optional[Amount] = Field(None, description="Handling cost for packaging")
-    shipping_discount: Optional[Dict[str, Any]] = Field(None, description="Shipping discount configuration")
+    # Optional fields
+    packageHandlingCost: Optional[Amount] = Field(None, description="Handling cost for packaging")
+    rateTableId: Optional[str] = Field(None, description="Shipping rate table ID")
+    shippingServices: Optional[List[ShippingService]] = Field(None, description="Available shipping services")
+    shippingDiscountProfileId: Optional[str] = Field(None, description="Shipping discount profile ID")
+    shippingPromotionOffered: Optional[bool] = Field(None, description="Promotional shipping discount available")
     
     @model_validator(mode='after')
     def validate_shipping_services(self):
         """Validate shipping services list."""
-        if not self.shipping_services:
-            raise ValueError("At least one shipping service is required")
-        if len(self.shipping_services) > 4:
-            raise ValueError("Maximum 4 shipping services allowed")
+        if self.shippingServices:
+            max_services = 4 if self.optionType == ShippingOptionTypeEnum.DOMESTIC else 5
+            if len(self.shippingServices) > max_services:
+                raise ValueError(f"Maximum {max_services} shipping services allowed for {self.optionType.value}")
         return self
 
 
@@ -311,33 +314,33 @@ class FulfillmentPolicyInput(BaseModel):
     
     # REQUIRED FIELDS
     name: str = Field(..., min_length=1, max_length=64, description="Policy name")
-    marketplace_id: MarketplaceIdEnum = Field(..., description="eBay marketplace ID")
-    category_types: List[CategoryType] = Field(..., description="Category types this policy applies to")
-    handling_time: TimeDuration = Field(..., description="Handling time before shipment")
-    shipping_options: List[ShippingOption] = Field(..., description="Available shipping options")
+    marketplaceId: MarketplaceIdEnum = Field(..., description="eBay marketplace ID")
+    categoryTypes: List[CategoryType] = Field(..., description="Category types this policy applies to")
     
     # OPTIONAL FIELDS
     description: Optional[str] = Field(None, max_length=250, description="Internal policy description")
-    local_pickup: Optional[bool] = Field(False, description="Whether local pickup is offered")
-    freight_shipping: Optional[bool] = Field(False, description="Whether freight shipping is offered")
-    ship_to_locations: Optional[RegionSet] = Field(None, description="Regions where items can be shipped")
+    freightShipping: Optional[bool] = Field(None, description="Whether freight shipping is offered")
+    globalShipping: Optional[bool] = Field(None, description="Whether eBay Global Shipping is used")
+    handlingTime: Optional[TimeDuration] = Field(None, description="Handling time before shipment")
+    localPickup: Optional[bool] = Field(None, description="Whether local pickup is offered")
+    pickupDropOff: Optional[List[str]] = Field(None, description="Pickup drop-off options")
+    shipToLocations: Optional[RegionSet] = Field(None, description="Regions where items can be shipped")
+    shippingOptions: Optional[List[ShippingOption]] = Field(None, description="Available shipping options")
     
     @model_validator(mode='after')
-    def validate_shipping_options(self):
-        """Validate shipping options configuration."""
-        if not self.shipping_options:
-            raise ValueError("At least one shipping option is required")
-        if len(self.shipping_options) > 2:  # Typically domestic + international
+    def validate_conditional_requirements(self):
+        """Validate conditional requirements based on policy type."""
+        # Validate handling time if provided
+        if self.handlingTime:
+            if self.handlingTime.unit not in [TimeDurationUnitEnum.DAY, TimeDurationUnitEnum.BUSINESS_DAY]:
+                raise ValueError("Handling time unit must be DAY or BUSINESS_DAY")
+            if self.handlingTime.value > 30:
+                raise ValueError("Handling time cannot exceed 30 days")
+        
+        # Validate shipping options
+        if self.shippingOptions and len(self.shippingOptions) > 2:
             raise ValueError("Maximum 2 shipping options allowed (domestic + international)")
-        return self
-    
-    @model_validator(mode='after')
-    def validate_handling_time(self):
-        """Validate handling time constraints."""
-        if self.handling_time.unit not in [TimeDurationUnitEnum.DAY, TimeDurationUnitEnum.BUSINESS_DAY]:
-            raise ValueError("Handling time unit must be DAY or BUSINESS_DAY")
-        if self.handling_time.value > 30:
-            raise ValueError("Handling time cannot exceed 30 days")
+        
         return self
 
 
@@ -347,5 +350,5 @@ class FulfillmentPolicyResponse(FulfillmentPolicyInput):
     
     Extends the input model with additional response fields.
     """
-    fulfillment_policy_id: Optional[str] = Field(None, description="eBay fulfillment policy ID")
+    fulfillmentPolicyId: Optional[str] = Field(None, description="eBay fulfillment policy ID")
     warnings: Optional[List[Dict[str, Any]]] = Field(None, description="API warnings")

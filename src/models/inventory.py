@@ -69,15 +69,15 @@ class PickupAtLocationAvailability(BaseModel):
     """Local pickup availability configuration."""
     model_config = ConfigDict(str_strip_whitespace=True)
     
-    availability_type: AvailabilityTypeEnum = Field(..., description="Availability type")
-    fulfillment_time: Optional[Dict[str, Any]] = Field(None, description="Fulfillment time specification")
+    availabilityType: Optional[AvailabilityTypeEnum] = Field(None, description="Availability type")
+    fulfillmentTime: Optional[Dict[str, Any]] = Field(None, description="Fulfillment time specification")
 
 
 class ShipToLocationAvailability(BaseModel):
     """Ship-to-home availability configuration."""
     model_config = ConfigDict(str_strip_whitespace=True)
     
-    availability_type: AvailabilityTypeEnum = Field(..., description="Availability type")
+    availabilityType: Optional[AvailabilityTypeEnum] = Field(None, description="Availability type")
     quantity: Optional[int] = Field(None, ge=0, description="Available quantity")
 
 
@@ -86,13 +86,13 @@ class Availability(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
     
     # Pickup availability
-    pickup_at_location_availability: Optional[PickupAtLocationAvailability] = Field(
+    pickupAtLocationAvailability: Optional[PickupAtLocationAvailability] = Field(
         None,
         description="Local pickup availability"
     )
     
     # Shipping availability
-    ship_to_location_availability: Optional[ShipToLocationAvailability] = Field(
+    shipToLocationAvailability: Optional[ShipToLocationAvailability] = Field(
         None,
         description="Ship-to-home availability"
     )
@@ -110,7 +110,7 @@ class Product(BaseModel):
     title: str = Field(..., min_length=1, max_length=80, description="Product title")
     
     # OPTIONAL FIELDS
-    description: Optional[str] = Field(None, max_length=500000, description="Product description")
+    description: Optional[str] = Field(None, max_length=4000, description="Product description")
     aspects: Optional[Dict[str, List[str]]] = Field(None, description="Product aspects/attributes")
     brand: Optional[str] = Field(None, description="Product brand")
     mpn: Optional[str] = Field(None, description="Manufacturer part number")
@@ -118,7 +118,7 @@ class Product(BaseModel):
     ean: Optional[List[str]] = Field(None, description="EAN codes")
     isbn: Optional[List[str]] = Field(None, description="ISBN codes")
     epid: Optional[str] = Field(None, description="eBay product ID")
-    image_urls: Optional[List[str]] = Field(None, description="Product image URLs")
+    imageUrls: Optional[List[str]] = Field(None, description="Product image URLs")
     
     @model_validator(mode='after')
     def validate_title_length(self):
@@ -130,11 +130,11 @@ class Product(BaseModel):
     @model_validator(mode='after')
     def validate_image_urls(self):
         """Validate image URL format and count."""
-        if self.image_urls:
-            if len(self.image_urls) > 12:
+        if self.imageUrls:
+            if len(self.imageUrls) > 12:
                 raise ValueError("Maximum 12 image URLs allowed")
             
-            for url in self.image_urls:
+            for url in self.imageUrls:
                 if not url.startswith(('http://', 'https://')):
                     raise ValueError(f"Invalid image URL format: {url}")
         return self
@@ -148,23 +148,25 @@ class InventoryItemInput(BaseModel):
     """Complete input validation for inventory item operations."""
     model_config = ConfigDict(str_strip_whitespace=True)
     
-    # REQUIRED FIELDS
-    availability: Availability = Field(..., description="Item availability configuration")
-    condition: ConditionEnum = Field(..., description="Item condition")
-    product: Product = Field(..., description="Product information")
+    # ALL FIELDS ARE OPTIONAL - ebay allows partial updates
+    availability: Optional[Availability] = Field(None, description="Item availability configuration")
+    condition: Optional[ConditionEnum] = Field(None, description="Item condition")
+    product: Optional[Product] = Field(None, description="Product information")
     
     # OPTIONAL FIELDS
     locale: Optional[LocaleEnum] = Field(None, description="Locale for the listing")
-    package_weight_and_size: Optional[PackageWeightAndSize] = Field(
+    packageWeightAndSize: Optional[PackageWeightAndSize] = Field(
         None, 
         description="Package specifications"
     )
     
     @model_validator(mode='after')
     def validate_availability_completeness(self):
-        """Ensure at least one availability type is specified."""
-        if (not self.availability.pickup_at_location_availability and 
-            not self.availability.ship_to_location_availability):
+        """Ensure at least one availability type is specified if availability is provided."""
+        if self.availability and (
+            not self.availability.pickupAtLocationAvailability and 
+            not self.availability.shipToLocationAvailability
+        ):
             raise ValueError("At least one availability type must be specified")
         return self
 
