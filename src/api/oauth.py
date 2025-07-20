@@ -515,19 +515,19 @@ class OAuthManager:
         
         # Store state temporarily (in a real app, this would be more persistent)
         self._consent_state = state
-        self._consent_redirect_uri = redirect_uri
+        self._consent_redirect_uri = self.config.redirect_uri
         
         # Also store in token storage for persistence between OAuth manager instances
-        self._token_storage.store_consent_state(self.config.client_id, state, redirect_uri)
+        self._token_storage.store_consent_state(self.config.client_id, state, self.config.redirect_uri)
         
         logger.debug(f"Stored consent state: {state}")
-        logger.debug(f"Stored consent redirect URI: {redirect_uri}")
+        logger.debug(f"Stored consent redirect URI: {self.config.redirect_uri}")
         
         return {
             "auth_url": auth_url,
             "browser_opened": browser_opened,
             "state": state,
-            "redirect_uri": redirect_uri
+            "redirect_uri": self.config.redirect_uri
         }
     
     async def complete_consent_flow(self, callback_url: str) -> Dict[str, Any]:
