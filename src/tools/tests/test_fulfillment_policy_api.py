@@ -41,8 +41,9 @@ from models.enums import (
     ShippingCostTypeEnum,
     ShippingOptionTypeEnum,
     TimeDurationUnitEnum,
-    CurrencyCodeEnum
+    CurrencyCodeEnum,
 )
+from models.shipping_enums import DomesticShippingServiceEnum, InternationalShippingServiceEnum
 from api.errors import EbayApiError
 
 class TestFulfillmentPolicyPydanticModels:
@@ -77,8 +78,8 @@ class TestFulfillmentPolicyPydanticModels:
     def test_valid_complex_policy_with_shipping_options(self):
         """Test complex policy with shipping services."""
         domestic_service = ShippingService(
-            shippingServiceCode="StandardShipping",
-            shippingCarrierCode="USPS",
+            shippingServiceCode=DomesticShippingServiceEnum.USPSPriority,
+            shippingCarrierCode=DomesticShippingServiceEnum.USPSPriority,
             shippingCost=Amount(currency=CurrencyCodeEnum.USD, value="5.99"),
             additionalShippingCost=Amount(currency=CurrencyCodeEnum.USD, value="2.99"),
             freeShipping=False,
@@ -106,7 +107,7 @@ class TestFulfillmentPolicyPydanticModels:
         assert policy.shippingOptions[0].optionType == ShippingOptionTypeEnum.DOMESTIC
         assert policy.shippingOptions[0].shippingServices is not None
         assert len(policy.shippingOptions[0].shippingServices) == 1
-        assert policy.shippingOptions[0].shippingServices[0].shippingServiceCode == "StandardShipping"
+        assert policy.shippingOptions[0].shippingServices[0].shippingServiceCode == DomesticShippingServiceEnum.USPSPriority
         assert policy.localPickup is True
         assert policy.globalShipping is True
     
@@ -117,16 +118,16 @@ class TestFulfillmentPolicyPydanticModels:
             marketplaceId=MarketplaceIdEnum.EBAY_US,
             categoryTypes=[CategoryType(name=CategoryTypeEnum.ALL_EXCLUDING_MOTORS_VEHICLES)],
             localPickup=True,
-            pickupDropOff=["SELLER_ARRANGED"]
+            pickupDropOff=False
         )
         assert policy.localPickup is True
-        assert policy.pickupDropOff == ["SELLER_ARRANGED"]
+        assert policy.pickupDropOff == False
         assert policy.handlingTime is None
         assert policy.shippingOptions is None
     
     def test_conditional_validation_handlingTime_required_with_shipping(self):
         """Test that shipping services can be defined without handlingTime (optional requirement)."""
-        service = ShippingService(shippingServiceCode="StandardShipping")
+        service = ShippingService(shippingServiceCode=DomesticShippingServiceEnum.USPSPriority)
         option = ShippingOption(
             costType=ShippingCostTypeEnum.FLAT_RATE,
             optionType=ShippingOptionTypeEnum.DOMESTIC,
@@ -148,7 +149,7 @@ class TestFulfillmentPolicyPydanticModels:
     def test_shipping_service_limits_domestic(self):
         """Test domestic shipping service limit validation (max 4)."""
         services = [
-            ShippingService(shippingServiceCode=f"Service{i}") 
+            ShippingService(shippingServiceCode=DomesticShippingServiceEnum.USPSPriority) 
             for i in range(5)  # Too many!
         ]
         
@@ -165,7 +166,7 @@ class TestFulfillmentPolicyPydanticModels:
     def test_shipping_service_limits_international(self):
         """Test international shipping service limit validation (max 5)."""
         services = [
-            ShippingService(shippingServiceCode=f"Service{i}") 
+            ShippingService(shippingServiceCode=DomesticShippingServiceEnum.USPSPriority) 
             for i in range(6)  # Too many!
         ]
         

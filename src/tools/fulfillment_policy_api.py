@@ -46,12 +46,12 @@ HandlingTimeDuration = TimeDuration.for_handling_time()
 
 # HELPER FUNCTIONS
 
-def _build_policy_data(policy_input: FulfillmentPolicyInput) -> Dict[str, Any]:
+def build_policy_data(policy_input: FulfillmentPolicyInput) -> Dict[str, Any]:
     """Convert Pydantic model to eBay API format."""
     policy_data = {
         "name": policy_input.name,
         "marketplaceId": policy_input.marketplaceId.value,
-        "categoryTypes": [cat_type.model_dump(mode='json') for cat_type in policy_input.categoryTypes]
+        "categoryTypes": [cat_type.model_dump(mode='json', exclude_none=True) for cat_type in policy_input.categoryTypes]
     }
     
     # Add optional fields
@@ -59,7 +59,9 @@ def _build_policy_data(policy_input: FulfillmentPolicyInput) -> Dict[str, Any]:
         policy_data["description"] = policy_input.description
     
     if policy_input.handlingTime:
-        policy_data["handlingTime"] = policy_input.handlingTime.model_dump(mode='json')
+        handling_time_data = policy_input.handlingTime.model_dump(mode='json', exclude_none=True)
+        if handling_time_data:
+            policy_data["handlingTime"] = handling_time_data
     
     if policy_input.shippingOptions:
         shipping_options = []
@@ -74,16 +76,20 @@ def _build_policy_data(policy_input: FulfillmentPolicyInput) -> Dict[str, Any]:
                 services = []
                 for service in option.shippingServices:
                     service_data = {
-                        "shippingServiceCode": service.shippingServiceCode
+                        "shippingServiceCode": service.shippingServiceCode.value
                     }
                     
                     # Add optional service fields
                     if service.shippingCarrierCode:
                         service_data["shippingCarrierCode"] = service.shippingCarrierCode
                     if service.shippingCost:
-                        service_data["shippingCost"] = service.shippingCost.model_dump(mode='json')
+                        shipping_cost_data = service.shippingCost.model_dump(mode='json', exclude_none=True)
+                        if shipping_cost_data:
+                            service_data["shippingCost"] = shipping_cost_data
                     if service.additionalShippingCost:
-                        service_data["additionalShippingCost"] = service.additionalShippingCost.model_dump(mode='json')
+                        additional_cost_data = service.additionalShippingCost.model_dump(mode='json', exclude_none=True)
+                        if additional_cost_data:
+                            service_data["additionalShippingCost"] = additional_cost_data
                     if service.freeShipping is not None:
                         service_data["freeShipping"] = service.freeShipping
                     if service.shipToLocations:
@@ -101,7 +107,9 @@ def _build_policy_data(policy_input: FulfillmentPolicyInput) -> Dict[str, Any]:
                 option_data["shippingServices"] = services
             
             if option.packageHandlingCost:
-                option_data["packageHandlingCost"] = option.packageHandlingCost.model_dump(mode='json')
+                handling_cost_data = option.packageHandlingCost.model_dump(mode='json', exclude_none=True)
+                if handling_cost_data:
+                    option_data["packageHandlingCost"] = handling_cost_data
             if option.rateTableId:
                 option_data["rateTableId"] = option.rateTableId
             if option.shippingDiscountProfileId:
@@ -225,9 +233,7 @@ async def create_fulfillment_policy(
         await ctx.report_progress(0.3, "Converting input to eBay API format...")
         
         # Convert Pydantic model to eBay API format
-        policy_data = _build_policy_data(policy_input)
-        import json
-        print(f'#########{json.dumps(policy_data)}')
+        policy_data = build_policy_data(policy_input)
         
         await ctx.report_progress(0.5, "Creating fulfillment policy via eBay API...")
         
@@ -670,7 +676,7 @@ async def update_fulfillment_policy(
         await ctx.report_progress(0.3, "Converting input to eBay API format...")
         
         # Convert Pydantic model to eBay API format
-        policy_data = _build_policy_data(policy_input)
+        policy_data = build_policy_data(policy_input)
         
         await ctx.report_progress(0.5, f"Updating fulfillment policy {policyId}...")
         

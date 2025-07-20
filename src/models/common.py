@@ -85,13 +85,13 @@ class Region(BaseModel):
     """
     model_config = ConfigDict(str_strip_whitespace=True)
     
-    region_name: str = Field(..., description="Name of region as defined by eBay (e.g., 'US', 'Asia', 'CA')")
-    region_type: Optional[RegionTypeEnum] = Field(None, description="Type of region")
+    regionName: str = Field(..., description="Name of region as defined by eBay (e.g., 'US', 'Asia', 'CA')")
+    regionType: Optional[RegionTypeEnum] = Field(None, description="Type of region")
 
 
 class RegionSet(BaseModel):
     """Shipping regions configuration for included and excluded locations."""
     model_config = ConfigDict(str_strip_whitespace=True)
     
-    region_included: Optional[list[Region]] = Field(None, description="List of regions where shipping is offered")
-    region_excluded: Optional[list[Region]] = Field(None, description="List of regions excluded from shipping")
+    regionIncluded: Optional[list[Region]] = Field(None, description="List of regions where shipping is offered")
+    regionExcluded: Optional[list[Region]] = Field(None, description="List of regions excluded from shipping")

@@ -251,6 +251,7 @@ class CurrencyCodeEnum(BaseEbayEnum):
         }
 
 
+
 class LocaleEnum(BaseEbayEnum):
     """
     Locale values for specifying language and country.

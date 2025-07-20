@@ -893,6 +893,7 @@ from models.enums import (
     MarketplaceIdEnum, CategoryTypeEnum, ShippingCostTypeEnum,
     ShippingOptionTypeEnum, TimeDurationUnitEnum, CurrencyCodeEnum
 )
+from models.shipping_enums import DomesticShippingServiceEnum, InternationalShippingServiceEnum
 
 
 class TestDataFulfillmentPolicy:
@@ -922,10 +923,10 @@ class TestDataFulfillmentPolicy:
     @classmethod
     def create_complex_policy(cls, name: str = "Premium Shipping") -> FulfillmentPolicyInput:
         """Create a complex fulfillment policy with multiple shipping options."""
-        # Domestic shipping services
+        # Domestic shipping services - using valid eBay service codes
         domestic_standard = ShippingService(
-            shippingServiceCode="StandardShipping",
-            shippingCarrierCode="USPS",
+            shippingServiceCode=DomesticShippingServiceEnum.USPSPriority,
+            shippingCarrierCode=DomesticShippingServiceEnum.USPSPriority,
             shippingCost=Amount(currency=CurrencyCodeEnum.USD, value="5.99"),
             additionalShippingCost=Amount(currency=CurrencyCodeEnum.USD, value="2.99"),
             freeShipping=False,
@@ -933,26 +934,26 @@ class TestDataFulfillmentPolicy:
         )
         
         domestic_expedited = ShippingService(
-            shippingServiceCode="ExpeditedShipping",
-            shippingCarrierCode="UPS",
+            shippingServiceCode=DomesticShippingServiceEnum.USPSExpressMail,
+            shippingCarrierCode=DomesticShippingServiceEnum.USPSExpressMail,
             shippingCost=Amount(currency=CurrencyCodeEnum.USD, value="12.99"),
             freeShipping=False,
             sortOrder=2
         )
         
-        # International shipping service
+        # International shipping service - using valid eBay service code
         international_standard = ShippingService(
-            shippingServiceCode="InternationalStandardShipping",
-            shippingCarrierCode="USPS",
+            shippingServiceCode=InternationalShippingServiceEnum.USPSPriorityMailInternational,
+            shippingCarrierCode=InternationalShippingServiceEnum.USPSPriorityMailInternational,
             shippingCost=Amount(currency=CurrencyCodeEnum.USD, value="19.99"),
             freeShipping=False,
             shipToLocations=RegionSet(
                 regionIncluded=[
-                    Region(region_name="Worldwide", region_type=None),
+                    Region(regionName="Worldwide", regionType=None),
                 ],
                 regionExcluded=[
-                    Region(region_name="RU", region_type=None),  # Russia
-                    Region(region_name="CN", region_type=None),  # China
+                    Region(regionName="RU", regionType=None),  # Russia
+                    Region(regionName="CN", regionType=None),  # China
                 ]
             ),
             sortOrder=1
@@ -980,10 +981,10 @@ class TestDataFulfillmentPolicy:
             description="Premium shipping with multiple options",
             shippingOptions=[domestic_option, international_option],
             shipToLocations=RegionSet(
-                regionIncluded=[Region(region_name="US", region_type=None)]
+                regionIncluded=[Region(regionName="US", regionType=None)]
             ),
-            localPickup=True,
-            globalShipping=True
+            localPickup=False,
+            globalShipping=False
         )
     
     @classmethod
@@ -994,7 +995,7 @@ class TestDataFulfillmentPolicy:
             marketplaceId=MarketplaceIdEnum.EBAY_US,
             categoryTypes=[CategoryType(name=CategoryTypeEnum.ALL_EXCLUDING_MOTORS_VEHICLES)],
             localPickup=True,
-            pickupDropOff=["SELLER_ARRANGED"],
+            pickupDropOff=False,
             description="Local pickup and drop-off only policy"
         )
     

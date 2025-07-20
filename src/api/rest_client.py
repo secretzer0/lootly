@@ -238,7 +238,7 @@ class EbayRestClient:
                             error_data = {"message": response_text}
                         
                         # Debug log error response
-                        logger.debug(f"Error response text: {response_text[:500]}")
+                        logger.debug(f"Error response text: {response_text}")
                         logger.debug(f"Error response headers: {dict(response.headers)}")
                         
                         # Handle specific error cases

@@ -9,7 +9,7 @@ This module consolidates all models related to eBay seller business policies:
 All models follow the Pydantic-First Development methodology with strong typing
 and validation through Pydantic models only.
 """
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Union
 from decimal import Decimal
 from pydantic import BaseModel, Field, model_validator, ConfigDict
 
@@ -25,6 +25,7 @@ from .enums import (
     ReturnMethodEnum,
     ReturnShippingCostPayerEnum
 )
+from .shipping_enums import DomesticShippingServiceEnum, InternationalShippingServiceEnum
 from .common import Amount, CategoryType, TimeDuration, RegionSet
 
 
@@ -269,7 +270,7 @@ class ShippingService(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
     
     # Required fields
-    shippingServiceCode: str = Field(..., description="eBay shipping service code")
+    shippingServiceCode: Union[DomesticShippingServiceEnum, InternationalShippingServiceEnum] = Field(..., description="eBay shipping service code")
     
     # Optional fields - conditionally required based on cost type
     additionalShippingCost: Optional[Amount] = Field(None, description="Additional shipping cost for extra items")
@@ -326,7 +327,7 @@ class FulfillmentPolicyInput(BaseModel):
     globalShipping: Optional[bool] = Field(None, description="Whether eBay Global Shipping is used")
     handlingTime: Optional[TimeDuration] = Field(None, description="Handling time before shipment")
     localPickup: Optional[bool] = Field(None, description="Whether local pickup is offered")
-    pickupDropOff: Optional[List[str]] = Field(None, description="Pickup drop-off options")
+    pickupDropOff: Optional[bool] = Field(None, description="Whether the seller offers Click and Collet. Currently, 'Click and Collect' is available only to large retail merchants the eBay AU, UK, DE, FR, and IT")
     shipToLocations: Optional[RegionSet] = Field(None, description="Regions where items can be shipped")
     shippingOptions: Optional[List[ShippingOption]] = Field(None, description="Available shipping options")
     
