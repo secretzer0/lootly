@@ -190,18 +190,8 @@ class TokenStorage:
             raise Exception(f"Failed to save tokens: {e}")
 
 
-def _can_open_browser() -> bool:
-    """Check if we can open a browser (running in stdio mode)."""
-    # Check if we're running in a terminal/stdio environment
-    # This is a simple heuristic - in practice, MCP servers running locally
-    # through stdio can often open browsers
-    return sys.stdin.isatty() and sys.stdout.isatty()
-
-
 def _open_browser(url: str) -> bool:
     """Open URL in the default browser if possible."""
-    # if not _can_open_browser():
-    #     return False
     
     try:
         return webbrowser.open(url)
@@ -505,16 +495,13 @@ class OAuthManager:
         # Build authorization URL
         base_url = "https://auth.sandbox.ebay.com/oauth2/authorize" if self.config.sandbox else "https://auth.ebay.com/oauth2/authorize"
         
-        # Use redirect URI from environment or default to RuName
-        redirect_uri = os.getenv("EBAY_REDIRECT_URI", "Travis_Melhiser-TravisMe-Lootly-menhqo")
-        
         # URL encode parameters
         from urllib.parse import urlencode
         
         params = {
             "client_id": self.config.client_id,
             "response_type": "code",
-            "redirect_uri": redirect_uri,
+            "redirect_uri": self.config.redirect_uri,
             "scope": OAuthScopes.USER_CONSENT_SCOPES,
             "state": state,
             "consentGiven": False
