@@ -35,7 +35,7 @@ def _convert_to_api_format(policy_input: ReturnPolicyInput) -> Dict[str, Any]:
     policy_data = {
         "name": policy_input.name,
         "marketplaceId": policy_input.marketplaceId.value,
-        "categoryTypes": [cat_type.model_dump(mode='json') for cat_type in policy_input.categoryTypes]
+        "categoryTypes": [cat_type.model_dump(mode='json', exclude_none=True) for cat_type in policy_input.categoryTypes]
     }
     
     # Add optional fields
@@ -46,7 +46,9 @@ def _convert_to_api_format(policy_input: ReturnPolicyInput) -> Dict[str, Any]:
         policy_data["returnsAccepted"] = policy_input.returnsAccepted
     
     if policy_input.returnPeriod:
-        policy_data["returnPeriod"] = policy_input.returnPeriod.model_dump(mode='json')
+        return_period_data = policy_input.returnPeriod.model_dump(mode='json', exclude_none=True)
+        if return_period_data:
+            policy_data["returnPeriod"] = return_period_data
     
     if policy_input.returnMethod:
         policy_data["returnMethod"] = policy_input.returnMethod.value
@@ -61,7 +63,9 @@ def _convert_to_api_format(policy_input: ReturnPolicyInput) -> Dict[str, Any]:
         policy_data["returnInstructions"] = policy_input.returnInstructions
     
     if policy_input.internationalOverride:
-        policy_data["internationalOverride"] = policy_input.internationalOverride.model_dump(mode='json')
+        international_data = policy_input.internationalOverride.model_dump(mode='json', exclude_none=True)
+        if international_data:
+            policy_data["internationalOverride"] = international_data
     
     return policy_data
 
@@ -455,7 +459,7 @@ async def get_return_policy_by_name(
         
         # Make API request
         params = {
-            "marketplaceId": marketplaceId.value,
+            "marketplace_id": marketplaceId.value,
             "name": name
         }
         

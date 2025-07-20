@@ -35,7 +35,7 @@ def _convert_to_api_format(policy_input: PaymentPolicyInput) -> Dict[str, Any]:
     policy_data = {
         "name": policy_input.name,
         "marketplaceId": policy_input.marketplaceId.value,
-        "categoryTypes": [cat_type.model_dump(mode='json') for cat_type in policy_input.categoryTypes]
+        "categoryTypes": [cat_type.model_dump(mode='json', exclude_none=True) for cat_type in policy_input.categoryTypes]
     }
     
     # Add optional fields
@@ -56,13 +56,20 @@ def _convert_to_api_format(policy_input: PaymentPolicyInput) -> Dict[str, Any]:
     if policy_input.deposit:
         deposit_data = {}
         if policy_input.deposit.dueIn:
-            deposit_data["dueIn"] = policy_input.deposit.dueIn.model_dump(mode='json')
+            due_in_data = policy_input.deposit.dueIn.model_dump(mode='json', exclude_none=True)
+            if due_in_data:
+                deposit_data["dueIn"] = due_in_data
         if policy_input.deposit.amount:
-            deposit_data["amount"] = policy_input.deposit.amount.model_dump(mode='json')
-        policy_data["deposit"] = deposit_data
+            amount_data = policy_input.deposit.amount.model_dump(mode='json', exclude_none=True)
+            if amount_data:
+                deposit_data["amount"] = amount_data
+        if deposit_data:  # Only add deposit if it has content
+            policy_data["deposit"] = deposit_data
     
     if policy_input.fullPaymentDueIn:
-        policy_data["fullPaymentDueIn"] = policy_input.fullPaymentDueIn.model_dump(mode='json')
+        full_payment_data = policy_input.fullPaymentDueIn.model_dump(mode='json', exclude_none=True)
+        if full_payment_data:
+            policy_data["fullPaymentDueIn"] = full_payment_data
     
     if policy_input.immediatePay is not None:
         policy_data["immediatePay"] = policy_input.immediatePay
@@ -248,7 +255,7 @@ async def get_payment_policies(
         
         # Make API request
         params = {
-            "marketplaceId": marketplaceId.value,
+            "marketplace_id": marketplaceId.value,
             "limit": limit,
             "offset": offset
         }
@@ -457,7 +464,7 @@ async def get_payment_policy_by_name(
         
         # Make API request
         params = {
-            "marketplaceId": marketplaceId.value,
+            "marketplace_id": marketplaceId.value,
             "name": name
         }
         
