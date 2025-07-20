@@ -20,6 +20,7 @@ class EbayConfig(BaseModel):
     app_id: str = Field(description="eBay Application ID")
     cert_id: Optional[str] = Field(None, description="Certificate ID (required for Trading API)")
     dev_id: Optional[str] = Field(None, description="Developer ID")
+    redirect_uri: str = Field(description="Redirect URI")
     
     # Environment settings
     sandbox_mode: bool = Field(True, description="Use sandbox environment")
