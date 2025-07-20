@@ -200,8 +200,8 @@ def _can_open_browser() -> bool:
 
 def _open_browser(url: str) -> bool:
     """Open URL in the default browser if possible."""
-    if not _can_open_browser():
-        return False
+    # if not _can_open_browser():
+    #     return False
     
     try:
         return webbrowser.open(url)
