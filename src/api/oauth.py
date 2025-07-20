@@ -8,7 +8,6 @@ import base64
 import asyncio
 import json
 import os
-import sys
 import webbrowser
 from datetime import datetime, timedelta, timezone
 from pathlib import Path

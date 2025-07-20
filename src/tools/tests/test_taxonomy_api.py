@@ -24,8 +24,7 @@ from tools.taxonomy_api import (
 )
 from models.enums import MarketplaceIdEnum
 from models.browse import (
-    GetDefaultCategoryTreeIdInput, GetCategoryTreeInput, GetCategorySubtreeInput,
-    GetCategorySuggestionsInput, GetExpiredCategoriesInput
+    GetDefaultCategoryTreeIdInput
 )
 
 

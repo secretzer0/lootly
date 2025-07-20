@@ -11,8 +11,9 @@ All models follow the Pydantic-First Development methodology with strong typing
 and validation through Pydantic models only.
 """
 from typing import Optional
-from decimal import Decimal
 from pydantic import BaseModel, Field, field_validator, ConfigDict
+
+from models.browse_enums import SortField
 
 
 # =============================================================================
@@ -20,80 +21,120 @@ from pydantic import BaseModel, Field, field_validator, ConfigDict
 # =============================================================================
 
 class BrowseSearchInput(BaseModel):
-    """Complete input validation for Browse API search operations."""
+    """
+    Complete input validation for Browse API search operations.
+    
+    This model supports advanced searching with filtering, sorting, and pagination.
+    All parameters are validated according to eBay Browse API specifications.
+    """
     model_config = ConfigDict(str_strip_whitespace=True)
     
     # REQUIRED FIELDS
-    q: str = Field(..., min_length=1, max_length=350, description="Search keywords")
+    q: str = Field(
+        ..., 
+        min_length=1, 
+        max_length=300,
+        description=(
+            "Search keywords - max 300 characters. "
+            "Use 'term1 term2' for AND search, '(term1, term2)' for OR search, "
+            "'\"exact phrase\"' for phrase search"
+        )
+    )
     
     # FILTERING FIELDS
-    categoryIds: Optional[str] = Field(None, description="Comma-separated category IDs")
-    filter: Optional[str] = Field(None, description="Advanced filter string")
-    priceMin: Optional[Decimal] = Field(None, description="Minimum price filter")
-    priceMax: Optional[Decimal] = Field(None, description="Maximum price filter")
-    conditions: Optional[str] = Field(None, description="Item condition filter (e.g., NEW,USED_EXCELLENT)")
-    sellers: Optional[str] = Field(None, description="Seller filter")
+    category_ids: Optional[str] = Field(
+        None,
+        pattern=r'^\d+$',
+        description="Single eBay category ID (numeric). Use Browse API category methods to find IDs"
+    )
+    
+    filter: Optional[str] = Field(
+        None,
+        description=(
+            "Advanced filter string with specific syntax. "
+            "Examples: 'price:[10..50]', 'conditions:{NEW|LIKE_NEW}', "
+            "'sellers:{user1|user2}'. Multiple filters separated by commas"
+        )
+    )
     
     # SORTING AND PAGINATION
-    sort: str = Field(default="BestMatch", description="Sort order")
-    limit: int = Field(default=50, ge=1, le=200, description="Number of results to return")
-    offset: int = Field(default=0, ge=0, description="Number of results to skip")
+    sort: Optional[SortField] = Field(
+        default=SortField.BEST_MATCH,
+        description="Sort order for search results. Price sort includes shipping cost"
+    )
+    
+    limit: int = Field(
+        default=50, 
+        ge=1, 
+        le=200, 
+        description="Number of results to return (1-200)"
+    )
+    
+    offset: int = Field(
+        default=0, 
+        ge=0, 
+        description="Number of results to skip for pagination"
+    )
+    
+    @field_validator('category_ids')
+    @classmethod
+    def validate_single_category(cls, v):
+        """Ensure only one category ID is provided."""
+        if v and ',' in v:
+            raise ValueError("Only one category ID allowed per search")
+        return v
 
 
 class ItemDetailsInput(BaseModel):
-    """Input validation for item details retrieval."""
+    """
+    Input validation for item details retrieval.
+    
+    Supports both modern RESTful item IDs and legacy item IDs from older eBay APIs.
+    The tool automatically detects which type of ID is provided.
+    """
     model_config = ConfigDict(str_strip_whitespace=True)
     
     # REQUIRED FIELDS
-    itemId: str = Field(..., min_length=1, description="eBay item ID")
-    
-    # OPTIONAL FIELDS
-    fieldgroups: Optional[str] = Field(
-        "SUMMARY,DETAILS,PRIMARY_PHOTO,ADDITIONAL_PHOTOS", 
-        description="Comma-separated list of field groups to include"
+    item_id: str = Field(
+        ..., 
+        min_length=1,
+        description=(
+            "Item identifier - accepts two formats:\n"
+            "1. RESTful ID (v1|123456789|0): Returned by Browse API methods\n"
+            "2. Legacy ID (123456789): From older eBay APIs (Shopping, Finding, Trading)"
+        )
     )
-    includeDescription: bool = Field(default=True, description="Whether to include full item description")
     
-    @field_validator('itemId')
+    @field_validator('item_id')
     @classmethod
     def validate_item_id_format(cls, v):
-        """Basic validation for eBay item ID format."""
-        # Accept both legacy numeric IDs and new complex IDs (v1|123456789|0)
-        if v.startswith('v1|') and '|' in v:
-            # Complex item ID format - just check basic structure
-            parts = v.split('|')
-            if len(parts) >= 2 and parts[1].isdigit() and len(parts[1]) >= 10:
-                return v
-        elif v.isdigit() and len(v) >= 10:
-            # Legacy numeric format
-            return v
+        """
+        Validate and determine item ID type.
         
-        raise ValueError("Item ID must be a numeric string with at least 10 digits or complex format like 'v1|123456789|0'")
-        return v
+        RESTful format: v1|{listing_id}|{transaction_id}
+        Legacy format: Numeric string (10-19 digits)
+        """
+        # RESTful format: v1|...|...
+        if v.startswith('v1|') and v.count('|') >= 2:
+            parts = v.split('|')
+            # Validate middle part is numeric
+            if len(parts) >= 3 and parts[1].isdigit():
+                return v
+            else:
+                raise ValueError(
+                    "Invalid RESTful item ID format. "
+                    "Expected: v1|{numeric_id}|{transaction_id}"
+                )
+        # Legacy format: numeric only
+        elif v.isdigit() and 10 <= len(v) <= 19:
+            return v
+        else:
+            raise ValueError(
+                "Invalid item ID format. Use either:\n"
+                "- RESTful: v1|123456789|0 (from Browse API)\n"
+                "- Legacy: 123456789 (10-19 digit numeric)"
+            )
 
-
-class CategoryBrowseInput(BaseModel):
-    """Input validation for category browsing operations."""
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
-    # REQUIRED FIELDS
-    categoryId: str = Field(..., min_length=1, description="eBay category ID")
-    
-    # OPTIONAL FIELDS
-    sort: str = Field(default="BestMatch", description="Sort order for category items")
-    limit: int = Field(default=50, ge=1, le=200, description="Number of items to return")
-    offset: int = Field(default=0, ge=0, description="Number of items to skip")
-    filter: Optional[str] = Field(None, description="Additional filters for category browsing")
-    priceMin: Optional[Decimal] = Field(None, description="Minimum price filter")
-    priceMax: Optional[Decimal] = Field(None, description="Maximum price filter")
-    
-    @field_validator('categoryId')
-    @classmethod
-    def validate_category_id(cls, v):
-        """Validate category ID format."""
-        if not v.isdigit():
-            raise ValueError("Category ID must be numeric")
-        return v
 
 
 # =============================================================================

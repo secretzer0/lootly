@@ -49,10 +49,8 @@ from models.enums import (
     LocaleEnum,
     LengthUnitOfMeasureEnum,
     WeightUnitOfMeasureEnum,
-    PackageTypeEnum,
-    CurrencyCodeEnum
+    PackageTypeEnum
 )
-from models.common import Amount
 from api.errors import EbayApiError
 
 

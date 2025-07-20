@@ -14,7 +14,7 @@ IMPLEMENTATION FOLLOWS: PYDANTIC-FIRST DEVELOPMENT METHODOLOGY
 API Documentation: https://developer.ebay.com/api-docs/sell/account/resources/methods#h2-fulfillment_policy
 OAuth Scope Required: https://api.ebay.com/oauth/api_scope/sell.account
 """
-from typing import Optional, Dict, Any, Union
+from typing import Dict, Any, Union
 from fastmcp import Context
 
 from api.oauth import OAuthManager, OAuthConfig, ConsentRequiredException

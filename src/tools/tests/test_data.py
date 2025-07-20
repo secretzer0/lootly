@@ -482,6 +482,116 @@ class TestDataBrowse:
     }
 
 
+class TestDataBrowseEnhanced:
+    """Enhanced test data for Browse API with filters and sorts."""
+    
+    # Filter Examples
+    FILTER_PRICE_RANGE = "price:[100..500]"
+    FILTER_CONDITIONS = "conditions:{NEW|LIKE_NEW|CERTIFIED_REFURBISHED}"
+    FILTER_SELLERS = "sellers:{techstore|gadgetshop|bestbuy}"
+    FILTER_BUYING_OPTIONS = "buyingOptions:{FIXED_PRICE|BEST_OFFER}"
+    FILTER_COMBINED = "price:[50..200],conditions:{NEW},sellers:{dell}"
+    
+    # Sort Examples
+    SORT_OPTIONS = {
+        "relevance": "BestMatch",
+        "price_low": "price",
+        "price_high": "-price",
+        "newest": "newlyListed",
+        "ending": "endingSoonest",
+        "nearest": "distance"
+    }
+    
+    # Item ID Examples
+    ITEM_ID_RESTFUL_SINGLE = "v1|272662989093|0"
+    ITEM_ID_RESTFUL_MULTI = "v1|162862654321|422363059871"
+    ITEM_ID_LEGACY = "272662989093"
+    ITEM_ID_LEGACY_LONG = "12345678901234567890"  # 20 digits
+    
+    # Search Response with Filters
+    SEARCH_RESPONSE_FILTERED = {
+        "href": "https://api.ebay.com/buy/browse/v1/item_summary/search",
+        "total": 150,
+        "limit": 50,
+        "offset": 0,
+        "itemSummaries": [
+            {
+                "itemId": "v1|123456789|0",
+                "title": "iPhone 13 Pro Max - 256GB - Sierra Blue",
+                "price": {"value": "899.99", "currency": "USD"},
+                "condition": "CERTIFIED_REFURBISHED",
+                "conditionId": "2000",
+                "seller": {"username": "techstore", "feedbackScore": 5000},
+                "itemLocation": {"city": "San Jose", "stateOrProvince": "CA", "country": "US"},
+                "shippingOptions": [{
+                    "shippingCost": {"value": "0.00", "currency": "USD"},
+                    "type": "FIXED"
+                }],
+                "buyingOptions": ["FIXED_PRICE", "BEST_OFFER"],
+                "itemWebUrl": "https://www.ebay.com/itm/123456789",
+                "image": {"imageUrl": "https://i.ebayimg.com/images/123.jpg"},
+                "categories": [{"categoryId": "9355", "categoryName": "Cell Phones & Smartphones"}],
+                "freeShipping": True
+            }
+        ],
+        "refinements": {
+            "aspectDistributions": [],
+            "categoryDistributions": []
+        },
+        "warnings": []
+    }
+    
+    # Item Details Response with Legacy ID
+    ITEM_DETAILS_LEGACY_RESPONSE = {
+        "itemId": "v1|272662989093|0",  # Converted from legacy
+        "title": "Apple iPhone 13 - 128GB - Midnight",
+        "shortDescription": "Latest iPhone 13 with A15 Bionic chip",
+        "description": "<p>Brand new iPhone 13 with all accessories...</p>",
+        "price": {"value": "699.99", "currency": "USD"},
+        "condition": "NEW",
+        "conditionId": "1000",
+        "conditionDescription": "Brand new in sealed box",
+        "seller": {
+            "username": "apple_store",
+            "feedbackScore": 10000,
+            "feedbackPercentage": "99.8"
+        },
+        "itemLocation": {
+            "city": "Cupertino",
+            "stateOrProvince": "CA",
+            "country": "US",
+            "postalCode": "95014"
+        },
+        "shippingOptions": [{
+            "shippingServiceCode": "USPS_PRI",
+            "type": "FIXED",
+            "shippingCost": {"value": "0.00", "currency": "USD"}
+        }],
+        "itemWebUrl": "https://www.ebay.com/itm/272662989093",
+        "image": {"imageUrl": "https://i.ebayimg.com/images/iphone13.jpg"},
+        "additionalImages": [
+            {"imageUrl": "https://i.ebayimg.com/images/iphone13-2.jpg"},
+            {"imageUrl": "https://i.ebayimg.com/images/iphone13-3.jpg"}
+        ],
+        "categories": [
+            {"categoryId": "9355", "categoryName": "Cell Phones & Smartphones"}
+        ],
+        "brand": "Apple",
+        "mpn": "MLPF3LL/A",
+        "gtin": "194252688472",
+        "estimatedAvailabilities": [{
+            "estimatedAvailableQuantity": 25,
+            "estimatedSoldQuantity": 100
+        }],
+        "returnTerms": {
+            "returnsAccepted": True,
+            "returnPeriod": {"unit": "DAY", "value": 30}
+        },
+        "localPickup": False,
+        "freeShipping": True
+    }
+
+
 class TestDataBad:
     """Invalid/edge case test data for resilience testing."""
     

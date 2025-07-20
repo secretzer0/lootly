@@ -15,7 +15,8 @@ config = EbayConfig.from_env()
 # Check credential status and provide helpful feedback
 credential_status = config.check_credential_status()
 if not credential_status["ready_for_basic_apis"]:
-    print("\n⚠️  WARNING: eBay credentials not found!")
+    print(f"\n🚀 Lootly v{__version__} - eBay Integration Server")
+    print("⚠️  WARNING: eBay credentials not found!")
     print("Basic API functionality will be limited.")
     print("\nTo set up credentials:")
     print("1. Copy .env.template to .env")
@@ -23,7 +24,8 @@ if not credential_status["ready_for_basic_apis"]:
     print("3. Add your App ID, Dev ID, and Cert ID to .env")
     print("\nStarting with limited functionality...\n")
 else:
-    print("\n✅ eBay credentials loaded successfully")
+    print(f"\n🚀 Lootly v{__version__} - eBay Integration Server")
+    print("✅ eBay credentials loaded successfully")
     for message in credential_status["messages"]:
         print(f"   {message}")
     print()
@@ -38,7 +40,7 @@ cache_manager = init_cache_manager(config.redis_url)
 
 # Create global MCP instance
 mcp = FastMCP(
-    "Lootly - eBay Integration Server", 
+    f"Lootly v{__version__} - eBay Integration Server", 
     version=__version__
 )
 

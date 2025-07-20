@@ -22,7 +22,6 @@ Professional implementation - no emojis, professional output only.
 import json
 import pytest
 import os
-from decimal import Decimal
 from unittest.mock import AsyncMock, patch
 
 from lootly_server import mcp

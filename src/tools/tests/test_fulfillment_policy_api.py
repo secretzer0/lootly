@@ -43,7 +43,7 @@ from models.enums import (
     TimeDurationUnitEnum,
     CurrencyCodeEnum,
 )
-from models.shipping_enums import DomesticShippingServiceEnum, InternationalShippingServiceEnum
+from models.shipping_enums import DomesticShippingServiceEnum
 from api.errors import EbayApiError
 
 class TestFulfillmentPolicyPydanticModels:
