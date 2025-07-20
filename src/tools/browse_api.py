@@ -197,7 +197,8 @@ async def search_items(
     oauth_config = OAuthConfig(
         client_id=mcp.config.app_id,
         client_secret=mcp.config.cert_id,
-        sandbox=mcp.config.sandbox_mode
+        sandbox=mcp.config.sandbox_mode,
+        redirect_uri=mcp.config.redirect_uri
     )
     oauth_manager = OAuthManager(oauth_config)
     
@@ -301,7 +302,8 @@ async def get_item_details(
     oauth_config = OAuthConfig(
         client_id=mcp.config.app_id,
         client_secret=mcp.config.cert_id,
-        sandbox=mcp.config.sandbox_mode
+        sandbox=mcp.config.sandbox_mode,
+        redirect_uri=mcp.config.redirect_uri
     )
     oauth_manager = OAuthManager(oauth_config)
     
@@ -417,7 +419,8 @@ async def get_items_by_category(
     oauth_config = OAuthConfig(
         client_id=mcp.config.app_id,
         client_secret=mcp.config.cert_id,
-        sandbox=mcp.config.sandbox_mode
+        sandbox=mcp.config.sandbox_mode,
+        redirect_uri=mcp.config.redirect_uri
     )
     oauth_manager = OAuthManager(oauth_config)
     

@@ -376,7 +376,8 @@ class TestTrendingApi(BaseApiTest):
         oauth_config = OAuthConfig(
             client_id="test_app_id",
             client_secret="test_cert_id",
-            sandbox=True
+            sandbox=mcp.config.sandbox_mode,
+            redirect_uri=mcp.config.redirect_uri
         )
         oauth_manager = OAuthManager(oauth_config)
         

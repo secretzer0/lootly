@@ -126,7 +126,8 @@ async def create_return_policy(
     oauth_config = OAuthConfig(
         client_id=mcp.config.app_id,
         client_secret=mcp.config.cert_id,
-        sandbox=mcp.config.sandbox_mode
+        sandbox=mcp.config.sandbox_mode,
+        redirect_uri=mcp.config.redirect_uri
     )
     oauth_manager = OAuthManager(oauth_config)
     
@@ -235,7 +236,8 @@ async def get_return_policies(
     oauth_config = OAuthConfig(
         client_id=mcp.config.app_id,
         client_secret=mcp.config.cert_id,
-        sandbox=mcp.config.sandbox_mode
+        sandbox=mcp.config.sandbox_mode,
+        redirect_uri=mcp.config.redirect_uri
     )
     oauth_manager = OAuthManager(oauth_config)
     
@@ -347,7 +349,8 @@ async def get_return_policy(
     oauth_config = OAuthConfig(
         client_id=mcp.config.app_id,
         client_secret=mcp.config.cert_id,
-        sandbox=mcp.config.sandbox_mode
+        sandbox=mcp.config.sandbox_mode,
+        redirect_uri=mcp.config.redirect_uri
     )
     oauth_manager = OAuthManager(oauth_config)
     
@@ -444,7 +447,8 @@ async def get_return_policy_by_name(
     oauth_config = OAuthConfig(
         client_id=mcp.config.app_id,
         client_secret=mcp.config.cert_id,
-        sandbox=mcp.config.sandbox_mode
+        sandbox=mcp.config.sandbox_mode,
+        redirect_uri=mcp.config.redirect_uri
     )
     oauth_manager = OAuthManager(oauth_config)
     
@@ -557,7 +561,8 @@ async def update_return_policy(
     oauth_config = OAuthConfig(
         client_id=mcp.config.app_id,
         client_secret=mcp.config.cert_id,
-        sandbox=mcp.config.sandbox_mode
+        sandbox=mcp.config.sandbox_mode,
+        redirect_uri=mcp.config.redirect_uri
     )
     oauth_manager = OAuthManager(oauth_config)
     
@@ -656,7 +661,8 @@ async def delete_return_policy(
     oauth_config = OAuthConfig(
         client_id=mcp.config.app_id,
         client_secret=mcp.config.cert_id,
-        sandbox=mcp.config.sandbox_mode
+        sandbox=mcp.config.sandbox_mode,
+        redirect_uri=mcp.config.redirect_uri
     )
     oauth_manager = OAuthManager(oauth_config)
     

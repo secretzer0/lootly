@@ -219,7 +219,8 @@ async def create_or_replace_inventory_item(
     oauth_config = OAuthConfig(
         client_id=mcp.config.app_id,
         client_secret=mcp.config.cert_id,
-        sandbox=mcp.config.sandbox_mode
+        sandbox=mcp.config.sandbox_mode,
+        redirect_uri=mcp.config.redirect_uri
     )
     oauth_manager = OAuthManager(oauth_config)
     
@@ -331,7 +332,8 @@ async def get_inventory_item(
     oauth_config = OAuthConfig(
         client_id=mcp.config.app_id,
         client_secret=mcp.config.cert_id,
-        sandbox=mcp.config.sandbox_mode
+        sandbox=mcp.config.sandbox_mode,
+        redirect_uri=mcp.config.redirect_uri
     )
     oauth_manager = OAuthManager(oauth_config)
     
@@ -438,7 +440,8 @@ async def get_inventory_items(
     oauth_config = OAuthConfig(
         client_id=mcp.config.app_id,
         client_secret=mcp.config.cert_id,
-        sandbox=mcp.config.sandbox_mode
+        sandbox=mcp.config.sandbox_mode,
+        redirect_uri=mcp.config.redirect_uri
     )
     oauth_manager = OAuthManager(oauth_config)
     
@@ -565,7 +568,8 @@ async def delete_inventory_item(
     oauth_config = OAuthConfig(
         client_id=mcp.config.app_id,
         client_secret=mcp.config.cert_id,
-        sandbox=mcp.config.sandbox_mode
+        sandbox=mcp.config.sandbox_mode,
+        redirect_uri=mcp.config.redirect_uri
     )
     oauth_manager = OAuthManager(oauth_config)
     
@@ -664,7 +668,8 @@ async def bulk_create_or_replace_inventory_item(
     oauth_config = OAuthConfig(
         client_id=mcp.config.app_id,
         client_secret=mcp.config.cert_id,
-        sandbox=mcp.config.sandbox_mode
+        sandbox=mcp.config.sandbox_mode,
+        redirect_uri=mcp.config.redirect_uri
     )
     oauth_manager = OAuthManager(oauth_config)
     
@@ -817,7 +822,8 @@ async def bulk_get_inventory_item(
     oauth_config = OAuthConfig(
         client_id=mcp.config.app_id,
         client_secret=mcp.config.cert_id,
-        sandbox=mcp.config.sandbox_mode
+        sandbox=mcp.config.sandbox_mode,
+        redirect_uri=mcp.config.redirect_uri
     )
     oauth_manager = OAuthManager(oauth_config)
     
@@ -966,7 +972,8 @@ async def bulk_update_price_quantity(
     oauth_config = OAuthConfig(
         client_id=mcp.config.app_id,
         client_secret=mcp.config.cert_id,
-        sandbox=mcp.config.sandbox_mode
+        sandbox=mcp.config.sandbox_mode,
+        redirect_uri=mcp.config.redirect_uri
     )
     oauth_manager = OAuthManager(oauth_config)
     

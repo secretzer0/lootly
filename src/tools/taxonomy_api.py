@@ -67,7 +67,8 @@ async def get_default_category_tree_id(
     oauth_config = OAuthConfig(
         client_id=mcp.config.app_id,
         client_secret=mcp.config.cert_id,
-        sandbox=mcp.config.sandbox_mode
+        sandbox=mcp.config.sandbox_mode,
+        redirect_uri=mcp.config.redirect_uri
     )
     oauth_manager = OAuthManager(oauth_config)
     
@@ -170,7 +171,8 @@ async def get_category_tree(
         oauth_config = OAuthConfig(
             client_id=mcp.config.app_id,
             client_secret=mcp.config.cert_id,
-            sandbox=mcp.config.sandbox_mode
+            sandbox=mcp.config.sandbox_mode,
+        redirect_uri=mcp.config.redirect_uri
         )
         oauth_manager = OAuthManager(oauth_config)
         
@@ -258,7 +260,8 @@ async def get_category_subtree(
         oauth_config = OAuthConfig(
             client_id=mcp.config.app_id,
             client_secret=mcp.config.cert_id,
-            sandbox=mcp.config.sandbox_mode
+            sandbox=mcp.config.sandbox_mode,
+        redirect_uri=mcp.config.redirect_uri
         )
         oauth_manager = OAuthManager(oauth_config)
         
@@ -352,7 +355,8 @@ async def get_category_suggestions(
     oauth_config = OAuthConfig(
         client_id=mcp.config.app_id,
         client_secret=mcp.config.cert_id,
-        sandbox=mcp.config.sandbox_mode
+        sandbox=mcp.config.sandbox_mode,
+        redirect_uri=mcp.config.redirect_uri
     )
     oauth_manager = OAuthManager(oauth_config)
     
@@ -443,7 +447,8 @@ async def get_expired_categories(
     oauth_config = OAuthConfig(
         client_id=mcp.config.app_id,
         client_secret=mcp.config.cert_id,
-        sandbox=mcp.config.sandbox_mode
+        sandbox=mcp.config.sandbox_mode,
+        redirect_uri=mcp.config.redirect_uri
     )
     oauth_manager = OAuthManager(oauth_config)
     

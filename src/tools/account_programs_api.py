@@ -57,7 +57,8 @@ async def get_opted_in_programs(ctx: Context) -> str:
     oauth_config = OAuthConfig(
         client_id=mcp.config.app_id,
         client_secret=mcp.config.cert_id,
-        sandbox=mcp.config.sandbox_mode
+        sandbox=mcp.config.sandbox_mode,
+        redirect_uri=mcp.config.redirect_uri
     )
     oauth_manager = OAuthManager(oauth_config)
     
@@ -166,7 +167,8 @@ async def opt_in_to_program(
     oauth_config = OAuthConfig(
         client_id=mcp.config.app_id,
         client_secret=mcp.config.cert_id,
-        sandbox=mcp.config.sandbox_mode
+        sandbox=mcp.config.sandbox_mode,
+        redirect_uri=mcp.config.redirect_uri
     )
     oauth_manager = OAuthManager(oauth_config)
     
@@ -266,7 +268,8 @@ async def opt_out_of_program(
     oauth_config = OAuthConfig(
         client_id=mcp.config.app_id,
         client_secret=mcp.config.cert_id,
-        sandbox=mcp.config.sandbox_mode
+        sandbox=mcp.config.sandbox_mode,
+        redirect_uri=mcp.config.redirect_uri
     )
     oauth_manager = OAuthManager(oauth_config)
     
